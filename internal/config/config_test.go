@@ -1,0 +1,67 @@
+package config_test
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/jabiOP/clindar/internal/config"
+)
+
+func writeFile(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestLoadMissingFileGivesDefaults(t *testing.T) {
+	c, err := config.Load(filepath.Join(t.TempDir(), "nope.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c != config.Default() {
+		t.Errorf("got %+v, want defaults %+v", c, config.Default())
+	}
+}
+
+func TestLoadOverridesOnlyGivenKeys(t *testing.T) {
+	c, err := config.Load(writeFile(t, "sync_interval = \"20s\"\nweek_start = \"sunday\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SyncInterval.Duration != 20*time.Second {
+		t.Errorf("SyncInterval = %v", c.SyncInterval)
+	}
+	if c.FirstWeekday() != time.Sunday {
+		t.Errorf("FirstWeekday = %v", c.FirstWeekday())
+	}
+	if c.StaleAfter != config.Default().StaleAfter {
+		t.Errorf("StaleAfter changed to %v", c.StaleAfter)
+	}
+}
+
+func TestLoadRejectsBadInput(t *testing.T) {
+	tests := map[string]string{
+		"unknown key":        "sync_intervall = \"20s\"\n",
+		"bad duration":       "sync_interval = \"soon\"\n",
+		"bad week_start":     "week_start = \"wednesday\"\n",
+		"bad send_updates":   "send_updates = \"some\"\n",
+		"interval too short": "sync_interval = \"1s\"\n",
+	}
+	for name, content := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := config.Load(writeFile(t, content))
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), "config.toml") {
+				t.Errorf("error %q should mention the file", err)
+			}
+		})
+	}
+}
