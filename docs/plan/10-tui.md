@@ -284,6 +284,12 @@ Mon       Tue       Wed       Thu       Fri       Sat       Sun
 **Goal:** `renderList` draws the day-grouped agenda for the two weeks from the selected day. The cursor row is
 marked `▶` and the view scrolls to keep it visible.
 
+**Never measure or cut text that already contains color codes.** `fit()` counts ANSI escape codes as width,
+so fitting an already-colored row cut off its calendar label, sometimes mid-code, but only on color terminals.
+The golden test can't see that, because tests run with colors off. So each row is built from **plain text** and
+styled once, and a second test turns colors on and checks the label survives. (Found by the implementer in
+Task 10.4's terminal walk-through.)
+
 **Files:** create `internal/tui/list_test.go`, `internal/tui/list.go`
 
 **Steps**
@@ -292,8 +298,13 @@ marked `▶` and the view scrolls to keep it visible.
 package tui
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/testutil"
@@ -312,6 +323,25 @@ func TestRenderListScrollsToCursor(t *testing.T) {
 
 	testutil.Golden(t, "list_scrolled", got)
 }
+
+// With colors on, the selected row must keep its calendar label. (Golden files
+// run without colors, so they can't catch escape codes being counted as width.)
+func TestRenderListSelectedRowKeepsCalendarWithColors(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	ny := testutil.NY(t)
+	from := time.Date(2026, 11, 9, 0, 0, 0, 0, ny)
+	e := testutil.Timed("e", "Lunch", time.Date(2026, 11, 9, 12, 0, 0, 0, ny), time.Hour)
+	cals := map[string]model.Calendar{testutil.Calendar: {ID: testutil.Calendar, Name: "Me", Color: "#4285f4"}}
+
+	got := renderList(listView{days: model.GroupByDay([]model.Event{e}, from, 1), cursor: 0,
+		calendars: cals, width: 60, height: 5, loc: ny})
+
+	plain := regexp.MustCompile("\x1b\\[[0-9;]*m").ReplaceAllString(got, "")
+	if !strings.Contains(plain, "▶") || !strings.Contains(plain, "● Me") {
+		t.Errorf("selected row lost its calendar label:\n%s", plain)
+	}
+}
 ```
 2. Run: compile failure.
 3. Implement:
@@ -321,6 +351,8 @@ package tui
 import (
 	"strings"
 	"time"
+
+	"github.com/mattn/go-runewidth"
 
 	"github.com/jabiOP/clindar/internal/model"
 )
@@ -358,7 +390,7 @@ func renderList(v listView) string {
 		}
 		rows = append(rows, row{headerStyle.Render(d.Date.Format("Mon 02 Jan")), -1})
 		for _, e := range d.Events {
-			rows = append(rows, row{v.line(e), n})
+			rows = append(rows, row{v.line(e, n == v.cursor), n})
 			n++
 		}
 	}
@@ -375,17 +407,16 @@ func renderList(v listView) string {
 	top := max(0, cursorRow-v.height+2)
 	var b strings.Builder
 	for i := top; i < len(rows) && i < top+v.height; i++ {
-		text := rows[i].text
-		if rows[i].entry == v.cursor {
-			// A visible marker as well as reverse video: works without color, and in golden files.
-			text = selectedStyle.Render(fit("▶"+strings.TrimPrefix(text, " "), v.width))
-		}
-		b.WriteString(text + "\n")
+		b.WriteString(rows[i].text + "\n")
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
 
-func (v listView) line(e model.Event) string {
+// line renders one event row. The selected row gets a visible ▶ marker as well
+// as reverse video (works without color, and in golden files). It is built from
+// plain text and styled once: fitting an already-colored string would count the
+// escape codes as width and cut off the calendar label.
+func (v listView) line(e model.Event, selected bool) string {
 	when := "all day    "
 	if !e.AllDay {
 		s, end := e.Span(v.loc)
@@ -396,8 +427,17 @@ func (v listView) line(e model.Event) string {
 	if self := e.SelfAttendee(); self != nil && self.Response != model.ResponseAccepted {
 		resp = " [" + string(self.Response) + "]"
 	}
-	text := fit("  "+when+"  "+strings.Join(strings.Fields(e.Title), " ")+resp, max(v.width-len(cal.Name)-4, 10))
-	return text + "  " + calendarStyle(cal.Color).Render("● "+cal.Name)
+	marker := "  "
+	if selected {
+		marker = "▶ "
+	}
+	label := "● " + cal.Name
+	text := fit(marker+when+"  "+strings.Join(strings.Fields(e.Title), " ")+resp,
+		max(v.width-runewidth.StringWidth(cal.Name)-4, 10))
+	if selected {
+		return selectedStyle.Render(text + "  " + label)
+	}
+	return text + "  " + calendarStyle(cal.Color).Render(label)
 }
 ```
 4. `go test ./internal/tui -update -run List`, then inspect `testdata/list_scrolled.golden`. It must end with the `▶` row:
