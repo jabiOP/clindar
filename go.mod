@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/google/go-cmp v0.7.0
+	github.com/teambition/rrule-go v1.8.2
 	modernc.org/sqlite v1.62.0
 )
 
