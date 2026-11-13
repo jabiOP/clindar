@@ -2174,3 +2174,50 @@ Same setup as Task 12.6, then:
       `e`/`d`/`r` explain refusals in the status bar.
 
 **Commit:** `docs: note terminal hover support`
+
+---
+
+## Task 12.10: Two small fixes from the implementer's notes
+
+> Written as a plan only, not compiled (like Tasks 12.7–12.9).
+
+**1. "Go to date" keeps a stale list cursor (bug).** In the list, after `g` + a date + Enter, `m.cursor` keeps its old
+index into the *new* day's entries, so Enter can open the wrong event. `h`/`l` and `t` already reset it to the first
+event; `g` must too.
+
+**2. One message for "edit" and "drag".** `canDrag`'s reason says only the organizer can "move" it, but the same reason is
+shown when `e` is refused on an invitation (Task 12.8). Use "change", which fits both.
+
+**Files:** modify `internal/tui/nav.go`, `internal/tui/drag.go`; add a test to `internal/tui/model_test.go`
+
+**Steps**
+1. Test, in `model_test.go`:
+   ```go
+   func TestGotoDateResetsListCursor(t *testing.T) {
+   	f := newFixture(t)
+   	f.keys("tab", "j") // list from Thu 12; cursor on the 2nd event (Lunch)
+   	if f.model().cursor != 1 {
+   		t.Fatalf("setup: cursor = %d, want 1", f.model().cursor)
+   	}
+
+   	f.keys("g", "mon", "enter") // go to Mon Nov 16
+
+   	m := f.model()
+   	if !m.selected.Equal(time.Date(2026, 11, 16, 0, 0, 0, 0, f.ny)) || m.cursor != 0 {
+   		t.Errorf("selected = %v, cursor = %d; want Nov 16 and the first event", m.selected, m.cursor)
+   	}
+   }
+   ```
+   Run: it fails with `cursor = 1`.
+2. Fix `gotoKey` in `nav.go`: in the Enter branch, after `m = m.moveDays(…)`, add:
+   ```go
+   		m.cursor = 0 // like h/l/t: a new day starts at its first event
+   ```
+3. In `drag.go`, change `canDrag`'s guest message to:
+   ```go
+   		return false, "you're a guest: only the organizer can change it"
+   ```
+   The Task 12.8 test only checks for "guest", so it still passes.
+4. `go test -race ./internal/tui`: pass.
+
+**Commit:** `fix(tui): reset list cursor after go-to-date; neutral guest message`
