@@ -1,0 +1,109 @@
+package gcal_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"google.golang.org/api/option"
+
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
+)
+
+// newClient points a real gcal.Client at a fake HTTP server. This tests our
+// use of the Google client library (paths, headers, paging, errors) without
+// the network.
+func newClient(t *testing.T, handler http.HandlerFunc) *gcal.Client {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	c, err := gcal.NewClient(context.Background(), "acct", srv.Client(), option.WithEndpoint(srv.URL+"/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestListEventsFollowsPagesAndReturnsSyncToken(t *testing.T) {
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/calendars/cal/events" {
+			http.Error(w, "unexpected path "+r.URL.Path, 500)
+			return
+		}
+		if r.URL.Query().Get("showDeleted") != "true" || r.URL.Query().Get("syncToken") != "old" {
+			http.Error(w, "missing params: "+r.URL.RawQuery, 500)
+			return
+		}
+		switch r.URL.Query().Get("pageToken") {
+		case "":
+			fmt.Fprint(w, `{"items":[{"id":"a","status":"cancelled"}],"nextPageToken":"p2"}`)
+		case "p2":
+			fmt.Fprint(w, `{"items":[{"id":"b","summary":"B","start":{"date":"2026-11-14"},"end":{"date":"2026-11-15"}}],"nextSyncToken":"new"}`)
+		}
+	})
+
+	events, token, err := c.ListEvents(context.Background(), "cal", "old")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token != "new" || len(events) != 2 || events[0].ID != "a" || events[1].Title != "B" {
+		t.Errorf("token=%q events=%+v", token, events)
+	}
+}
+
+func TestListEventsGoneMeansTokenExpired(t *testing.T) {
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":{"code":410,"message":"Sync token is no longer valid"}}`, http.StatusGone)
+	})
+
+	_, _, err := c.ListEvents(context.Background(), "cal", "old")
+
+	if !errors.Is(err, gcal.ErrSyncTokenExpired) {
+		t.Errorf("err = %v, want ErrSyncTokenExpired", err)
+	}
+}
+
+func TestPatchSendsIfMatchAndMapsErrors(t *testing.T) {
+	tests := []struct {
+		status  int
+		body    string
+		wantErr error // nil = plain transient error
+	}{
+		{http.StatusPreconditionFailed, `{"error":{"code":412,"message":"Precondition Failed"}}`, gcal.ErrConflict},
+		{http.StatusNotFound, `{"error":{"code":404,"message":"Not Found"}}`, gcal.ErrNotFound},
+		{http.StatusBadRequest, `{"error":{"code":400,"message":"Bad Request"}}`, gcal.ErrPermanent},
+		{http.StatusForbidden, `{"error":{"code":403,"message":"Rate","errors":[{"reason":"rateLimitExceeded"}]}}`, nil},
+		{http.StatusUnauthorized, `{"error":{"code":401,"message":"Invalid Credentials"}}`, gcal.ErrUnauthorized},
+		{http.StatusServiceUnavailable, `{"error":{"code":503,"message":"Unavailable"}}`, nil},
+	}
+	for _, tt := range tests {
+		t.Run(http.StatusText(tt.status), func(t *testing.T) {
+			var gotIfMatch string
+			c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+				gotIfMatch = r.Header.Get("If-Match")
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.status)
+				fmt.Fprint(w, tt.body)
+			})
+
+			_, err := c.PatchEvent(context.Background(), "cal", model.Event{ID: "e1", Title: "x"}, `"etag1"`, "none")
+
+			if gotIfMatch != `"etag1"` {
+				t.Errorf("If-Match = %q", gotIfMatch)
+			}
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			for _, sentinel := range []error{gcal.ErrConflict, gcal.ErrNotFound, gcal.ErrPermanent, gcal.ErrUnauthorized} {
+				if errors.Is(err, sentinel) != (sentinel == tt.wantErr) {
+					t.Errorf("errors.Is(%v, %v) = %v", err, sentinel, !(sentinel == tt.wantErr))
+				}
+			}
+		})
+	}
+}
