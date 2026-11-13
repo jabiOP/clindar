@@ -14,7 +14,9 @@ import (
 	"github.com/jabiOP/clindar/internal/auth"
 	"github.com/jabiOP/clindar/internal/config"
 	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/service"
 	"github.com/jabiOP/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/tui"
 )
 
 // Version is set by main.
@@ -82,7 +84,14 @@ func NewRootCmd(app *App) *cobra.Command {
 		SilenceUsage:  true, // don't dump usage on runtime errors
 		SilenceErrors: true, // Main prints errors once
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help() // Phase 10 replaces this with the TUI
+			if !app.IsTTY {
+				return cmd.Help()
+			}
+			svc, err := app.Service(cmd.Context())
+			if err != nil {
+				return err
+			}
+			return tui.Run(cmd.Context(), tuiDeps(app, svc))
 		},
 	}
 	root.SetIn(app.Stdin)
@@ -114,5 +123,21 @@ func exactArgs(n int) cobra.PositionalArgs {
 			return usageError{err}
 		}
 		return nil
+	}
+}
+
+// tuiDeps maps the app's config onto the TUI. It's a separate function so a
+// test can check every setting actually reaches the TUI.
+func tuiDeps(app *App, svc *service.Service) tui.Deps {
+	return tui.Deps{
+		Service: svc,
+		Sync: func(ctx context.Context) error {
+			_, err := app.SyncNow(ctx) // skipped quietly if the daemon is syncing
+			return err
+		},
+		Now:             app.Now,
+		WeekStart:       app.Config.FirstWeekday(),
+		SyncInterval:    app.Config.SyncInterval.Duration,
+		DefaultCalendar: app.Config.DefaultCalendar,
 	}
 }
