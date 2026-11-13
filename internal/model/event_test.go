@@ -73,3 +73,28 @@ func TestEventSpanAllDayUsesLocalMidnight(t *testing.T) {
 		t.Errorf("end = %v, want %v", end, want)
 	}
 }
+
+func TestCloneDoesNotShareSlices(t *testing.T) {
+	orig := model.Event{
+		Recurrence: []string{"RRULE:FREQ=DAILY"},
+		Attendees:  []model.Attendee{{Email: "me@x.com", Self: true, Response: model.ResponseNeedsAction}},
+	}
+
+	c := orig.Clone()
+	c.Recurrence[0] = "changed"
+	c.SelfAttendee().Response = model.ResponseAccepted
+
+	if orig.Recurrence[0] != "RRULE:FREQ=DAILY" {
+		t.Errorf("orig.Recurrence changed to %q", orig.Recurrence[0])
+	}
+	if orig.Attendees[0].Response != model.ResponseNeedsAction {
+		t.Errorf("orig attendee response changed to %q", orig.Attendees[0].Response)
+	}
+}
+
+func TestSelfAttendeeNilWhenAbsent(t *testing.T) {
+	e := model.Event{Attendees: []model.Attendee{{Email: "other@x.com"}}}
+	if a := e.SelfAttendee(); a != nil {
+		t.Errorf("SelfAttendee() = %+v, want nil", a)
+	}
+}

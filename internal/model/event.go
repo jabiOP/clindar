@@ -98,3 +98,22 @@ func civilMidnight(t time.Time, loc *time.Location) time.Time {
 
 // StartOfDay returns local midnight of the day containing t.
 func StartOfDay(t time.Time) time.Time { return civilMidnight(t, t.Location()) }
+
+// Clone returns a deep copy. Always Clone before modifying an Event you didn't create.
+func (e Event) Clone() Event {
+	c := e
+	c.Recurrence = append([]string(nil), e.Recurrence...)
+	c.Attendees = append([]Attendee(nil), e.Attendees...)
+	return c
+}
+
+// SelfAttendee returns a pointer into e.Attendees for the current user, or nil.
+// Note the pointer receiver: the returned pointer modifies e itself.
+func (e *Event) SelfAttendee() *Attendee {
+	for i := range e.Attendees {
+		if e.Attendees[i].Self {
+			return &e.Attendees[i]
+		}
+	}
+	return nil
+}
