@@ -206,6 +206,7 @@ func TestNext(t *testing.T) {
 
 // Invited to one occurrence of someone else's series: Google gives us the
 // instance without its series. It must show up, and behave like a one-off.
+// (RSVP without a scope is checked in delete_test.go: RSVP arrives in Task 4.4.)
 func TestOrphanInstanceIsShownAndEditableAsOneOff(t *testing.T) {
 	e := newEnv(t)
 	inv := testutil.Timed("theirs_20261116T150000Z", "Their weekly sync", e.at(16, 10, 0), time.Hour)
@@ -219,9 +220,6 @@ func TestOrphanInstanceIsShownAndEditableAsOneOff(t *testing.T) {
 	got, err := e.svc.Get(e.ctx, inv.ID)
 	if err != nil || got.IsInstance() {
 		t.Fatalf("Get = %+v, %v; want a one-off", got, err)
-	}
-	if err := e.svc.RSVP(e.ctx, inv.ID, model.ResponseAccepted, service.ScopeNone); err != nil {
-		t.Errorf("RSVP without scope: %v", err)
 	}
 }
 ```
@@ -1152,6 +1150,20 @@ func TestRSVP(t *testing.T) {
 	}
 	if err := e.svc.RSVP(e.ctx, "mine", model.ResponseAccepted, service.ScopeNone); !errors.Is(err, service.ErrNotAttendee) {
 		t.Errorf("RSVP on own event: err = %v, want ErrNotAttendee", err)
+	}
+}
+
+// Moved here from Task 4.1 (see DEVIATIONS.md): an orphan instance is presented
+// as a one-off, so RSVP needs no scope.
+func TestRSVPOnOrphanInstanceNeedsNoScope(t *testing.T) {
+	e := newEnv(t)
+	inv := testutil.Timed("theirs_20261116T150000Z", "Their weekly sync", e.at(16, 10, 0), time.Hour)
+	inv.SeriesID, inv.OriginalStart = "theirs", e.at(16, 10, 0)
+	inv.Attendees = []model.Attendee{{Email: testutil.Account, Self: true, Response: model.ResponseNeedsAction}}
+	e.put(inv)
+
+	if err := e.svc.RSVP(e.ctx, inv.ID, model.ResponseAccepted, service.ScopeNone); err != nil {
+		t.Errorf("RSVP without scope: %v", err)
 	}
 }
 ```
