@@ -4,6 +4,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mattn/go-runewidth"
+
 	"github.com/jabiOP/clindar/internal/model"
 )
 
@@ -40,7 +42,7 @@ func renderList(v listView) string {
 		}
 		rows = append(rows, row{headerStyle.Render(d.Date.Format("Mon 02 Jan")), -1})
 		for _, e := range d.Events {
-			rows = append(rows, row{v.line(e), n})
+			rows = append(rows, row{v.line(e, n == v.cursor), n})
 			n++
 		}
 	}
@@ -57,17 +59,16 @@ func renderList(v listView) string {
 	top := max(0, cursorRow-v.height+2)
 	var b strings.Builder
 	for i := top; i < len(rows) && i < top+v.height; i++ {
-		text := rows[i].text
-		if rows[i].entry == v.cursor {
-			// A visible marker as well as reverse video: works without color, and in golden files.
-			text = selectedStyle.Render(fit("▶"+strings.TrimPrefix(text, " "), v.width))
-		}
-		b.WriteString(text + "\n")
+		b.WriteString(rows[i].text + "\n")
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
 
-func (v listView) line(e model.Event) string {
+// line renders one event row. The selected row gets a visible ▶ marker as well
+// as reverse video (works without color, and in golden files). It is built from
+// plain text and styled once: fitting an already-colored string would count the
+// escape codes as width and cut off the calendar label.
+func (v listView) line(e model.Event, selected bool) string {
 	when := "all day    "
 	if !e.AllDay {
 		s, end := e.Span(v.loc)
@@ -78,6 +79,15 @@ func (v listView) line(e model.Event) string {
 	if self := e.SelfAttendee(); self != nil && self.Response != model.ResponseAccepted {
 		resp = " [" + string(self.Response) + "]"
 	}
-	text := fit("  "+when+"  "+strings.Join(strings.Fields(e.Title), " ")+resp, max(v.width-len(cal.Name)-4, 10))
-	return text + "  " + calendarStyle(cal.Color).Render("● "+cal.Name)
+	marker := "  "
+	if selected {
+		marker = "▶ "
+	}
+	label := "● " + cal.Name
+	text := fit(marker+when+"  "+strings.Join(strings.Fields(e.Title), " ")+resp,
+		max(v.width-runewidth.StringWidth(cal.Name)-4, 10))
+	if selected {
+		return selectedStyle.Render(text + "  " + label)
+	}
+	return text + "  " + calendarStyle(cal.Color).Render(label)
 }
