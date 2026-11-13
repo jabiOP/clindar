@@ -1493,10 +1493,45 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 
 **Goal:** `clindar` with no arguments opens the TUI when stdout is a terminal, and prints help otherwise.
 
-**Files:** modify `internal/cli/root.go`
+The mapping from config to `tui.Deps` lives in its own function, `tuiDeps`, so a test can check that every setting
+(default calendar, week start, sync interval) **actually reaches** the TUI. A form-level test can't catch
+a setting that's never passed in.
+
+**Files:** modify `internal/cli/root.go`; create `internal/cli/tuideps_test.go`
 
 **Steps**
-1. Replace the root command's `RunE` with the version below and add the import `"github.com/yourname/clindar/internal/tui"`:
+1. Test:
+```go
+package cli
+
+import (
+	"testing"
+	"time"
+
+	"github.com/yourname/clindar/internal/config"
+)
+
+// Every TUI-relevant config setting must reach the TUI. (A form test alone
+// can't catch a setting that's never passed in.)
+func TestTUIDepsCarryConfig(t *testing.T) {
+	cfg := config.Default()
+	cfg.DefaultCalendar = "Work"
+	cfg.WeekStart = "sunday"
+	cfg.SyncInterval = config.Duration{Duration: 20 * time.Second}
+
+	d := tuiDeps(&App{Config: cfg, Now: time.Now}, nil)
+
+	if d.DefaultCalendar != "Work" || d.WeekStart != time.Sunday || d.SyncInterval != 20*time.Second {
+		t.Errorf("deps = %+v", d)
+	}
+	if d.Sync == nil || d.Now == nil {
+		t.Error("Sync and Now must be set")
+	}
+}
+```
+   Run: compile failure.
+2. In `root.go`, replace the root command's `RunE` with the version below, add `tuiDeps` at the end of the file,
+   and add the imports `"github.com/yourname/clindar/internal/service"` and `"github.com/yourname/clindar/internal/tui"`:
 ```go
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !app.IsTTY {
@@ -1506,21 +1541,29 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 			if err != nil {
 				return err
 			}
-			return tui.Run(cmd.Context(), tui.Deps{
-				Service: svc,
-				Sync: func(ctx context.Context) error {
-					_, err := app.SyncNow(ctx) // skipped quietly if the daemon is syncing
-					return err
-				},
-				Now:          app.Now,
-				WeekStart:    app.Config.FirstWeekday(),
-				SyncInterval: app.Config.SyncInterval.Duration,
-			})
+			return tui.Run(cmd.Context(), tuiDeps(app, svc))
 		},
+
+// tuiDeps maps the app's config onto the TUI. It's a separate function so a
+// test can check every setting actually reaches the TUI.
+func tuiDeps(app *App, svc *service.Service) tui.Deps {
+	return tui.Deps{
+		Service: svc,
+		Sync: func(ctx context.Context) error {
+			_, err := app.SyncNow(ctx) // skipped quietly if the daemon is syncing
+			return err
+		},
+		Now:             app.Now,
+		WeekStart:       app.Config.FirstWeekday(),
+		SyncInterval:    app.Config.SyncInterval.Duration,
+		DefaultCalendar: app.Config.DefaultCalendar,
+	}
+}
 ```
-2. `go build -o clindar . && ./clindar`. Walk through everything: `h j k l`, `J K`, `t`, `g` + "fri", `tab`,
+3. `go test ./internal/cli/`: pass.
+4. `go build -o clindar . && ./clindar`. Walk through everything: `h j k l`, `J K`, `t`, `g` + "fri", `tab`,
    `enter` on an event, `a` to add, `e` to edit a recurring instance (you get the scope picker), `d`, `r`, `s`, `?`, `q`.
-3. Resize the terminal while it runs. Nothing should wrap or crash.
+5. Resize the terminal while it runs. Nothing should wrap or crash.
 
 **Troubleshooting:** if the first frame takes seconds to appear, your terminal isn't answering the
 background-color query (some multiplexers and `script` don't). Real terminals answer instantly.

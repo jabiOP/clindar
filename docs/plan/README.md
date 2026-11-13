@@ -16,7 +16,7 @@ These files explain *how*, as small tasks.
   4. Run the whole package's tests.
   5. Commit.
 - Code in this plan is meant to be used as-is. If you must deviate (an API changed, a bug in the plan), do it,
-  then write one line in `docs/plans/clindar/DEVIATIONS.md` saying what and why.
+  then write one line in `docs/plan/DEVIATIONS.md` saying what and why.
 - **Don't add features not in the task.** If you think something is missing, write it in `DEVIATIONS.md` under
   "Ideas" and move on. (YAGNI.)
 - **Don't copy-paste logic.** Each piece of logic lives in exactly one place, and the plan says where. If you're about

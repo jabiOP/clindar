@@ -928,7 +928,10 @@ Three ideas:
    Instead it keeps the newer edit and points it at the etag Google just returned. `TestCompleteOpWhenEditedInFlight` covers exactly this.
 3. **RSVP is its own kind of op** (`rsvp`). It sends only the attendee list, without If-Match (Task 6.2 explains
    why). When it meets an insert or patch for the same event, it merges into them, since they carry the
-   attendee list anyway.
+   attendee list anyway. **If-Match rule:** a merged op normally keeps the existing op's If-Match, which is the etag the
+   user's *first* pending change was based on. A pending RSVP has none, though, so a patch or delete merged
+   into it keeps **its own** If-Match. Otherwise it would silently overwrite the organizer's changes instead
+   of conflicting. Note that the test's `rsvp()` helper has no If-Match, exactly like the real ones.
 
 `Op.CreatedAt` is set by the caller from *its* clock. The store never calls `time.Now()` (README testing rule 5).
 
@@ -957,6 +960,13 @@ func op(kind store.OpKind, title string) store.Op {
 	}
 }
 
+// rsvp is how the service queues RSVPs: deliberately without If-Match.
+func rsvp(title string) store.Op {
+	o := op(store.OpRSVP, title)
+	o.IfMatch = ""
+	return o
+}
+
 func pending(t *testing.T, s *store.Store) []store.Op {
 	t.Helper()
 	ops, err := s.PendingOps(context.Background(), testutil.Account)
@@ -979,9 +989,12 @@ func TestEnqueueCoalescing(t *testing.T) {
 		{"patch then patch keeps first If-Match", []store.Op{op(store.OpPatch, "a"), op(store.OpPatch, "b")}, store.OpPatch, "b", `"etag-a"`},
 		{"insert then delete becomes delete", []store.Op{op(store.OpInsert, "a"), op(store.OpDelete, "")}, store.OpDelete, "", `"etag-a"`},
 		{"patch then delete becomes delete", []store.Op{op(store.OpPatch, "a"), op(store.OpDelete, "")}, store.OpDelete, "", `"etag-a"`},
-		{"patch then rsvp stays patch", []store.Op{op(store.OpPatch, "a"), op(store.OpRSVP, "b")}, store.OpPatch, "b", `"etag-a"`},
-		{"rsvp then rsvp stays rsvp", []store.Op{op(store.OpRSVP, "a"), op(store.OpRSVP, "b")}, store.OpRSVP, "b", `"etag-a"`},
-		{"rsvp then patch becomes patch", []store.Op{op(store.OpRSVP, "a"), op(store.OpPatch, "b")}, store.OpPatch, "b", `"etag-a"`},
+		{"patch then rsvp stays patch", []store.Op{op(store.OpPatch, "a"), rsvp("b")}, store.OpPatch, "b", `"etag-a"`},
+		{"rsvp then rsvp stays unconditional", []store.Op{rsvp("a"), rsvp("b")}, store.OpRSVP, "b", ""},
+		// A pending RSVP has no If-Match; an edit merged into it must keep its own,
+		// or it would overwrite the organizer's changes instead of conflicting.
+		{"rsvp then patch takes the patch's If-Match", []store.Op{rsvp("a"), op(store.OpPatch, "b")}, store.OpPatch, "b", `"etag-b"`},
+		{"rsvp then delete takes the delete's If-Match", []store.Op{rsvp("a"), op(store.OpDelete, "")}, store.OpDelete, "", `"etag-"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1143,11 +1156,17 @@ var ErrPendingDelete = errors.New("event has a pending delete")
 //	insert    rsvp    insert (new payload: the insert carries the response)
 //	patch     rsvp    patch  (new payload: the patch carries the response)
 //	rsvp      rsvp    rsvp   (new payload)
-//	rsvp      patch   patch  (new payload: it carries the response too)
+//	rsvp      patch   patch  (new payload, the PATCH's If-Match: see below)
+//	rsvp      delete  delete (the DELETE's If-Match)
 //	insert    delete  delete (cheap 404 if the insert never landed; safe if it was in flight)
 //	patch     delete  delete (original If-Match)
 //	delete    any     ErrPendingDelete
 //	any       insert  error  (IDs are unique; this is a bug)
+//
+// If-Match normally stays the existing op's: it is the etag the user's FIRST
+// pending change was based on. The exception is a pending rsvp, which has no
+// If-Match on purpose; a patch or delete merged into it must keep its own,
+// or it would silently overwrite changes made on Google (design §3).
 func (s *Store) Enqueue(ctx context.Context, op Op) error {
 	return s.InTx(ctx, func(tx *Store) error {
 		existing, err := tx.pendingFor(ctx, op.AccountID, op.CalendarID, op.EventID)
@@ -1162,15 +1181,15 @@ func (s *Store) Enqueue(ctx context.Context, op Op) error {
 			return fmt.Errorf("enqueue %s for %s: %w", op.Kind, op.EventID, ErrPendingDelete)
 		case op.Kind == OpInsert:
 			return fmt.Errorf("enqueue insert for %s: already has a pending %s", op.EventID, existing.Kind)
-		case op.Kind == OpPatch || op.Kind == OpRSVP:
-			kind := existing.Kind // insert/patch already send the attendee list
-			if existing.Kind == OpRSVP {
-				kind = op.Kind
-			}
-			return tx.rewriteOp(ctx, existing.Seq, kind, op.Payload, op.SendUpdates)
-		default: // op.Kind == OpDelete
-			return tx.rewriteOp(ctx, existing.Seq, OpDelete, model.Event{}, op.SendUpdates)
 		}
+		kind, ifMatch := existing.Kind, existing.IfMatch // insert/patch already send the attendee list
+		if existing.Kind == OpRSVP {
+			kind, ifMatch = op.Kind, op.IfMatch
+		}
+		if op.Kind == OpDelete {
+			return tx.rewriteOp(ctx, existing.Seq, OpDelete, model.Event{}, ifMatch, op.SendUpdates)
+		}
+		return tx.rewriteOp(ctx, existing.Seq, kind, op.Payload, ifMatch, op.SendUpdates)
 	})
 }
 
@@ -1187,13 +1206,13 @@ func (s *Store) insertOp(ctx context.Context, op Op) error {
 	return err
 }
 
-func (s *Store) rewriteOp(ctx context.Context, seq int64, kind OpKind, payload model.Event, sendUpdates string) error {
+func (s *Store) rewriteOp(ctx context.Context, seq int64, kind OpKind, payload model.Event, ifMatch, sendUpdates string) error {
 	p, err := encodePayload(kind, payload)
 	if err != nil {
 		return err
 	}
-	_, err = s.q.ExecContext(ctx, `UPDATE outbox SET op = ?, payload = ?, send_updates = ?, version = version + 1
-		WHERE seq = ?`, kind, p, sendUpdatesOrNone(sendUpdates), seq)
+	_, err = s.q.ExecContext(ctx, `UPDATE outbox SET op = ?, payload = ?, if_match = ?, send_updates = ?,
+		version = version + 1 WHERE seq = ?`, kind, p, ifMatch, sendUpdatesOrNone(sendUpdates), seq)
 	return err
 }
 

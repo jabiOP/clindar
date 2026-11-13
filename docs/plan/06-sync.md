@@ -587,6 +587,33 @@ func TestRSVPSurvivesOrganizerEdits(t *testing.T) {
 		t.Errorf("attendees = %+v, want our acceptance", got.Attendees)
 	}
 }
+
+// RSVP, then edit the same event before syncing, while the organizer changes
+// it on Google. Our edit must still conflict (Google wins), not overwrite them.
+func TestEditAfterRSVPStillConflicts(t *testing.T) {
+	w := newWorld(t)
+	ev := testutil.Timed("inv", "Party", w.at(20, 18), 2*time.Hour)
+	ev.Attendees = []model.Attendee{{Email: testutil.Account, Self: true, Response: model.ResponseNeedsAction}}
+	w.google.Put(ev)
+	w.sync()
+	w.svc.RSVP(w.ctx, "inv", model.ResponseAccepted, service.ScopeNone)
+	if _, err := w.svc.Update(w.ctx, "inv", service.Changes{Title: ptr("Mine")}, service.ScopeNone); err != nil {
+		t.Fatal(err)
+	}
+	remote, _ := w.google.Event(testutil.Calendar, "inv")
+	remote.Title = "Theirs"
+	w.google.Put(remote)
+
+	w.sync()
+
+	if got, _ := w.google.Event(testutil.Calendar, "inv"); got.Title != "Theirs" {
+		t.Errorf("Google title = %q, want Theirs (our edit must conflict, not overwrite)", got.Title)
+	}
+	logs, _ := w.store.Logs(w.ctx, testutil.Account, 10)
+	if len(logs) != 1 || logs[0].Kind != store.LogDiscardedEdit {
+		t.Errorf("logs = %+v, want one discarded_edit", logs)
+	}
+}
 ```
 2. Run: these fail against the stub (not a compile failure this time). **Check that they fail for the
    right reason:** "event never reached Google", etc.
