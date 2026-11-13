@@ -13,5 +13,18 @@ One line per deviation: what changed, and why.
   line, and `runewidth` counts escape codes as width. `listView.line` now builds the selected row from plain text and
   styles it once; it also measures the calendar name with `runewidth.StringWidth` instead of `len()`. Test:
   `TestRenderListSelectedRowKeepsCalendarWithColors`. Golden files are unchanged.
+- **Task 12.6 (terminal walk-through, tmux sending real SGR mouse events, local database, no Google):** passed:
+  click day / click selected day opens the list; click event opens details with [Edit] [Delete] [RSVP] [Close];
+  click outside closes; drag a one-off to another day (clock time kept); drag a trip's `▸` two days later and `◂`
+  one day earlier; drag a recurring instance shows the scope picker and `[This event]` moves only that instance;
+  Esc mid-drag changes nothing ("drag cancelled"); dragging a read-only calendar's event opens details with
+  "Holidays is read-only"; `mouse = false` shows no handles or buttons and ignores clicks. **Not checked here:**
+  the web UI after each drag (needs Google), Shift-to-select (a terminal-emulator feature), and adding `mouse` to
+  `docs/cli.md` (that file comes with Task 11.2, not written yet). **Readability:** at 80 columns (11 per day)
+  one-day titles shrink to `◂09:00 S…▸`, still usable to find and drag events but not to read them; at 112
+  columns titles of ~8 characters fit (`◂09:00 Standup▸`). As the plan predicted.
 
 ## Ideas
+- The detail pop-up shows [Edit] [Delete] [RSVP] for every event, including read-only ones and ones you aren't
+  invited to; clicking them only then reports the error. Hiding (or dimming) the buttons that can't work would
+  save a click.
