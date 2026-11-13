@@ -177,24 +177,37 @@ func splitEmails(s string) []string {
 	return out
 }
 
-func (f form) View(width int) string {
+// view draws the form as a pop-up. Each field line is clickable (it focuses
+// that field); with the mouse on, [Save] and [Cancel] are buttons.
+func (f form) view(width int, mouse bool) modal {
 	title := "New event"
 	if f.editing != nil {
 		title = "Edit event"
 	}
-	var b strings.Builder
-	b.WriteString(headerStyle.Render(title) + "\n\n")
+	var md modal
+	md.text(headerStyle.Render(title))
+	md.text("")
 	for i, in := range f.inputs {
 		label := fit(fieldLabels[i], 10)
 		if i == f.focus {
 			label = selectedStyle.Render(label)
 		}
 		in.Width = max(width-16, 20)
-		b.WriteString(label + "  " + in.View() + "\n")
+		md.field(label+"  "+in.View(), i)
 	}
 	if f.err != "" {
-		b.WriteString("\n" + errorStyle.Render(f.err) + "\n")
+		md.text("")
+		md.text(errorStyle.Render(f.err))
 	}
-	b.WriteString("\n" + dimStyle.Render("tab/↑↓ move · enter save · esc cancel"))
-	return modalStyle.Render(b.String())
+	md.text("")
+	if mouse {
+		md.buttons(button{"Save", "enter"}, button{"Cancel", "esc"})
+	}
+	md.text(dimStyle.Render("tab/↑↓ move · enter save · esc cancel"))
+	return md
+}
+
+// focusField moves the cursor to field i (a mouse click on it).
+func (f form) focusField(i int) form {
+	return f.move(i - f.focus)
 }

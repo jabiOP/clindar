@@ -28,12 +28,19 @@ var keys = struct {
 	Back:       key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back / cancel")),
 }
 
-func helpText() string {
+func helpText(mouse bool) string {
 	s := "Keys\n\n"
 	for _, b := range []key.Binding{keys.Left, keys.Right, keys.Up, keys.Down, keys.ScrollUp, keys.ScrollDown,
 		keys.Today, keys.Goto, keys.Toggle, keys.Open, keys.Add, keys.Edit, keys.Delete, keys.RSVP,
 		keys.Sync, keys.Back, keys.Quit} {
 		s += "  " + fit(b.Help().Key, 8) + b.Help().Desc + "\n"
+	}
+	if mouse {
+		s += "\nMouse\n\n" +
+			"  click a day to select it; click it again to open the list\n" +
+			"  click an event to see it; scroll to move a week\n" +
+			"  drag an event to another day; drag ◂ or ▸ to change its first or last day\n" +
+			"  hold Shift (Option on some Macs) to select text\n"
 	}
 	return s + "\nPress any key to close."
 }

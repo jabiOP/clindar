@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jabiOP/clindar/internal/model"
@@ -32,7 +33,7 @@ func (m Model) rsvpKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeNormal
 		return m, nil
 	}
-	e := m.entries()[m.cursor]
+	e := m.target
 	id := e.ID
 	m.afterScope = func(sc service.Scope) tea.Cmd {
 		return m.act("replied "+string(resp), func(ctx context.Context, s *service.Service) error {
@@ -88,7 +89,12 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		m.form.err = err.Error()
 		return m, nil
 	}
-	e := *m.form.editing
+	return m.applyChanges(*m.form.editing, ch)
+}
+
+// applyChanges saves an edit, asking for a scope first if e is part of a
+// series. Both the edit form and a mouse drop end here.
+func (m Model) applyChanges(e model.Event, ch service.Changes) (tea.Model, tea.Cmd) {
 	m.afterScope = func(sc service.Scope) tea.Cmd {
 		return m.act("saved "+e.Title, func(ctx context.Context, s *service.Service) error {
 			_, err := s.Update(ctx, e.ID, ch, sc)
@@ -100,6 +106,31 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, m.afterScope(service.ScopeNone)
+}
+
+// startRSVP asks how to answer an invitation to e.
+func (m Model) startRSVP(e model.Event) Model {
+	if e.SelfAttendee() == nil {
+		m.mode, m.message = modeNormal, "you are not invited to this event"
+		return m
+	}
+	m.target, m.mode = e, modeRSVP
+	return m
+}
+
+// detailKey: e/d/r act on the event shown; any other key closes the pop-up.
+func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(k, keys.Edit):
+		m.form, m.mode = editEventForm(m.detail, m.loc()), modeForm
+	case key.Matches(k, keys.Delete):
+		m = m.startDelete(m.detail)
+	case key.Matches(k, keys.RSVP):
+		m = m.startRSVP(m.detail)
+	default:
+		m.mode = modeNormal
+	}
+	return m, nil
 }
 
 // --- view ---

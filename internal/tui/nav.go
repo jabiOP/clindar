@@ -27,8 +27,14 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case modeRSVP:
 		return m.rsvpKey(k)
-	case modeHelp, modeDetail:
+	case modeDetail:
+		return m.detailKey(k)
+	case modeHelp:
 		m.mode = modeNormal
+		return m, nil
+	}
+	if m.drag.active && key.Matches(k, keys.Back) {
+		m.drag, m.message = dragState{}, "drag cancelled"
 		return m, nil
 	}
 	m.message = ""
@@ -104,7 +110,7 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case current == nil:
 		return m, nil
 	case key.Matches(k, keys.Open):
-		m.mode = modeDetail
+		m.detail, m.mode = *current, modeDetail
 	case key.Matches(k, keys.Edit):
 		m.form = editEventForm(*current, m.loc())
 		m.mode = modeForm
@@ -112,11 +118,7 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Delete):
 		return m.startDelete(*current), nil
 	case key.Matches(k, keys.RSVP):
-		if current.SelfAttendee() == nil {
-			m.message = "you are not invited to this event"
-			return m, nil
-		}
-		m.mode = modeRSVP
+		return m.startRSVP(*current), nil
 	}
 	return m, m.reloadIfNeeded()
 }

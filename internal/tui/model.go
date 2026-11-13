@@ -7,16 +7,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jabiOP/clindar/internal/model"
-	"github.com/jabiOP/clindar/internal/output"
 	"github.com/jabiOP/clindar/internal/service"
 )
 
@@ -71,6 +68,9 @@ type Model struct {
 
 	form      form
 	gotoInput textinput.Model
+	detail    model.Event // the event shown in modeDetail
+	target    model.Event // the event an RSVP (modeRSVP) applies to
+	drag      dragState   // mouse drag in the grid (Phase 12)
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
 	allowedScopes string // e.g. "tfa" or "ta"
@@ -200,6 +200,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.load(), m.syncCmd())
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	}
 	return m, nil
 }
@@ -209,82 +211,6 @@ func (m Model) loc() *time.Location { return m.deps.Now().Location() }
 // entries is the list view's selectable events.
 func (m Model) entries() []model.Event {
 	return listEntries(model.GroupByDay(m.events, m.selected, listDays))
-}
-
-func (m Model) View() string {
-	bodyH := m.height - 1
-	var body string
-	switch m.view {
-	case viewGrid:
-		body, _ = renderGrid(gridView{
-			start: m.gridStart, today: m.today, selected: m.selected,
-			days:      model.GroupByDay(m.events, m.gridStart, gridDays),
-			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(),
-		})
-	case viewList:
-		body, _ = renderList(listView{days: model.GroupByDay(m.events, m.selected, listDays), cursor: m.cursor,
-			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc()})
-	}
-	if overlay := m.overlay(); overlay != "" {
-		body = lipgloss.Place(m.width, bodyH, lipgloss.Center, lipgloss.Center, overlay)
-	}
-	body = lipgloss.NewStyle().Height(bodyH).MaxHeight(bodyH).Render(body)
-	return body + "\n" + m.statusBar()
-}
-
-func (m Model) overlay() string {
-	switch m.mode {
-	case modeHelp:
-		return modalStyle.Render(helpText())
-	case modeForm:
-		return m.form.View(min(m.width-4, 80))
-	case modeGoto:
-		return modalStyle.Render("Go to date\n\n" + m.gotoInput.View())
-	case modeDetail:
-		var b strings.Builder
-		var cals []model.Calendar
-		for _, c := range m.calendars {
-			cals = append(cals, c)
-		}
-		p, _ := output.NewPrinter(&b, output.Pretty, "", m.loc(), cals)
-		p.Event(m.entries()[m.cursor])
-		return modalStyle.Render(strings.TrimRight(b.String(), "\n"))
-	case modeScope:
-		opts := map[byte]string{'t': "(t)his event", 'f': "(f)ollowing", 'a': "(a)ll events"}
-		var parts []string
-		for i := range len(m.allowedScopes) {
-			parts = append(parts, opts[m.allowedScopes[i]])
-		}
-		return modalStyle.Render("Recurring event. Apply to:\n\n" + strings.Join(parts, "   ") + "\n\nesc cancel")
-	case modeConfirm:
-		return modalStyle.Render("Delete this event? (y/n)")
-	case modeRSVP:
-		return modalStyle.Render("Going? (y)es  (n)o  (m)aybe")
-	}
-	return ""
-}
-
-func (m Model) statusBar() string {
-	parts := []string{}
-	switch {
-	case m.syncing:
-		parts = append(parts, "⟳ syncing")
-	case m.status.LastSync.IsZero():
-		parts = append(parts, "never synced")
-	default:
-		parts = append(parts, "synced "+ago(m.deps.Now().Sub(m.status.LastSync)))
-	}
-	if m.status.Pending > 0 {
-		parts = append(parts, fmt.Sprintf("%d pending", m.status.Pending))
-	}
-	if m.status.Discarded > 0 {
-		parts = append(parts, errorStyle.Render(fmt.Sprintf("%d edit(s) discarded: see clindar log", m.status.Discarded)))
-	}
-	if m.message != "" {
-		parts = append(parts, m.message)
-	}
-	parts = append(parts, "? help")
-	return dimStyle.Render(fit(strings.Join(parts, " · "), m.width))
 }
 
 func ago(d time.Duration) string {

@@ -32,6 +32,12 @@ type fixture struct {
 // weekly standup, a lunch, and a 2-day trip.
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return newFixtureWith(t, Deps{})
+}
+
+// newFixtureWith is newFixture with extra settings (e.g. Mouse) merged into Deps.
+func newFixtureWith(t *testing.T, extra Deps) *fixture {
+	t.Helper()
 	ny := testutil.NY(t)
 	ctx := context.Background()
 	st := testutil.NewStore(t)
@@ -49,7 +55,9 @@ func newFixture(t *testing.T) *fixture {
 	now := time.Date(2026, 11, 12, 10, 30, 0, 0, ny)
 	svc := service.New(st, testutil.Account, func() time.Time { return now }, "none")
 	f := &fixture{t: t, svc: svc, ny: ny}
-	m := New(ctx, Deps{Service: svc, Now: func() time.Time { return now }, WeekStart: time.Monday})
+	d := extra
+	d.Service, d.Now, d.WeekStart = svc, func() time.Time { return now }, time.Monday
+	m := New(ctx, d)
 	f.m = f.drain(m, m.Init())
 	f.send(tea.WindowSizeMsg{Width: 84, Height: 20})
 	return f
