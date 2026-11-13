@@ -6,6 +6,8 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/google/go-cmp v0.7.0
 	github.com/teambition/rrule-go v1.8.2
+	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/oauth2 v0.38.0
 	google.golang.org/api v0.314.0
 	modernc.org/sqlite v1.62.0
 )
@@ -15,10 +17,12 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.3.1 // indirect
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/s2a-go v0.1.11 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.25 // indirect
@@ -34,7 +38,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261104224025-d1e00e9f33ab // indirect
