@@ -216,13 +216,13 @@ func (m Model) View() string {
 	var body string
 	switch m.view {
 	case viewGrid:
-		body = renderGrid(gridView{
+		body, _ = renderGrid(gridView{
 			start: m.gridStart, today: m.today, selected: m.selected,
 			days:      model.GroupByDay(m.events, m.gridStart, gridDays),
 			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(),
 		})
 	case viewList:
-		body = renderList(listView{days: model.GroupByDay(m.events, m.selected, listDays), cursor: m.cursor,
+		body, _ = renderList(listView{days: model.GroupByDay(m.events, m.selected, listDays), cursor: m.cursor,
 			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc()})
 	}
 	if overlay := m.overlay(); overlay != "" {

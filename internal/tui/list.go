@@ -29,7 +29,7 @@ func listEntries(days []model.Day) []model.Event {
 	return out
 }
 
-func renderList(v listView) string {
+func renderList(v listView) (string, hitMap) {
 	type row struct {
 		text  string
 		entry int // -1 for day headers
@@ -47,7 +47,7 @@ func renderList(v listView) string {
 		}
 	}
 	if len(rows) == 0 {
-		return dimStyle.Render("No events in the next two weeks. Press a to add one.")
+		return dimStyle.Render("No events in the next two weeks. Press a to add one."), nil
 	}
 	// Scroll so the cursor's row is visible.
 	cursorRow := 0
@@ -58,10 +58,14 @@ func renderList(v listView) string {
 	}
 	top := max(0, cursorRow-v.height+2)
 	var b strings.Builder
+	var hits hitMap
 	for i := top; i < len(rows) && i < top+v.height; i++ {
+		if rows[i].entry >= 0 {
+			hits.add(0, i-top, v.width, 1, target{kind: targetEntry, entry: rows[i].entry})
+		}
 		b.WriteString(rows[i].text + "\n")
 	}
-	return strings.TrimSuffix(b.String(), "\n")
+	return strings.TrimSuffix(b.String(), "\n"), hits
 }
 
 // line renders one event row. The selected row gets a visible ▶ marker as well
