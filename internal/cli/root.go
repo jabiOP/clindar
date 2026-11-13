@@ -92,7 +92,7 @@ func NewRootCmd(app *App) *cobra.Command {
 	root.AddCommand(
 		newAgendaCmd(app), newNextCmd(app), newShowCmd(app), newCalendarsCmd(app),
 		newAddCmd(app), newEditCmd(app), newRmCmd(app), newRSVPCmd(app),
-		newSyncCmd(app), newLogCmd(app), newAuthCmd(app),
+		newSyncCmd(app), newLogCmd(app), newAuthCmd(app), newDaemonCmd(app),
 	)
 	return root
 }
