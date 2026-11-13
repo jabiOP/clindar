@@ -1,0 +1,269 @@
+// Package output renders events for the CLI: pretty (humans), TSV and JSON
+// Lines (scripts), or a user-supplied Go template.
+package output
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"strings"
+	"text/template"
+	"time"
+	"unicode/utf8"
+
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/jabiOP/clindar/internal/model"
+)
+
+type Mode int
+
+const (
+	Pretty Mode = iota
+	TSV
+	JSON
+	Template
+)
+
+// ChooseMode applies the precedence: explicit flag, else pretty on a terminal, TSV in a pipe.
+func ChooseMode(jsonFlag, tsvFlag bool, format string, isTTY bool) (Mode, error) {
+	n := 0
+	for _, set := range []bool{jsonFlag, tsvFlag, format != ""} {
+		if set {
+			n++
+		}
+	}
+	switch {
+	case n > 1:
+		return 0, fmt.Errorf("use only one of --json, --tsv, --format")
+	case jsonFlag:
+		return JSON, nil
+	case tsvFlag:
+		return TSV, nil
+	case format != "":
+		return Template, nil
+	case isTTY:
+		return Pretty, nil
+	default:
+		return TSV, nil
+	}
+}
+
+// EventJSON is the stable, documented shape of an event for scripts.
+// Never change a field's meaning; only add fields.
+type EventJSON struct {
+	ID              string         `json:"id"`
+	SeriesID        string         `json:"series_id,omitempty"`
+	CalendarID      string         `json:"calendar_id"`
+	Calendar        string         `json:"calendar"`
+	Title           string         `json:"title"`
+	Start           string         `json:"start"` // RFC 3339 local time, or YYYY-MM-DD if all_day
+	End             string         `json:"end"`   // exclusive
+	AllDay          bool           `json:"all_day"`
+	Status          string         `json:"status"`
+	Response        string         `json:"response,omitempty"` // your RSVP, if invited
+	Location        string         `json:"location,omitempty"`
+	Description     string         `json:"description,omitempty"`
+	Attendees       []AttendeeJSON `json:"attendees,omitempty"`
+	Recurring       bool           `json:"recurring"`
+	Link            string         `json:"link,omitempty"`
+	StartsInMinutes *int           `json:"starts_in_minutes,omitempty"` // only from `clindar next`
+}
+
+type AttendeeJSON struct {
+	Email    string `json:"email"`
+	Name     string `json:"name,omitempty"`
+	Response string `json:"response"`
+}
+
+type Printer struct {
+	w         io.Writer
+	mode      Mode
+	tmpl      *template.Template
+	loc       *time.Location
+	calendars map[string]model.Calendar
+}
+
+func NewPrinter(w io.Writer, mode Mode, format string, loc *time.Location, cals []model.Calendar) (*Printer, error) {
+	p := &Printer{w: w, mode: mode, loc: loc, calendars: map[string]model.Calendar{}}
+	for _, c := range cals {
+		p.calendars[c.ID] = c
+	}
+	if mode == Template {
+		t, err := template.New("format").Funcs(template.FuncMap{"time": formatTime}).Parse(format)
+		if err != nil {
+			return nil, fmt.Errorf("--format: %w", err)
+		}
+		p.tmpl = t
+	}
+	return p, nil
+}
+
+// formatTime is the template function {{time "15:04" .Start}}.
+func formatTime(layout, value string) (string, error) {
+	t, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		if t, err = time.Parse(time.DateOnly, value); err != nil {
+			return "", err
+		}
+	}
+	return t.Format(layout), nil
+}
+
+func (p *Printer) toJSON(e model.Event) EventJSON {
+	j := EventJSON{
+		ID: e.ID, SeriesID: e.SeriesID, CalendarID: e.CalendarID, Calendar: p.calendars[e.CalendarID].Name,
+		Title: e.Title, AllDay: e.AllDay, Status: e.Status, Location: e.Location, Description: e.Description,
+		Recurring: e.IsInstance() || e.IsMaster(), Link: e.Link,
+	}
+	if e.AllDay {
+		j.Start, j.End = e.Start.UTC().Format(time.DateOnly), e.End.UTC().Format(time.DateOnly)
+	} else {
+		j.Start, j.End = e.Start.In(p.loc).Format(time.RFC3339), e.End.In(p.loc).Format(time.RFC3339)
+	}
+	if self := e.SelfAttendee(); self != nil {
+		j.Response = string(self.Response)
+	}
+	for _, a := range e.Attendees {
+		j.Attendees = append(j.Attendees, AttendeeJSON{Email: a.Email, Name: a.Name, Response: string(a.Response)})
+	}
+	return j
+}
+
+// Events prints an agenda. Pretty mode groups by day across [from, from+days);
+// the other modes print one line per event.
+func (p *Printer) Events(events []model.Event, from time.Time, days int) error {
+	if p.mode == Pretty {
+		return p.prettyAgenda(events, from.In(p.loc), days)
+	}
+	for _, e := range events {
+		if err := p.line(p.toJSON(e)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Event prints one event in detail (pretty) or as one line.
+func (p *Printer) Event(e model.Event) error {
+	if p.mode == Pretty {
+		return p.prettyDetail(e)
+	}
+	return p.line(p.toJSON(e))
+}
+
+// Next prints the next event with minutes until it starts (negative = started).
+func (p *Printer) Next(e model.Event, now time.Time) error {
+	mins := int(e.Start.Sub(now).Round(time.Minute).Minutes())
+	if p.mode == Pretty {
+		_, err := fmt.Fprintf(p.w, "%s  %s  %s\n", relative(mins), p.timeRange(e), e.Title)
+		return err
+	}
+	j := p.toJSON(e)
+	j.StartsInMinutes = &mins
+	return p.line(j)
+}
+
+func relative(mins int) string {
+	switch {
+	case mins <= 0:
+		return "now"
+	case mins < 60:
+		return fmt.Sprintf("in %dm", mins)
+	default:
+		return fmt.Sprintf("in %dh%02dm", mins/60, mins%60)
+	}
+}
+
+func (p *Printer) line(j EventJSON) error {
+	switch p.mode {
+	case JSON:
+		b, err := json.Marshal(j)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(p.w, "%s\n", b)
+		return err
+	case Template:
+		if err := p.tmpl.Execute(p.w, j); err != nil {
+			return err
+		}
+		_, err := io.WriteString(p.w, "\n")
+		return err
+	default: // TSV: id, start, end, all_day, calendar, title
+		allDay := "0"
+		if j.AllDay {
+			allDay = "1"
+		}
+		_, err := fmt.Fprintln(p.w, strings.Join([]string{
+			j.ID, j.Start, j.End, allDay, clean(j.Calendar), clean(j.Title)}, "\t"))
+		return err
+	}
+}
+
+// clean keeps one event on one line with no stray tabs.
+func clean(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+var (
+	dayStyle  = lipgloss.NewStyle().Bold(true)
+	dimStyle  = lipgloss.NewStyle().Faint(true)
+	timeWidth = utf8.RuneCountInString("00:00–00:00") // not len(): "–" is 3 bytes
+)
+
+func (p *Printer) timeRange(e model.Event) string {
+	if e.AllDay {
+		return fmt.Sprintf("%-*s", timeWidth, "all day")
+	}
+	s, end := e.Span(p.loc)
+	return s.Format("15:04") + "–" + end.Format("15:04")
+}
+
+func (p *Printer) prettyAgenda(events []model.Event, from time.Time, days int) error {
+	empty := true
+	for _, day := range model.GroupByDay(events, from, days) {
+		if len(day.Events) == 0 {
+			continue
+		}
+		empty = false
+		fmt.Fprintln(p.w, dayStyle.Render(day.Date.Format("Mon 02 Jan")))
+		for _, e := range day.Events {
+			cal := p.calendars[e.CalendarID]
+			fmt.Fprintf(p.w, "  %s  %s  %s\n", p.timeRange(e), clean(e.Title),
+				dimStyle.Render(lipgloss.NewStyle().Foreground(lipgloss.Color(cal.Color)).Render("●")+" "+cal.Name))
+		}
+	}
+	if empty {
+		_, err := fmt.Fprintln(p.w, dimStyle.Render("No events."))
+		return err
+	}
+	return nil
+}
+
+func (p *Printer) prettyDetail(e model.Event) error {
+	start, _ := e.Span(p.loc)
+	row := func(label, value string) {
+		if value != "" {
+			fmt.Fprintf(p.w, "%-10s %s\n", label+":", value)
+		}
+	}
+	fmt.Fprintln(p.w, dayStyle.Render(e.Title))
+	row("When", start.Format("Mon 02 Jan 2006")+"  "+strings.TrimSpace(p.timeRange(e)))
+	row("Calendar", p.calendars[e.CalendarID].Name)
+	row("Where", e.Location)
+	if e.IsInstance() || e.IsMaster() {
+		row("Repeats", "yes (edit with --scope this|following|all)")
+	}
+	var people []string
+	for _, a := range e.Attendees {
+		people = append(people, fmt.Sprintf("%s (%s)", a.Email, a.Response))
+	}
+	row("Guests", strings.Join(people, ", "))
+	row("ID", e.ID)
+	row("Link", e.Link)
+	if e.Description != "" {
+		fmt.Fprintf(p.w, "\n%s\n", e.Description)
+	}
+	return nil
+}
