@@ -1826,3 +1826,350 @@ No code. With `mouse = true` in `config.toml`, using the "clindar-test" calendar
 Add `mouse` to the config table in `docs/cli.md` (Task 11.2).
 
 **Commit:** `docs: mouse support`
+
+---
+
+# Phase 12, part 2: adaptive handles and smarter detail buttons
+
+Two follow-ups from the implementer's notes after Tasks 12.1–12.6, agreed with the product owner:
+1. **Handles appear on hover, at the edge.** The `◂` symbol shows only while the pointer is on the leftmost cell of an
+   event's first-day line, and `▸` only on the rightmost cell of its last-day line. Every other line keeps its full title.
+2. **The detail pop-up hides actions you can't take.**
+
+> ⚠️ **The code in Tasks 12.7–12.9 was written as a plan only; it was not compiled or run** (unlike Tasks 12.1–12.6).
+> Treat it as a precise spec. Names match the code from 12.1–12.6. If the compiler disagrees, follow the intent,
+> fix it, and note the fix in `DEVIATIONS.md`.
+
+**The key idea:** the **grab zones always exist**, and hover only decides whether the *symbol* is drawn. With the mouse on,
+the leftmost cell of an event's first-day line is always the start handle, and the rightmost cell of its last-day
+line is always the end handle. So:
+- By the time a symbol appears, the pointer is already on it.
+- In a terminal that doesn't report hover, grabbing an edge still works; you just don't see the symbol until you drag.
+- The symbols of the handle being dragged stay visible for the whole drag.
+
+**Trade-off:** hover needs "all motion" mouse mode (`tea.WithMouseAllMotion()`). The terminal then reports every pointer
+move, not only moves while a button is held. Most terminals support it (iTerm2, kitty, WezTerm, Alacritty, GNOME Terminal,
+Windows Terminal, and tmux with `set -g mouse on`). macOS Terminal.app is unverified; Task 12.9 checks it.
+
+---
+
+## Task 12.7: Handles on hover
+
+**Goal:** with mouse on and nothing hovered, the grid looks exactly like the mouse-off grid (apart from the status-bar
+buttons). Edges stay grabbable. A symbol appears only on the edge cell under the pointer, or for the handle being dragged.
+
+**Files:** modify `internal/tui/grid.go`, `internal/tui/layout.go`, `internal/tui/model.go`, `internal/tui/mouse.go`,
+`internal/tui/grid_test.go`, `internal/tui/mouse_test.go`; golden `grid_handles` becomes `grid_hover`, and
+`grid_mouse` is regenerated
+
+**Steps**
+
+1. **Tests first.**
+
+   a. In `grid_test.go`, `gridWithTrip` takes a hover argument instead of a drop day, and the view uses `mouse:
+      true, hover: hover` instead of `handles: true, drop: drop`. Replace `TestGridHandles` with:
+   ```go
+   // Hovering the trip's end edge (Friday) draws only that ▸; every other line keeps its full text.
+   func TestGridHoverShowsOneHandle(t *testing.T) {
+   	ny := testutil.NY(t)
+   	trip := testutil.AllDay("trip", "Trip", 2026, time.November, 12, 2)
+   	got, _ := gridWithTrip(t, edgeOf(trip, partEnd))
+   	testutil.Golden(t, "grid_hover", got)
+   	if strings.Count(got, "▸") != 1 || strings.Contains(got, "◂") {
+   		t.Errorf("want exactly one ▸ and no ◂:\n%s", got)
+   	}
+   	_ = ny
+   }
+   ```
+   Review `testdata/grid_hover.golden` after `-update`: `09:00 Dentist` must be **untruncated**, Thursday shows
+   `Trip`, and Friday shows `Trip …▸`.
+
+   b. Rewrite `TestGridHitMap`. Nothing is drawn now, so locate edges by **column**, not by symbol. At width 112 each day
+   is 16 columns wide, and the content is 15 (the 16th is the gutter):
+   ```go
+   func TestGridHitMap(t *testing.T) {
+   	ny := testutil.NY(t)
+   	screen, hits := gridWithTrip(t, edgeRef{}) // no hover: the zones must exist anyway
+   	thu, fri := time.Date(2026, 11, 12, 0, 0, 0, 0, ny), time.Date(2026, 11, 13, 0, 0, 0, 0, ny)
+   	_, y := find(t, screen, "Trip") // first occurrence: Thursday's line
+   	thuX, friX := 3*16, 4*16
+
+   	if got, _ := hits.at(thuX, y); got.part != partStart || !got.day.Equal(thu) || got.event.ID != "trip" {
+   		t.Errorf("Thu left edge = %+v, want the start handle", got)
+   	}
+   	if got, _ := hits.at(thuX+5, y); got.part != partBody {
+   		t.Errorf("Thu middle = %+v, want the body", got)
+   	}
+   	if got, _ := hits.at(friX+14, y); got.part != partEnd || !got.day.Equal(fri) {
+   		t.Errorf("Fri right edge = %+v, want the end handle", got)
+   	}
+   	if got, _ := hits.at(thuX+14, y); got.part != partBody {
+   		t.Errorf("Thu right edge = %+v: not the last day, so no end handle there", got)
+   	}
+   }
+   ```
+   Keep the "blank line is Tuesday" check from the old version. Change `TestGridMarksDropTarget` to set
+   `drop` directly on the view, since `gridWithTrip` no longer takes it.
+
+   c. In `mouse_test.go`, add:
+   ```go
+   // hover moves the pointer without a button pressed (all-motion mode).
+   func (f *fixture) hover(x, y int) {
+   	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonNone, Action: tea.MouseActionMotion})
+   }
+
+   func TestHoverOnEdgeRevealsHandle(t *testing.T) {
+   	f := newMouseFixture(t)
+   	if strings.Contains(f.m.View(), "▸") {
+   		t.Fatal("no handle may show before hovering")
+   	}
+
+   	f.hover(f.eventAt("Trip to Lisbon", 21, partEnd))
+   	if !strings.Contains(f.m.View(), "▸") {
+   		t.Error("hovering the trip's end edge should show ▸")
+   	}
+   	f.hover(f.eventAt("Trip to Lisbon", 21, partBody))
+   	if strings.Contains(f.m.View(), "▸") {
+   		t.Error("moving off the edge should hide ▸")
+   	}
+   }
+   ```
+   `TestDragEndHandleLengthensTrip` stays **unchanged**. It never hovers, so it now also proves that edges are
+   grabbable without hover. Add a comment saying so.
+2. Run: compile failure (`edgeRef`, `edgeOf`, `mouse`, `hover` don't exist yet).
+3. **`grid.go`**: replace the `handles bool` field and change `eventLine`:
+   ```go
+   	mouse   bool      // grab zones at event edges (Phase 12)
+   	hover   edgeRef   // the edge under the pointer: draw its symbol
+   	grabbed edgeRef   // the handle being dragged: draw its symbol
+   	drop    time.Time // while dragging: the day under the pointer (zero = none)
+   ```
+   ```go
+   // edgeRef names one end of one event (zero value = none).
+   type edgeRef struct {
+   	calendarID, eventID string
+   	part                part
+   }
+
+   func edgeOf(e model.Event, p part) edgeRef { return edgeRef{e.CalendarID, e.ID, p} }
+
+   // eventLine renders one event in a cell w cells wide. With the mouse on, the
+   // first-day line's leftmost cell is always the start handle and the last-day
+   // line's rightmost cell the end handle; their symbols are drawn only while
+   // hovered or dragged.
+   func (g gridView) eventLine(e model.Event, day time.Time, w int) (string, hitMap) {
+   	var hits hitMap
+   	hits.add(0, 0, w, 1, target{kind: targetEvent, day: day, event: e, part: partBody})
+   	start, end := "", ""
+   	if g.mouse {
+   		first, last := eventDays(e, g.loc)
+   		if day.Equal(first) {
+   			hits.add(0, 0, 1, 1, target{kind: targetEvent, day: day, event: e, part: partStart})
+   			if g.showing(e, partStart) {
+   				start = "◂"
+   			}
+   		}
+   		if day.Equal(last) {
+   			hits.add(w-1, 0, 1, 1, target{kind: targetEvent, day: day, event: e, part: partEnd})
+   			if g.showing(e, partEnd) {
+   				end = "▸"
+   			}
+   		}
+   	}
+   	text := start + fit(eventLabel(e, g.loc), w-runewidth.StringWidth(start+end)) + end
+   	return calendarStyle(g.calendars[e.CalendarID].Color).Render(text), hits
+   }
+
+   func (g gridView) showing(e model.Event, p part) bool {
+   	r := edgeOf(e, p)
+   	return r == g.hover || r == g.grabbed
+   }
+   ```
+   (A multi-day event has the same ID in every cell, so hovering its end on Saturday shows `▸` only on Saturday's line.)
+4. **`model.go`**: add `hover edgeRef // the handle under the pointer (Phase 12.7)` to `Model`. In `Run`, replace
+   `tea.WithMouseCellMotion()` with `tea.WithMouseAllMotion()` and update the comment ("all motion: hover reveals
+   handles").
+5. **`layout.go`**: in the `gridView{…}` literal, replace `handles: m.deps.Mouse` with:
+   ```go
+   			mouse: m.deps.Mouse, hover: m.hover, grabbed: m.grabbedEdge(), drop: m.drag.over,
+   ```
+   and add to `mouse.go`:
+   ```go
+   // grabbedEdge is the handle being dragged (none while dragging an event's body).
+   func (m Model) grabbedEdge() edgeRef {
+   	if !m.drag.active || m.drag.part == partBody {
+   		return edgeRef{}
+   	}
+   	return edgeOf(m.drag.event, m.drag.part)
+   }
+   ```
+6. **`mouse.go`**: in `handleMouse`, add this case **before** the `msg.Action == tea.MouseActionMotion && m.drag.active` case:
+   ```go
+   	case msg.Action == tea.MouseActionMotion && !m.drag.active:
+   		m.hover = edgeRef{}
+   		if t.kind == targetEvent && t.part != partBody {
+   			m.hover = edgeOf(t.event, t.part)
+   		}
+   		return m, nil
+   ```
+7. `go test ./internal/tui -update -run 'TestGridHoverShowsOneHandle|TestMouseGridGolden'`, then **review both golden
+   files**. `grid_mouse.golden` should now show no `◂`/`▸` at all, with full titles and the status-bar buttons. Delete
+   the obsolete `testdata/grid_handles.golden`. Then run `go test -race ./internal/tui` without `-update`.
+8. **Check the red step:** temporarily make `showing` always return `true`. `TestHoverOnEdgeRevealsHandle` and
+   `TestGridHoverShowsOneHandle` must fail. Then undo that.
+
+**Commit:** `feat(tui): show resize handles only when hovering an event's edge`
+
+---
+
+## Task 12.8: Hide detail actions you can't take
+
+**Goal:** the detail pop-up only offers actions that can succeed, and the keys `e`/`d`/`r` follow the same rules:
+- **[Edit]** / `e` only if the event can be changed: a writable calendar and you're not a guest. This is `canDrag`'s
+  rule from Task 12.4: one rule, reused.
+- **[Delete]** / `d` only on a writable calendar. Deleting an invitation from your own calendar is allowed.
+- **[RSVP]** / `r` only if you're invited.
+
+When a key is refused, the pop-up stays open and the status bar says why. **Hide, don't dim:** a dimmed button would need
+its own "clicked but disabled" case. A hidden one isn't in the hit map at all.
+
+**Files:** modify `internal/tui/drag.go`, `internal/tui/layout.go`, `internal/tui/actions.go`; create
+`internal/tui/detail_test.go`
+
+**Steps**
+1. Tests. `detail_test.go`:
+   ```go
+   package tui
+
+   import (
+   	"strings"
+   	"testing"
+   	"time"
+
+   	"github.com/jabiOP/clindar/internal/model"
+   	"github.com/jabiOP/clindar/internal/testutil"
+   )
+
+   // openDetail shows e in the detail pop-up, as a click would.
+   func (f *fixture) openDetail(e model.Event) {
+   	m := f.model()
+   	m.detail, m.mode = e, modeDetail
+   	f.m = m
+   }
+
+   func TestDetailOfInviteHidesEdit(t *testing.T) {
+   	f := newMouseFixture(t)
+   	invite := testutil.Timed("inv", "Their party", time.Date(2026, 11, 20, 18, 0, 0, 0, f.ny), time.Hour)
+   	invite.Attendees = []model.Attendee{
+   		{Email: testutil.Account, Self: true}, {Email: "host@example.com", Organizer: true}}
+   	f.openDetail(invite)
+
+   	screen := f.m.View()
+   	if strings.Contains(screen, "[Edit]") || !strings.Contains(screen, "[Delete]") || !strings.Contains(screen, "[RSVP]") {
+   		t.Errorf("invite: want [Delete] [RSVP] but no [Edit]:\n%s", screen)
+   	}
+   	f.keys("e")
+   	if m := f.model(); m.mode != modeDetail || !strings.Contains(m.message, "guest") {
+   		t.Errorf("e on an invite: mode = %v, message = %q; want the pop-up kept open and the reason shown", m.mode, m.message)
+   	}
+   }
+
+   func TestDetailOfOwnEventHidesRSVP(t *testing.T) {
+   	f := newMouseFixture(t)
+   	lunch := testutil.Timed("lunch", "Lunch with Sam", time.Date(2026, 11, 12, 12, 0, 0, 0, f.ny), time.Hour)
+   	f.openDetail(lunch)
+
+   	screen := f.m.View()
+   	if strings.Contains(screen, "[RSVP]") || !strings.Contains(screen, "[Edit]") {
+   		t.Errorf("own event: want [Edit] but no [RSVP]:\n%s", screen)
+   	}
+   }
+
+   func TestDetailOnReadOnlyCalendarOffersOnlyClose(t *testing.T) {
+   	f := newMouseFixture(t)
+   	hol := testutil.AllDay("thx", "Thanksgiving", 2026, time.November, 26, 1)
+   	hol.CalendarID = "holidays" // not in the fixture's calendars: treated as read-only
+   	f.openDetail(hol)
+
+   	screen := f.m.View()
+   	for _, b := range []string{"[Edit]", "[Delete]", "[RSVP]"} {
+   		if strings.Contains(screen, b) {
+   			t.Errorf("read-only event shows %s", b)
+   		}
+   	}
+   }
+   ```
+2. Run: the tests fail on the button checks (they compile already).
+3. **`drag.go`**: add next to `canDrag`:
+   ```go
+   // allowed says which detail actions can succeed for e, and why editing can't.
+   type allowed struct {
+   	edit, delete, rsvp bool
+   	whyNoEdit          string
+   }
+
+   func permissions(e model.Event, cal model.Calendar) allowed {
+   	edit, why := canDrag(e, cal)
+   	return allowed{edit: edit, delete: cal.Writable(), rsvp: e.SelfAttendee() != nil, whyNoEdit: why}
+   }
+   ```
+4. **`layout.go`**, in `popup`, replace the `modeDetail` choices call with:
+   ```go
+   		can := permissions(m.detail, m.calendars[m.detail.CalendarID])
+   		var bs []button
+   		var hints []string
+   		if can.edit {
+   			bs, hints = append(bs, button{"Edit", "e"}), append(hints, "e edit")
+   		}
+   		if can.delete {
+   			bs, hints = append(bs, button{"Delete", "d"}), append(hints, "d delete")
+   		}
+   		if can.rsvp {
+   			bs, hints = append(bs, button{"RSVP", "r"}), append(hints, "r RSVP")
+   		}
+   		bs, hints = append(bs, button{"Close", "esc"}), append(hints, "esc close")
+   		choices(dimStyle.Render(strings.Join(hints, " · ")), bs...)
+   ```
+5. **`actions.go`**, in `detailKey`, check permissions before acting:
+   ```go
+   	can := permissions(m.detail, m.calendars[m.detail.CalendarID])
+   	switch {
+   	case key.Matches(k, keys.Edit) && !can.edit:
+   		m.message = "can't edit: " + can.whyNoEdit
+   	case key.Matches(k, keys.Delete) && !can.delete:
+   		m.message = "can't delete: the calendar is read-only"
+   	case key.Matches(k, keys.RSVP) && !can.rsvp:
+   		m.message = "you are not invited to this event"
+   	case key.Matches(k, keys.Edit):
+   		m.form, m.mode = editEventForm(m.detail, m.loc()), modeForm
+   	case key.Matches(k, keys.Delete):
+   		m = m.startDelete(m.detail)
+   	case key.Matches(k, keys.RSVP):
+   		m = m.startRSVP(m.detail)
+   	default:
+   		m.mode = modeNormal
+   	}
+   	return m, nil
+   ```
+6. `go test -race ./internal/tui`: pass. Then mouse-off check: `TestDetail…` uses the mouse fixture. Also open an
+   invite's details with the mouse off in the real TUI, and check the hint line only lists `r RSVP · esc close`
+   (plus `d delete` on a writable calendar).
+
+**Commit:** `feat(tui): only offer detail actions that can succeed`
+
+---
+
+## Task 12.9: Re-check in a real terminal
+
+Same setup as Task 12.6, then:
+- [ ] At **80 columns**, titles read normally. No `◂`/`▸` is visible until you point at an event's edge.
+- [ ] Hover the left edge of an event's first day: `◂` appears. Hover the right edge of its last day: `▸`. Move away and
+      they disappear. Only the line under the pointer changes.
+- [ ] Drag a trip's right edge two days later without waiting for the symbol: it still works.
+- [ ] **macOS Terminal.app:** does hover reveal the symbols? Record yes or no in `DEVIATIONS.md`. If no, edges must still
+      be grabbable (as in the previous check).
+- [ ] tmux with `set -g mouse on`: hover works.
+- [ ] Open the details of an invitation and of a read-only (e.g. holidays) event: only the possible buttons appear, and
+      `e`/`d`/`r` explain refusals in the status bar.
+
+**Commit:** `docs: note terminal hover support`

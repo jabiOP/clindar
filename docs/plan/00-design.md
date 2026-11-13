@@ -173,7 +173,10 @@ some Macs) to select text.
   `+N more` to open the list at that day. The wheel moves a week (grid) or an event (list).
 - **Buttons:** every pop-up choice is clickable (scope, delete confirm, RSVP, form [Save] [Cancel]). Form fields are
   clickable. The status bar has [+ Add] [⟳ Sync] [? Help]. Click outside the detail, help or go-to pop-ups to close them.
-- **Drag (grid only):** on its first day an event line starts with `◂`, on its last day it ends with `▸`.
+- **Drag (grid only):** the leftmost cell of an event's first-day line is its start handle; the rightmost cell of its
+  last-day line is its end handle. The `◂`/`▸` symbols are drawn only while the pointer is on that cell (hover,
+  needs "all motion" mouse mode) or while that handle is being dragged, so titles stay full at any width. The zones
+  work even in terminals without hover reporting.
 
   | Grab | Drop on day D | Result |
   |---|---|---|
@@ -184,6 +187,8 @@ some Macs) to select text.
   Handles clamp at a one-day event instead of flipping it. A drop that would end before it starts is refused.
   The target day is marked `»` and the status bar previews the result. Esc cancels. Recurring instances get the
   scope picker. Read-only calendars and invitations can't be dragged (clicking opens details with the reason).
+- **Detail pop-up offers only possible actions:** [Edit] needs a writable calendar and not being a guest; [Delete] a
+  writable calendar; [RSVP] an invitation. The keys `e`/`d`/`r` follow the same rules and explain refusals.
 - **No double-click, right-click or undo** (see Out of scope).
 
 ## 7. Security & config
