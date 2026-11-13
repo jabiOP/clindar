@@ -163,6 +163,29 @@ clindar daemon [--interval D] | daemon install | daemon uninstall
   Recurring edits show a scope picker.
 - **Status bar:** last sync age, pending op count, and discarded-edit count.
 
+## 6b. Mouse (Phase 12)
+
+Off by default (`mouse = true` in `config.toml`). While on, clindar captures the mouse; hold Shift (Option on
+some Macs) to select text.
+
+- **Clicks:** click a day to select it, and click the selected day again to open the list there. Click an event to open
+  its details, with [Edit] [Delete] [RSVP] [Close]. In the list, click to select and click again to open. Click
+  `+N more` to open the list at that day. The wheel moves a week (grid) or an event (list).
+- **Buttons:** every pop-up choice is clickable (scope, delete confirm, RSVP, form [Save] [Cancel]). Form fields are
+  clickable. The status bar has [+ Add] [⟳ Sync] [? Help]. Click outside the detail, help or go-to pop-ups to close them.
+- **Drag (grid only):** on its first day an event line starts with `◂`, on its last day it ends with `▸`.
+
+  | Grab | Drop on day D | Result |
+  |---|---|---|
+  | body | any day | move the whole event by D − grabbed day; clock times and length kept |
+  | `▸` | D ≥ first day | last day becomes D (end clock time kept) |
+  | `◂` | D ≤ last day | first day becomes D (start clock time kept) |
+
+  Handles clamp at a one-day event instead of flipping it. A drop that would end before it starts is refused.
+  The target day is marked `»` and the status bar previews the result. Esc cancels. Recurring instances get the
+  scope picker. Read-only calendars and invitations can't be dragged (clicking opens details with the reason).
+- **No double-click, right-click or undo** (see Out of scope).
+
 ## 7. Security & config
 
 - OAuth: desktop loopback flow with PKCE, scope `https://www.googleapis.com/auth/calendar`.
@@ -170,10 +193,11 @@ clindar daemon [--interval D] | daemon install | daemon uninstall
 - The TUI add form and `clindar add` both default to `default_calendar`.
 - Client JSON goes in `$XDG_CONFIG_HOME/clindar/client.json`. `auth.BuiltinClientID`/`BuiltinClientSecret` can be set via `-ldflags`.
 - Config (`config.toml`): `sync_interval`, `stale_after`, `sync_timeout`, `default_calendar`,
-  `week_start`, `send_updates`. Every key is optional.
+  `week_start`, `send_updates`, `mouse`. Every key is optional.
 - Env overrides: `CLINDAR_CONFIG_DIR`, `CLINDAR_DATA_DIR` (used heavily by tests).
 
 ## Out of scope for v1 (YAGNI)
 
-Desktop notifications, day/week/month views, multi-account UI, search, attachments, Meet links,
+Undo (even for drags; a single-step undo of the last drag is the natural first version later),
+desktop notifications, day/week/month views, multi-account UI, search, attachments, Meet links,
 event colors (calendar colors only), free/busy lookups, Windows, push webhooks.

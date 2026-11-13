@@ -35,6 +35,7 @@ These files explain *how*, as small tasks.
 | 9 | `09-daemon.md` | Background sync + systemd/launchd install |
 | 10 | `10-tui.md` | Bubble Tea UI: grid, list, detail, forms |
 | 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build |
+| 12 | `12-mouse.md` | Mouse: clicks, wheel, buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
 
 ## Toolset primer (read once)
 
