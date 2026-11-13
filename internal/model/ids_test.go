@@ -42,3 +42,27 @@ func TestInstanceID(t *testing.T) {
 		})
 	}
 }
+
+func TestParseInstanceIDRoundTrips(t *testing.T) {
+	ny := mustLoc(t, "America/New_York")
+	for _, tc := range []struct {
+		start  time.Time
+		allDay bool
+	}{
+		{time.Date(2026, 11, 16, 9, 0, 0, 0, ny), false},
+		{time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC), true},
+	} {
+		id := model.InstanceID("abc", tc.start, tc.allDay)
+
+		series, start, allDay, ok := model.ParseInstanceID(id)
+
+		if !ok || series != "abc" || !start.Equal(tc.start) || allDay != tc.allDay {
+			t.Errorf("ParseInstanceID(%q) = %q, %v, %v, %v", id, series, start, allDay, ok)
+		}
+	}
+	for _, id := range []string{"abc", "_20261116", "abc_notadate"} {
+		if _, _, _, ok := model.ParseInstanceID(id); ok {
+			t.Errorf("ParseInstanceID(%q) ok = true, want false", id)
+		}
+	}
+}

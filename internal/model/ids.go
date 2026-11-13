@@ -25,3 +25,20 @@ func InstanceID(seriesID string, originalStart time.Time, allDay bool) string {
 	}
 	return seriesID + "_" + originalStart.UTC().Format("20060102T150405Z")
 }
+
+// ParseInstanceID is the inverse of InstanceID. ok is false for IDs that
+// aren't instance IDs (event IDs never contain "_": base32hex has no underscore).
+func ParseInstanceID(id string) (seriesID string, originalStart time.Time, allDay, ok bool) {
+	i := strings.LastIndexByte(id, '_')
+	if i <= 0 {
+		return "", time.Time{}, false, false
+	}
+	seriesID, stamp := id[:i], id[i+1:]
+	if t, err := time.Parse("20060102T150405Z", stamp); err == nil {
+		return seriesID, t, false, true
+	}
+	if t, err := time.Parse("20060102", stamp); err == nil {
+		return seriesID, t, true, true
+	}
+	return "", time.Time{}, false, false
+}
