@@ -1,0 +1,8 @@
+/clindar
+/dist/
+*.db
+*.db-wal
+*.db-shm
+client.json
+client_secret*.json
+token.json
