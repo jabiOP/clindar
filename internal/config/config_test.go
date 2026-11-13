@@ -30,7 +30,7 @@ func TestLoadMissingFileGivesDefaults(t *testing.T) {
 }
 
 func TestLoadOverridesOnlyGivenKeys(t *testing.T) {
-	c, err := config.Load(writeFile(t, "sync_interval = \"20s\"\nweek_start = \"sunday\"\n"))
+	c, err := config.Load(writeFile(t, "sync_interval = \"20s\"\nweek_start = \"sunday\"\nmouse = true\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,6 +39,9 @@ func TestLoadOverridesOnlyGivenKeys(t *testing.T) {
 	}
 	if c.FirstWeekday() != time.Sunday {
 		t.Errorf("FirstWeekday = %v", c.FirstWeekday())
+	}
+	if !c.Mouse || config.Default().Mouse {
+		t.Errorf("Mouse = %v, want true here and false by default", c.Mouse)
 	}
 	if c.StaleAfter != config.Default().StaleAfter {
 		t.Errorf("StaleAfter changed to %v", c.StaleAfter)

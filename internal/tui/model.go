@@ -27,6 +27,7 @@ type Deps struct {
 	Now             func() time.Time
 	WeekStart       time.Weekday
 	DefaultCalendar string        // config default_calendar: pre-fills the add form
+	Mouse           bool          // config mouse: clicks, wheel, drag-and-drop (Phase 12)
 	SyncInterval    time.Duration // 0 disables periodic sync (tests)
 }
 
@@ -299,7 +300,12 @@ func ago(d time.Duration) string {
 
 // Run starts the TUI full-screen and blocks until the user quits.
 func Run(ctx context.Context, d Deps) error {
-	_, err := tea.NewProgram(New(ctx, d), tea.WithAltScreen(), tea.WithContext(ctx)).Run()
+	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithContext(ctx)}
+	if d.Mouse {
+		// Cell motion: clicks, wheel, and movement while a button is held (dragging).
+		opts = append(opts, tea.WithMouseCellMotion())
+	}
+	_, err := tea.NewProgram(New(ctx, d), opts...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
 		return nil // Ctrl-C via the context
 	}

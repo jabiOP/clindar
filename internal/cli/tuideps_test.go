@@ -14,10 +14,11 @@ func TestTUIDepsCarryConfig(t *testing.T) {
 	cfg.DefaultCalendar = "Work"
 	cfg.WeekStart = "sunday"
 	cfg.SyncInterval = config.Duration{Duration: 20 * time.Second}
+	cfg.Mouse = true
 
 	d := tuiDeps(&App{Config: cfg, Now: time.Now}, nil)
 
-	if d.DefaultCalendar != "Work" || d.WeekStart != time.Sunday || d.SyncInterval != 20*time.Second {
+	if d.DefaultCalendar != "Work" || d.WeekStart != time.Sunday || d.SyncInterval != 20*time.Second || !d.Mouse {
 		t.Errorf("deps = %+v", d)
 	}
 	if d.Sync == nil || d.Now == nil {

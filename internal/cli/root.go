@@ -139,5 +139,6 @@ func tuiDeps(app *App, svc *service.Service) tui.Deps {
 		WeekStart:       app.Config.FirstWeekday(),
 		SyncInterval:    app.Config.SyncInterval.Duration,
 		DefaultCalendar: app.Config.DefaultCalendar,
+		Mouse:           app.Config.Mouse,
 	}
 }

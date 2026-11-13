@@ -28,6 +28,7 @@ type Config struct {
 	DefaultCalendar string   `toml:"default_calendar"` // name or ID; "" = primary
 	WeekStart       string   `toml:"week_start"`       // "monday" | "sunday"
 	SendUpdates     string   `toml:"send_updates"`     // "all" | "none": email attendees on changes
+	Mouse           bool     `toml:"mouse"`            // TUI mouse support (hold Shift to select text)
 }
 
 func Default() Config {
