@@ -12,13 +12,12 @@ substitute it everywhere (or use `sed` on code you paste).
 
 **Goal:** a buildable, committed Go module.
 
-**Files:** create `go.mod`, `main.go`, `.gitignore`, `README.md` at the repo root (the directory containing `docs/`).
+**Files:** create `go.mod`, `main.go`, `.gitignore` at the repo root (the directory containing `docs/`). The repo and a stub `README.md` already exist.
 
 **Steps**
 
-1. Initialize:
+1. Initialize the module (the git repo already exists):
    ```bash
-   git init
    go mod init github.com/yourname/clindar
    go mod edit -go=1.26
    ```
@@ -50,7 +49,7 @@ substitute it everywhere (or use `sed` on code you paste).
    client_secret*.json
    token.json
    ```
-4. `README.md`: one paragraph saying what clindar is, plus a link to `docs/plans/clindar/00-design.md`. (Real docs come in Phase 11.)
+4. Leave `README.md` as is. Real docs come in Phase 11.
 5. Verify:
    ```bash
    go build -o clindar . && ./clindar    # prints: clindar dev
