@@ -1866,19 +1866,20 @@ buttons). Edges stay grabbable. A symbol appears only on the edge cell under the
 
 1. **Tests first.**
 
-   a. In `grid_test.go`, `gridWithTrip` takes a hover argument instead of a drop day, and the view uses `mouse:
-      true, hover: hover` instead of `handles: true, drop: drop`. Replace `TestGridHandles` with:
+   a. In `grid_test.go`, give `gridWithTrip` a hover argument **before** its drop argument,
+      `gridWithTrip(t *testing.T, hover edgeRef, drop time.Time)`, and in its view replace `handles: true` with
+      `mouse: true, hover: hover` (keep `drop: drop`). Existing callers pass `edgeRef{}` as the new argument.
+      Replace `TestGridHandles` with:
    ```go
    // Hovering the trip's end edge (Friday) draws only that ▸; every other line keeps its full text.
    func TestGridHoverShowsOneHandle(t *testing.T) {
-   	ny := testutil.NY(t)
-   	trip := testutil.AllDay("trip", "Trip", 2026, time.November, 12, 2)
-   	got, _ := gridWithTrip(t, edgeOf(trip, partEnd))
+   	trip := testutil.AllDay("trip", "Trip", 2026, time.November, 12, 2) // same IDs as in gridWithTrip
+   	got, _ := gridWithTrip(t, edgeOf(trip, partEnd), time.Time{})
+
    	testutil.Golden(t, "grid_hover", got)
    	if strings.Count(got, "▸") != 1 || strings.Contains(got, "◂") {
    		t.Errorf("want exactly one ▸ and no ◂:\n%s", got)
    	}
-   	_ = ny
    }
    ```
    Review `testdata/grid_hover.golden` after `-update`: `09:00 Dentist` must be **untruncated**, Thursday shows
@@ -1889,7 +1890,7 @@ buttons). Edges stay grabbable. A symbol appears only on the edge cell under the
    ```go
    func TestGridHitMap(t *testing.T) {
    	ny := testutil.NY(t)
-   	screen, hits := gridWithTrip(t, edgeRef{}) // no hover: the zones must exist anyway
+   	screen, hits := gridWithTrip(t, edgeRef{}, time.Time{}) // no hover: the zones must exist anyway
    	thu, fri := time.Date(2026, 11, 12, 0, 0, 0, 0, ny), time.Date(2026, 11, 13, 0, 0, 0, 0, ny)
    	_, y := find(t, screen, "Trip") // first occurrence: Thursday's line
    	thuX, friX := 3*16, 4*16
@@ -1908,8 +1909,8 @@ buttons). Edges stay grabbable. A symbol appears only on the edge cell under the
    	}
    }
    ```
-   Keep the "blank line is Tuesday" check from the old version. Change `TestGridMarksDropTarget` to set
-   `drop` directly on the view, since `gridWithTrip` no longer takes it.
+   Keep the "blank line is Tuesday" check from the old version. `TestGridMarksDropTarget` only needs the extra
+   argument: `gridWithTrip(t, edgeRef{}, time.Date(2026, 11, 14, 0, 0, 0, 0, ny))`.
 
    c. In `mouse_test.go`, add:
    ```go
