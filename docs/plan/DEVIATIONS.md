@@ -26,6 +26,15 @@ One line per deviation: what changed, and why.
 - **Task 12.7 (uncompiled spec):** after rewriting `TestGridHitMap` (edges found by column, not by symbol),
   `grid_test.go` no longer uses `runewidth`; its import had to go, or the package doesn't compile. Everything else
   compiled as written.
+- **Task 12.9 (terminal re-check, same tmux setup as 12.6: mouse events injected as SGR sequences, including
+  button-less motion for hover):** passed: at 80 columns no `◂`/`▸` shows until the pointer is on an edge, and titles
+  use the whole cell (`09:00 Sta…`); hovering a first day's left edge shows `◂`, a last day's right edge shows `▸`,
+  moving away hides it, and a middle day's right edge shows nothing; dragging a trip's right edge two days later
+  without hovering first works; an invitation's details offer `[Delete] [RSVP] [Close]` and a read-only holiday's
+  only `[Close]`, with `e`/`d`/`r` explained in the status bar (also checked with the mouse off: the hint line lists
+  only the possible keys). **Not checked:** whether real terminals report hover. Injecting the escape sequences tests
+  clindar's handling of all-motion events, not whether macOS Terminal.app, or tmux with `set -g mouse on`, actually
+  sends them. That needs a person with a mouse.
 
 ## Ideas
 - After `g` (go to date) in the list view, the cursor keeps its old index instead of going to the first event of the
