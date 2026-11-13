@@ -159,6 +159,7 @@ func (m Model) gotoKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m = m.moveDays(int(model.StartOfDay(t).Sub(m.selected).Round(24*time.Hour)/(24*time.Hour)), false)
+		m.cursor = 0 // like h/l/t: a new day starts at its first event
 		return m, m.reloadIfNeeded()
 	}
 	var cmd tea.Cmd

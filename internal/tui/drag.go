@@ -65,7 +65,7 @@ func canDrag(e model.Event, cal model.Calendar) (bool, string) {
 		return false, cal.Name + " is read-only"
 	}
 	if self := e.SelfAttendee(); self != nil && !self.Organizer {
-		return false, "you're a guest: only the organizer can move it"
+		return false, "you're a guest: only the organizer can change it"
 	}
 	return true, ""
 }

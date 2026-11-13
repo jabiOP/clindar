@@ -160,3 +160,18 @@ func TestGridNavigationScrollsWindow(t *testing.T) {
 		t.Errorf("t didn't return to today")
 	}
 }
+
+func TestGotoDateResetsListCursor(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab", "j") // list from Thu 12; cursor on the 2nd event (Lunch)
+	if f.model().cursor != 1 {
+		t.Fatalf("setup: cursor = %d, want 1", f.model().cursor)
+	}
+
+	f.keys("g", "mon", "enter") // go to Mon Nov 16
+
+	m := f.model()
+	if !m.selected.Equal(time.Date(2026, 11, 16, 0, 0, 0, 0, f.ny)) || m.cursor != 0 {
+		t.Errorf("selected = %v, cursor = %d; want Nov 16 and the first event", m.selected, m.cursor)
+	}
+}

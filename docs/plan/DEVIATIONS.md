@@ -37,7 +37,3 @@ One line per deviation: what changed, and why.
   sends them. That needs a person with a mouse.
 
 ## Ideas
-- After `g` (go to date) in the list view, the cursor keeps its old index instead of going to the first event of the
-  new day, so Enter can open the wrong event. `gotoKey` could reset `m.cursor = 0`, as `h`/`l` already do.
-- Pressing `e` on an invitation's details says "can't edit: you're a guest: only the organizer can **move** it":
-  `whyNoEdit` reuses `canDrag`'s wording. "change" would fit both uses.
