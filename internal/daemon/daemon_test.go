@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,5 +49,19 @@ func TestLoopBacksOffOnErrorsAndResets(t *testing.T) {
 			t.Errorf("waits = %v, want %v", fa.waits, want)
 			break
 		}
+	}
+}
+
+func TestUnitsRunTheGivenBinary(t *testing.T) {
+	for _, u := range []daemon.Unit{
+		daemon.SystemdUnit("/usr/local/bin/clindar", "/home/me"),
+		daemon.LaunchdAgent("/usr/local/bin/clindar", "/Users/me"),
+	} {
+		if !strings.Contains(u.Content, "/usr/local/bin/clindar") || !strings.Contains(u.Content, "daemon") {
+			t.Errorf("%s content doesn't run `clindar daemon`:\n%s", u.Path, u.Content)
+		}
+	}
+	if got := daemon.SystemdUnit("/x", "/home/me").Path; got != "/home/me/.config/systemd/user/clindar.service" {
+		t.Errorf("systemd path = %s", got)
 	}
 }
