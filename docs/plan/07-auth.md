@@ -41,7 +41,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/yourname/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/auth"
 )
 
 func TestFileStoreRoundTripAndPermissions(t *testing.T) {
@@ -254,7 +254,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yourname/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/auth"
 )
 
 func TestLoadClient(t *testing.T) {
@@ -294,7 +294,7 @@ import (
 
 // Set at build time for an official build, e.g.
 //
-//	go build -ldflags "-X github.com/yourname/clindar/internal/auth.BuiltinClientID=... -X ...BuiltinClientSecret=..."
+//	go build -ldflags "-X github.com/jabiOP/clindar/internal/auth.BuiltinClientID=... -X ...BuiltinClientSecret=..."
 //
 // For a "Desktop app" OAuth client the secret is not confidential (Google says so).
 var (
@@ -360,7 +360,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/yourname/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/auth"
 )
 
 // TestLoginFlow plays both Google (token endpoint) and the user's browser.

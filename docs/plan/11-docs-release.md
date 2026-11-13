@@ -78,7 +78,7 @@ clindar agenda --days 14 --tsv | fzf --with-nth=2,6 | cut -f1 | xargs -r clindar
 
 **Goal:** a README that sells the tool in one screen, and a reproducible build.
 
-README sections: what clindar is (2 sentences); install (`go install github.com/yourname/clindar@latest`); first
+README sections: what clindar is (2 sentences); install (`go install github.com/jabiOP/clindar@latest`; while the repo is private, users need `GOPRIVATE=github.com/jabiOP/*` and git access to it); first
 run (link to the setup guide, then `clindar auth login`, `clindar`); daemon (`clindar daemon install`); links to `docs/cli.md`
 and `docs/scripting.md`; a privacy note (data stays in `~/.local/share/clindar` and Google, and tokens live in the keyring).
 

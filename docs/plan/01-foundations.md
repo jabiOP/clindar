@@ -3,8 +3,7 @@
 At the end of this phase you'll have a Go module, the domain model, date/duration parsing, and
 config/paths. Nothing touches the network or disk except config loading.
 
-Throughout the plan, `github.com/yourname/clindar` is the module path. Pick yours in Task 1.1 and
-substitute it everywhere (or use `sed` on code you paste).
+The module path is `github.com/jabiOP/clindar`, matching the GitHub repo. All code in the plan already uses it.
 
 ---
 
@@ -18,7 +17,7 @@ substitute it everywhere (or use `sed` on code you paste).
 
 1. Initialize the module (the git repo already exists):
    ```bash
-   go mod init github.com/yourname/clindar
+   go mod init github.com/jabiOP/clindar
    go mod edit -go=1.26
    ```
    Check the toolchain: `go version` (run inside the repo) must print `go1.26` or newer. The first run may pause
@@ -87,7 +86,7 @@ time window?". Every view and query will depend on it, so it needs careful tests
    	"time"
    	_ "time/tzdata"
 
-   	"github.com/yourname/clindar/internal/model"
+   	"github.com/jabiOP/clindar/internal/model"
    )
 
    func mustLoc(t *testing.T, name string) *time.Location {
@@ -287,7 +286,7 @@ gives to an occurrence of a recurring event.
    	"testing"
    	"time"
 
-   	"github.com/yourname/clindar/internal/model"
+   	"github.com/jabiOP/clindar/internal/model"
    )
 
    func TestNewEventIDIsGoogleCompatibleAndUnique(t *testing.T) {
@@ -466,7 +465,7 @@ the TUI list, and the TUI grid all call these. **Never re-implement grouping els
    	"testing"
    	"time"
 
-   	"github.com/yourname/clindar/internal/model"
+   	"github.com/jabiOP/clindar/internal/model"
    )
 
    func TestSortEventsAllDayFirstThenStartThenTitle(t *testing.T) {
@@ -601,7 +600,7 @@ our own.
    	"testing"
    	"time"
 
-   	"github.com/yourname/clindar/internal/timeparse"
+   	"github.com/jabiOP/clindar/internal/timeparse"
    )
 
    func TestParseDuration(t *testing.T) {
@@ -722,7 +721,7 @@ they are the documentation for users too:
    	"time"
    	_ "time/tzdata"
 
-   	"github.com/yourname/clindar/internal/timeparse"
+   	"github.com/jabiOP/clindar/internal/timeparse"
    )
 
    func TestParseTime(t *testing.T) {
@@ -963,7 +962,7 @@ they are the documentation for users too:
    	"path/filepath"
    	"testing"
 
-   	"github.com/yourname/clindar/internal/config"
+   	"github.com/jabiOP/clindar/internal/config"
    )
 
    func TestDefaultPathsPrecedence(t *testing.T) {
@@ -1097,7 +1096,7 @@ go get github.com/BurntSushi/toml@v1.6.0
    	"testing"
    	"time"
 
-   	"github.com/yourname/clindar/internal/config"
+   	"github.com/jabiOP/clindar/internal/config"
    )
 
    func writeFile(t *testing.T, content string) string {
@@ -1271,7 +1270,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/timeparse"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 func TestParseSpan(t *testing.T) {

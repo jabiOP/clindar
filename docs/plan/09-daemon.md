@@ -34,7 +34,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/daemon"
+	"github.com/jabiOP/clindar/internal/daemon"
 )
 
 // fakeAfter records requested waits and fires immediately, so the test never sleeps.
@@ -160,7 +160,7 @@ import (
 	"runtime"
 )
 
-const label = "com.github.yourname.clindar"
+const label = "com.github.jabiop.clindar"
 
 // Unit is a service definition for the current OS.
 type Unit struct {
@@ -259,8 +259,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/yourname/clindar/internal/daemon"
-	"github.com/yourname/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/daemon"
+	"github.com/jabiOP/clindar/internal/syncer"
 )
 
 func newDaemonCmd(app *App) *cobra.Command {

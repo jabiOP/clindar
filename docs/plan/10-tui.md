@@ -82,8 +82,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestWeekStart(t *testing.T) {
@@ -160,7 +160,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 const gridDays = 28
@@ -295,8 +295,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestRenderListScrollsToCursor(t *testing.T) {
@@ -322,7 +322,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 const listDays = 14
@@ -442,9 +442,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -704,10 +704,10 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/timeparse"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 // Form field indexes.
@@ -914,9 +914,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/output"
-	"github.com/yourname/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/output"
+	"github.com/jabiOP/clindar/internal/service"
 )
 
 // Deps are the TUI's connections to the rest of the app.
@@ -1215,9 +1215,9 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/timeparse"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -1383,8 +1383,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
 )
 
 func (m Model) startDelete(e model.Event) Model {
@@ -1508,7 +1508,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/config"
+	"github.com/jabiOP/clindar/internal/config"
 )
 
 // Every TUI-relevant config setting must reach the TUI. (A form test alone
@@ -1531,7 +1531,7 @@ func TestTUIDepsCarryConfig(t *testing.T) {
 ```
    Run: compile failure.
 2. In `root.go`, replace the root command's `RunE` with the version below, add `tuiDeps` at the end of the file,
-   and add the imports `"github.com/yourname/clindar/internal/service"` and `"github.com/yourname/clindar/internal/tui"`:
+   and add the imports `"github.com/jabiOP/clindar/internal/service"` and `"github.com/jabiOP/clindar/internal/tui"`:
 ```go
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !app.IsTTY {

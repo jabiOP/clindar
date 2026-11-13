@@ -36,12 +36,12 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/gcal/gcaltest"
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/syncer"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/gcal/gcaltest"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 var errOffline = errors.New("dial tcp: network is unreachable")
@@ -112,8 +112,8 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestPullBringsInRemoteChanges(t *testing.T) {
@@ -184,8 +184,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Remote is what the engine needs from Google. *gcal.Client implements it for
@@ -228,9 +228,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Pull fetches calendar-list changes, then event changes for every calendar.
@@ -389,11 +389,11 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestPushCreatesOnGoogleAndStoresEtag(t *testing.T) {
@@ -626,9 +626,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Push sends pending ops in order. It stops at the first transient error,
@@ -760,7 +760,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yourname/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/syncer"
 )
 
 func TestLockIsExclusive(t *testing.T) {

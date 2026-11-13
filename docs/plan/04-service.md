@@ -34,10 +34,10 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 // env is a service over a real temp store, with a fixed clock and two
@@ -137,10 +137,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestAgendaMergesSinglesAndSeriesSorted(t *testing.T) {
@@ -240,8 +240,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 var (
@@ -323,9 +323,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Filter narrows Agenda. Empty CalendarIDs means "calendars marked selected".
@@ -497,9 +497,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestCreateStoresLocallyAndQueuesInsert(t *testing.T) {
@@ -590,8 +590,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Scope says which part of a recurring series an edit applies to.
@@ -770,10 +770,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestUpdateOneOffMovesKeepingDuration(t *testing.T) {
@@ -897,9 +897,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Changes lists fields to modify; nil means "leave as is". Setting Start
@@ -1071,10 +1071,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestDeleteThisInstance(t *testing.T) {
@@ -1165,9 +1165,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // Delete removes an event. For instances of a series, scope is required.

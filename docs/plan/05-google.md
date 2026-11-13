@@ -107,8 +107,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/calendar/v3"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 func TestFromAPITimedEvent(t *testing.T) {
@@ -207,7 +207,7 @@ import (
 
 	"google.golang.org/api/calendar/v3"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // FromAPI converts a Google event. Deleted events in incremental sync often
@@ -356,8 +356,8 @@ import (
 
 	"google.golang.org/api/option"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // newClient points a real gcal.Client at a fake HTTP server. This tests our
@@ -466,7 +466,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // Client talks to Google Calendar for one account. It satisfies syncer.Remote.
@@ -635,9 +635,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/gcal/gcaltest"
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/gcal/gcaltest"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // The fake is test infrastructure that many tests trust, so it gets tests too:
@@ -702,8 +702,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 type Fake struct {

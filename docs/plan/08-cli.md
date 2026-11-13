@@ -50,9 +50,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/output"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/output"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -198,7 +198,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 type Mode int
@@ -522,8 +522,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/timeparse"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 // window is the time range an agenda command covers.
@@ -637,12 +637,12 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/cli"
-	"github.com/yourname/clindar/internal/config"
-	"github.com/yourname/clindar/internal/gcal/gcaltest"
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/syncer"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/cli"
+	"github.com/jabiOP/clindar/internal/config"
+	"github.com/jabiOP/clindar/internal/gcal/gcaltest"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 // harness runs clindar commands in-process against temp dirs and a fake Google.
@@ -761,11 +761,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/yourname/clindar/internal/config"
-	"github.com/yourname/clindar/internal/output"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/config"
+	"github.com/jabiOP/clindar/internal/output"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/syncer"
 )
 
 var ErrNotLoggedIn = errors.New("not logged in: run `clindar auth login` (first time? see `clindar auth setup --help`)")
@@ -923,10 +923,10 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/yourname/clindar/internal/auth"
-	"github.com/yourname/clindar/internal/config"
-	"github.com/yourname/clindar/internal/gcal"
-	"github.com/yourname/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/config"
+	"github.com/jabiOP/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/syncer"
 )
 
 // Version is set by main.
@@ -1107,8 +1107,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/yourname/clindar/internal/auth"
-	"github.com/yourname/clindar/internal/gcal"
+	"github.com/jabiOP/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/gcal"
 )
 
 func newAuthCmd(app *App) *cobra.Command {
@@ -1252,7 +1252,7 @@ import (
 	"os"
 	_ "time/tzdata" // embed timezone database so LoadLocation works everywhere
 
-	"github.com/yourname/clindar/internal/cli"
+	"github.com/jabiOP/clindar/internal/cli"
 )
 
 // version is overwritten at release time with -ldflags "-X main.version=v0.1.0".
@@ -1297,8 +1297,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/output"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/output"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestAgendaShowsSyncedEvents(t *testing.T) {
@@ -1354,8 +1354,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/service"
 )
 
 func newAgendaCmd(app *App) *cobra.Command {
@@ -1557,8 +1557,8 @@ import (
 	"testing"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/output"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/output"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestAddThenAgendaJSON(t *testing.T) {
@@ -1655,10 +1655,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/service"
-	"github.com/yourname/clindar/internal/timeparse"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 // eventFlags are shared by add and edit.

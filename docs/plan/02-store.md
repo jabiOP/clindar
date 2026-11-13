@@ -40,8 +40,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
 )
 
 // NewStore opens a fresh database in a temp dir, closed automatically.
@@ -100,8 +100,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestOpenIsIdempotent(t *testing.T) {
@@ -311,7 +311,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // notFound converts sql.ErrNoRows into our ErrNotFound so callers never import database/sql.
@@ -404,9 +404,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestCalendarsUpsertPreservesSyncTokenAndSortsPrimaryFirst(t *testing.T) {
@@ -459,7 +459,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // UpsertCalendar inserts or updates a calendar, preserving its sync token.
@@ -554,9 +554,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestPutGetRoundTripsEveryField(t *testing.T) {
@@ -621,7 +621,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 const eventCols = `data`
@@ -767,9 +767,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestSinglesInRange(t *testing.T) {
@@ -854,7 +854,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 // SinglesInRange returns non-cancelled events overlapping [from, to) that
@@ -948,9 +948,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func op(kind store.OpKind, title string) store.Op {
@@ -1116,7 +1116,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 type OpKind string
@@ -1343,9 +1343,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/store"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/store"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestLastSyncZeroUntilSet(t *testing.T) {

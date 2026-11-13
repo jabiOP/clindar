@@ -106,9 +106,9 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/yourname/clindar/internal/model"
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 // weeklyStandup: Mondays and Wednesdays 09:00–09:15 New York, starting Mon Nov 2 2026.
@@ -248,7 +248,7 @@ import (
 
 	"github.com/teambition/rrule-go"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 var ErrNoSuchInstance = errors.New("no such instance in series")
@@ -381,8 +381,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestSplitAt(t *testing.T) {
@@ -463,7 +463,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourname/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/model"
 )
 
 var ErrSplitAtFirst = errors.New("split point is the first instance; edit the whole series instead")
@@ -573,8 +573,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourname/clindar/internal/recur"
-	"github.com/yourname/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/recur"
+	"github.com/jabiOP/clindar/internal/testutil"
 )
 
 func TestParseRepeat(t *testing.T) {
