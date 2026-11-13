@@ -70,6 +70,17 @@ func canDrag(e model.Event, cal model.Calendar) (bool, string) {
 	return true, ""
 }
 
+// allowed says which detail actions can succeed for e, and why editing can't.
+type allowed struct {
+	edit, delete, rsvp bool
+	whyNoEdit          string
+}
+
+func permissions(e model.Event, cal model.Calendar) allowed {
+	edit, why := canDrag(e, cal)
+	return allowed{edit: edit, delete: cal.Writable(), rsvp: e.SelfAttendee() != nil, whyNoEdit: why}
+}
+
 // dragPreview is the status-bar text while dragging, e.g. `Move "Trip" → Sat 21–Sun 22`.
 func dragPreview(e model.Event, p part, ch service.Changes, loc *time.Location) string {
 	verb := "Resize"

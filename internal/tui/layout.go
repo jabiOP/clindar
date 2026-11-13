@@ -83,8 +83,20 @@ func (m Model) popup() (modal, bool) {
 		p.Event(m.detail)
 		md.text(strings.TrimRight(b.String(), "\n"))
 		md.text("")
-		choices(dimStyle.Render("e edit · d delete · r RSVP · esc close"),
-			button{"Edit", "e"}, button{"Delete", "d"}, button{"RSVP", "r"}, button{"Close", "esc"})
+		can := permissions(m.detail, m.calendars[m.detail.CalendarID])
+		var bs []button
+		var hints []string
+		if can.edit {
+			bs, hints = append(bs, button{"Edit", "e"}), append(hints, "e edit")
+		}
+		if can.delete {
+			bs, hints = append(bs, button{"Delete", "d"}), append(hints, "d delete")
+		}
+		if can.rsvp {
+			bs, hints = append(bs, button{"RSVP", "r"}), append(hints, "r RSVP")
+		}
+		bs, hints = append(bs, button{"Close", "esc"}), append(hints, "esc close")
+		choices(dimStyle.Render(strings.Join(hints, " · ")), bs...)
 	case modeScope:
 		labels := map[byte]button{'t': {"This event", "t"}, 'f': {"Following", "f"}, 'a': {"All events", "a"}}
 		plain := map[byte]string{'t': "(t)his event", 'f': "(f)ollowing", 'a': "(a)ll events"}

@@ -120,7 +120,14 @@ func (m Model) startRSVP(e model.Event) Model {
 
 // detailKey: e/d/r act on the event shown; any other key closes the pop-up.
 func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	can := permissions(m.detail, m.calendars[m.detail.CalendarID])
 	switch {
+	case key.Matches(k, keys.Edit) && !can.edit:
+		m.message = "can't edit: " + can.whyNoEdit
+	case key.Matches(k, keys.Delete) && !can.delete:
+		m.message = "can't delete: the calendar is read-only"
+	case key.Matches(k, keys.RSVP) && !can.rsvp:
+		m.message = "you are not invited to this event"
 	case key.Matches(k, keys.Edit):
 		m.form, m.mode = editEventForm(m.detail, m.loc()), modeForm
 	case key.Matches(k, keys.Delete):

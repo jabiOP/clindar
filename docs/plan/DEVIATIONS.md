@@ -28,6 +28,7 @@ One line per deviation: what changed, and why.
   compiled as written.
 
 ## Ideas
-- The detail pop-up shows [Edit] [Delete] [RSVP] for every event, including read-only ones and ones you aren't
-  invited to; clicking them only then reports the error. Hiding (or dimming) the buttons that can't work would
-  save a click.
+- After `g` (go to date) in the list view, the cursor keeps its old index instead of going to the first event of the
+  new day, so Enter can open the wrong event. `gotoKey` could reset `m.cursor = 0`, as `h`/`l` already do.
+- Pressing `e` on an invitation's details says "can't edit: you're a guest: only the organizer can **move** it":
+  `whyNoEdit` reuses `canDrag`'s wording. "change" would fit both uses.
