@@ -273,7 +273,7 @@ CREATE TABLE outbox (
 	account_id   TEXT NOT NULL,
 	calendar_id  TEXT NOT NULL,
 	event_id     TEXT NOT NULL,
-	op           TEXT NOT NULL CHECK (op IN ('insert', 'patch', 'delete')),
+	op           TEXT NOT NULL CHECK (op IN ('insert', 'patch', 'rsvp', 'delete')),
 	payload      TEXT NOT NULL DEFAULT '',  -- JSON model.Event for insert/patch
 	if_match     TEXT NOT NULL DEFAULT '',
 	send_updates TEXT NOT NULL DEFAULT 'none',
@@ -742,7 +742,12 @@ func scanEvent(row scanner) (model.Event, error) {
 
 Recurrence **expansion is not done here** (Phase 3 does it). SQL can't evaluate RRULEs.
 
-The one subtle bit: all-day events are stored as UTC midnights, but the window is in local time. SQL
+`SinglesInRange` also returns **orphan instances**. If someone invites you to just one occurrence of their recurring
+meeting, Google gives you that occurrence (with `recurringEventId`) but **not** its series. Expansion can never
+produce it, so this query must, or the invite would be invisible. The test has one orphan and one exception of a
+stored series, and only the orphan may come back.
+
+The other subtle bit: all-day events are stored as UTC midnights, but the window is in local time. SQL
 filters with a one-day pad, and `Event.Overlaps` (Task 1.2) makes the exact decision. **Don't
 reimplement overlap logic in SQL.**
 
@@ -778,11 +783,14 @@ func TestSinglesInRange(t *testing.T) {
 	holiday := testutil.AllDay("hol", "holiday", 2026, time.November, 14, 1)
 	cancelled := testutil.Timed("x", "cancelled", at(14, 11), time.Hour)
 	cancelled.Status = model.StatusCancelled
-	exception := testutil.Timed("s_1", "exception", at(14, 12), time.Hour)
-	exception.SeriesID = "s"
+	// An occurrence you were invited to on its own: its series "s" isn't stored.
+	orphan := testutil.Timed("s_1", "orphan instance", at(14, 12), time.Hour)
+	orphan.SeriesID = "s"
 	master := testutil.Timed("m", "master", at(14, 13), time.Hour)
 	master.Recurrence = []string{"RRULE:FREQ=DAILY"}
-	for _, e := range []model.Event{inside, before, holiday, cancelled, exception, master} {
+	attached := testutil.Timed("m_1", "exception of a stored series", at(14, 15), time.Hour)
+	attached.SeriesID = "m"
+	for _, e := range []model.Event{inside, before, holiday, cancelled, orphan, master, attached} {
 		if err := s.PutEvent(ctx, e); err != nil {
 			t.Fatal(err)
 		}
@@ -797,7 +805,7 @@ func TestSinglesInRange(t *testing.T) {
 	for _, e := range got {
 		ids[e.ID] = true
 	}
-	if diff := cmp.Diff(map[string]bool{"in": true, "hol": true}, ids); diff != "" {
+	if diff := cmp.Diff(map[string]bool{"in": true, "hol": true, "s_1": true}, ids); diff != "" {
 		t.Errorf("ids mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -849,13 +857,20 @@ import (
 	"github.com/yourname/clindar/internal/model"
 )
 
-// SinglesInRange returns non-recurring, non-cancelled events overlapping [from, to).
+// SinglesInRange returns non-cancelled events overlapping [from, to) that
+// aren't produced by expanding a stored series: one-off events, plus
+// "orphan" instances. An orphan is an occurrence whose series is not in this
+// calendar, which is what you get when someone invites you to just one
+// occurrence of their recurring meeting.
 func (s *Store) SinglesInRange(ctx context.Context, accountID string, from, to time.Time) ([]model.Event, error) {
 	// SQL filters coarsely with a one-day pad (all-day events are stored as UTC
 	// midnights, which can be up to ±14h from local midnight). Overlaps is exact.
 	const pad = 24 * 60 * 60
-	candidates, err := s.queryEvents(ctx, `WHERE account_id = ? AND series_id = '' AND is_master = 0
-		AND status != 'cancelled' AND start_ts < ? AND end_ts > ?`,
+	candidates, err := s.queryEvents(ctx, `WHERE account_id = ? AND is_master = 0
+		AND status != 'cancelled' AND start_ts < ? AND end_ts > ?
+		AND (series_id = '' OR NOT EXISTS (
+			SELECT 1 FROM events AS m
+			WHERE m.account_id = events.account_id AND m.calendar_id = events.calendar_id AND m.id = events.series_id))`,
 		accountID, to.Unix()+pad, from.Unix()-pad)
 	if err != nil {
 		return nil, err
@@ -904,13 +919,18 @@ func (s *Store) ClearCalendarEvents(ctx context.Context, accountID, calendarID s
 **Goal:** the queue of local changes waiting to reach Google. This is the heart of offline editing, so take
 your time. Read design §3 first.
 
-Two ideas:
+Three ideas:
 1. **Coalescing.** There is at most one pending op per event. A new edit is merged into the existing op (see the
    table in the `Enqueue` doc comment). This keeps pushes cheap. It also avoids a real bug: two separate
    patches would both carry the *old* etag, and the second would fail with 412.
 2. **Versioned completion.** The push engine reads op v1 and sends it to Google. Meanwhile the user edits again, which
    coalesces into the same row as v2. When Google answers, `CompleteOp(op v1)` must **not** delete the row.
    Instead it keeps the newer edit and points it at the etag Google just returned. `TestCompleteOpWhenEditedInFlight` covers exactly this.
+3. **RSVP is its own kind of op** (`rsvp`). It sends only the attendee list, without If-Match (Task 6.2 explains
+   why). When it meets an insert or patch for the same event, it merges into them, since they carry the
+   attendee list anyway.
+
+`Op.CreatedAt` is set by the caller from *its* clock. The store never calls `time.Now()` (README testing rule 5).
 
 **Files:** create `internal/store/outbox_test.go`, `internal/store/outbox.go`
 
@@ -959,6 +979,9 @@ func TestEnqueueCoalescing(t *testing.T) {
 		{"patch then patch keeps first If-Match", []store.Op{op(store.OpPatch, "a"), op(store.OpPatch, "b")}, store.OpPatch, "b", `"etag-a"`},
 		{"insert then delete becomes delete", []store.Op{op(store.OpInsert, "a"), op(store.OpDelete, "")}, store.OpDelete, "", `"etag-a"`},
 		{"patch then delete becomes delete", []store.Op{op(store.OpPatch, "a"), op(store.OpDelete, "")}, store.OpDelete, "", `"etag-a"`},
+		{"patch then rsvp stays patch", []store.Op{op(store.OpPatch, "a"), op(store.OpRSVP, "b")}, store.OpPatch, "b", `"etag-a"`},
+		{"rsvp then rsvp stays rsvp", []store.Op{op(store.OpRSVP, "a"), op(store.OpRSVP, "b")}, store.OpRSVP, "b", `"etag-a"`},
+		{"rsvp then patch becomes patch", []store.Op{op(store.OpRSVP, "a"), op(store.OpPatch, "b")}, store.OpPatch, "b", `"etag-a"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1088,6 +1111,7 @@ type OpKind string
 const (
 	OpInsert OpKind = "insert"
 	OpPatch  OpKind = "patch"
+	OpRSVP   OpKind = "rsvp" // send only the attendee list (your response), unconditionally
 	OpDelete OpKind = "delete"
 )
 
@@ -1104,6 +1128,7 @@ type Op struct {
 	Version     int         // bumped whenever a newer edit is coalesced into this op
 	Attempts    int
 	LastError   string
+	CreatedAt   time.Time // informational; set by the caller from its clock
 }
 
 var ErrPendingDelete = errors.New("event has a pending delete")
@@ -1115,6 +1140,10 @@ var ErrPendingDelete = errors.New("event has a pending delete")
 //	-         any     new op
 //	insert    patch   insert (new payload)
 //	patch     patch   patch  (new payload, original If-Match)
+//	insert    rsvp    insert (new payload: the insert carries the response)
+//	patch     rsvp    patch  (new payload: the patch carries the response)
+//	rsvp      rsvp    rsvp   (new payload)
+//	rsvp      patch   patch  (new payload: it carries the response too)
 //	insert    delete  delete (cheap 404 if the insert never landed; safe if it was in flight)
 //	patch     delete  delete (original If-Match)
 //	delete    any     ErrPendingDelete
@@ -1133,8 +1162,12 @@ func (s *Store) Enqueue(ctx context.Context, op Op) error {
 			return fmt.Errorf("enqueue %s for %s: %w", op.Kind, op.EventID, ErrPendingDelete)
 		case op.Kind == OpInsert:
 			return fmt.Errorf("enqueue insert for %s: already has a pending %s", op.EventID, existing.Kind)
-		case op.Kind == OpPatch:
-			return tx.rewriteOp(ctx, existing.Seq, existing.Kind, op.Payload, op.SendUpdates)
+		case op.Kind == OpPatch || op.Kind == OpRSVP:
+			kind := existing.Kind // insert/patch already send the attendee list
+			if existing.Kind == OpRSVP {
+				kind = op.Kind
+			}
+			return tx.rewriteOp(ctx, existing.Seq, kind, op.Payload, op.SendUpdates)
 		default: // op.Kind == OpDelete
 			return tx.rewriteOp(ctx, existing.Seq, OpDelete, model.Event{}, op.SendUpdates)
 		}
@@ -1150,7 +1183,7 @@ func (s *Store) insertOp(ctx context.Context, op Op) error {
 		(account_id, calendar_id, event_id, op, payload, if_match, send_updates, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		op.AccountID, op.CalendarID, op.EventID, op.Kind, payload, op.IfMatch, sendUpdatesOrNone(op.SendUpdates),
-		time.Now().Unix())
+		op.CreatedAt.Unix())
 	return err
 }
 

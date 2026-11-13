@@ -21,6 +21,9 @@ substitute it everywhere (or use `sed` on code you paste).
    go mod init github.com/yourname/clindar
    go mod edit -go=1.26
    ```
+   Check the toolchain: `go version` (run inside the repo) must print `go1.26` or newer. The first run may pause
+   while Go downloads it (see the README primer). If it fails with a download or `GOTOOLCHAIN` error, stop and
+   get Go 1.26 installed. Don't edit the `go` line down.
 2. `main.go`:
    ```go
    package main

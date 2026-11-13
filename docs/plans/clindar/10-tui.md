@@ -591,6 +591,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 	_ "time/tzdata"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -638,6 +639,14 @@ func TestDeleteRecurringInstanceAsksForScope(t *testing.T) {
 		t.Errorf("Nov 16 = %v: other instances must remain", got)
 	}
 }
+
+func TestAddFormUsesDefaultCalendar(t *testing.T) {
+	f := newEventForm(time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC), "Work")
+
+	if got := f.value(fCalendar); got != "Work" {
+		t.Errorf("calendar field = %q, want the configured default", got)
+	}
+}
 ```
 3. `keys.go`:
 ```go
@@ -681,7 +690,9 @@ func helpText() string {
 	return s + "\nPress any key to close."
 }
 ```
-4. `form.go`. It reuses `timeparse.ParseSpan` and `recur.ParseRepeat`, so its inputs mean the same as the CLI flags:
+4. `form.go`. It reuses `timeparse.ParseSpan` and `recur.ParseRepeat`, so its inputs mean the same as the CLI flags.
+   The add form's Calendar field is pre-filled from `Deps.DefaultCalendar` (config `default_calendar`), the same
+   default the CLI uses:
 ```go
 package tui
 
@@ -748,10 +759,12 @@ func newForm(values [fieldCount]string, editing *model.Event) form {
 	return f
 }
 
-// newEventForm pre-fills a form for adding an event on day.
-func newEventForm(day time.Time) form {
+// newEventForm pre-fills a form for adding an event on day, in the user's
+// default calendar (the same default the CLI's `add` uses).
+func newEventForm(day time.Time, defaultCalendar string) form {
 	var v [fieldCount]string
 	v[fStart] = day.Format("2006-01-02") + " 09:00"
+	v[fCalendar] = defaultCalendar
 	return newForm(v, nil)
 }
 
@@ -908,11 +921,12 @@ import (
 
 // Deps are the TUI's connections to the rest of the app.
 type Deps struct {
-	Service      *service.Service
-	Sync         func(context.Context) error // nil disables syncing (tests)
-	Now          func() time.Time
-	WeekStart    time.Weekday
-	SyncInterval time.Duration // 0 disables periodic sync (tests)
+	Service         *service.Service
+	Sync            func(context.Context) error // nil disables syncing (tests)
+	Now             func() time.Time
+	WeekStart       time.Weekday
+	DefaultCalendar string        // config default_calendar: pre-fills the add form
+	SyncInterval    time.Duration // 0 disables periodic sync (tests)
 }
 
 type view int
@@ -1245,7 +1259,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.syncing = m.deps.Sync != nil
 		return m, m.syncCmd()
 	case key.Matches(k, keys.Add):
-		m.form = newEventForm(m.selected)
+		m.form = newEventForm(m.selected, m.deps.DefaultCalendar)
 		m.mode = modeForm
 		return m, nil
 	case key.Matches(k, keys.ScrollDown):
@@ -1484,19 +1498,24 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 **Steps**
 1. Replace the root command's `RunE` with the version below and add the import `"github.com/yourname/clindar/internal/tui"`:
 ```go
-RunE: func(cmd *cobra.Command, args []string) error {
-	if !app.IsTTY {
-		return cmd.Help()
-	}
-	svc, err := app.Service(cmd.Context())
-	if err != nil {
-		return err
-	}
-	return tui.Run(cmd.Context(), tui.Deps{
-		Service: svc,
-		Sync: func(ctx context.Context) error {
-			_, err := app.SyncNow(ctx) // skipped quietly if the daemon is syncing
-			return err
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !app.IsTTY {
+				return cmd.Help()
+			}
+			svc, err := app.Service(cmd.Context())
+			if err != nil {
+				return err
+			}
+			return tui.Run(cmd.Context(), tui.Deps{
+				Service: svc,
+				Sync: func(ctx context.Context) error {
+					_, err := app.SyncNow(ctx) // skipped quietly if the daemon is syncing
+					return err
+				},
+				Now:          app.Now,
+				WeekStart:    app.Config.FirstWeekday(),
+				SyncInterval: app.Config.SyncInterval.Duration,
+			})
 		},
 ```
 2. `go build -o clindar . && ./clindar`. Walk through everything: `h j k l`, `J K`, `t`, `g` + "fri", `tab`,

@@ -13,7 +13,9 @@ Read design §4 (scope table) before Task 4.3.
 ## Task 4.1: Service, calendars, agenda, get, next
 
 **Goal:** the read side. `Agenda` merges one-off events with expanded series and sorts them. `Get` accepts
-instance IDs even when no exception is stored. `Next` powers status bars: in-progress events count, and
+instance IDs even when no exception is stored. **Orphan instances** (Task 2.4) are *detached*: returned with
+`SeriesID` cleared, so the CLI, the TUI, and the edit paths all treat them as one-off events. You can't edit
+"all" of a series that isn't in your calendar. `Next` powers status bars: in-progress events count, and
 declined and all-day events are skipped.
 
 **Files:**
@@ -201,6 +203,27 @@ func TestNext(t *testing.T) {
 		t.Errorf("Next = %q, %v, %v; want running", got.ID, ok, err)
 	}
 }
+
+// Invited to one occurrence of someone else's series: Google gives us the
+// instance without its series. It must show up, and behave like a one-off.
+func TestOrphanInstanceIsShownAndEditableAsOneOff(t *testing.T) {
+	e := newEnv(t)
+	inv := testutil.Timed("theirs_20261116T150000Z", "Their weekly sync", e.at(16, 10, 0), time.Hour)
+	inv.SeriesID, inv.OriginalStart = "theirs", e.at(16, 10, 0)
+	inv.Attendees = []model.Attendee{{Email: testutil.Account, Self: true, Response: model.ResponseNeedsAction}}
+	e.put(inv)
+
+	if got := e.titlesOn(16); !equalStrings(got, []string{"10:00 Their weekly sync"}) {
+		t.Fatalf("Nov 16 = %v", got)
+	}
+	got, err := e.svc.Get(e.ctx, inv.ID)
+	if err != nil || got.IsInstance() {
+		t.Fatalf("Get = %+v, %v; want a one-off", got, err)
+	}
+	if err := e.svc.RSVP(e.ctx, inv.ID, model.ResponseAccepted, service.ScopeNone); err != nil {
+		t.Errorf("RSVP without scope: %v", err)
+	}
+}
 ```
 3. Run: compile failure.
 4. `internal/service/service.go`:
@@ -324,7 +347,7 @@ func (s *Service) Agenda(ctx context.Context, from, to time.Time, f Filter) ([]m
 	var out []model.Event
 	for _, e := range singles {
 		if visible[e.CalendarID] {
-			out = append(out, e)
+			out = append(out, detach(e)) // SinglesInRange only returns orphan instances, never attached ones
 		}
 	}
 	masters, err := s.store.MastersBefore(ctx, s.account, to)
@@ -401,7 +424,7 @@ func (s *Service) Next(ctx context.Context) (e model.Event, ok bool, err error) 
 func (s *Service) Get(ctx context.Context, id string) (model.Event, error) {
 	e, err := s.store.FindEvent(ctx, s.account, id)
 	if err == nil && !e.Cancelled() {
-		return e, nil
+		return s.detachIfOrphan(ctx, e)
 	}
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return model.Event{}, err
@@ -423,6 +446,25 @@ func (s *Service) Get(ctx context.Context, id string) (model.Event, error) {
 		return model.Event{}, fmt.Errorf("event %s: %w", id, store.ErrNotFound)
 	}
 	return inst, err
+}
+
+// detach presents an orphan instance (its series isn't in our calendar) as a
+// one-off event, so every front-end and every edit path treats it as one:
+// no scope prompt, and edits go to its own ID. The stored row is unchanged.
+func detach(e model.Event) model.Event {
+	e.SeriesID, e.OriginalStart = "", time.Time{}
+	return e
+}
+
+func (s *Service) detachIfOrphan(ctx context.Context, e model.Event) (model.Event, error) {
+	if !e.IsInstance() {
+		return e, nil
+	}
+	_, err := s.store.GetEvent(ctx, s.account, e.CalendarID, e.SeriesID)
+	if errors.Is(err, store.ErrNotFound) {
+		return detach(e), nil
+	}
+	return e, err
 }
 ```
 6. Run: pass.
@@ -616,7 +658,7 @@ func (s *Service) save(ctx context.Context, tx *store.Store, e model.Event, kind
 	}
 	return tx.Enqueue(ctx, store.Op{
 		AccountID: e.AccountID, CalendarID: e.CalendarID, EventID: e.ID,
-		Kind: kind, Payload: e, IfMatch: e.ETag, SendUpdates: s.updatesFor(e),
+		Kind: kind, Payload: e, IfMatch: e.ETag, SendUpdates: s.updatesFor(e), CreatedAt: s.now(),
 	})
 }
 
@@ -624,7 +666,7 @@ func (s *Service) save(ctx context.Context, tx *store.Store, e model.Event, kind
 func (s *Service) remove(ctx context.Context, tx *store.Store, e model.Event) error {
 	return tx.Enqueue(ctx, store.Op{
 		AccountID: e.AccountID, CalendarID: e.CalendarID, EventID: e.ID,
-		Kind: store.OpDelete, IfMatch: e.ETag, SendUpdates: s.updatesFor(e),
+		Kind: store.OpDelete, IfMatch: e.ETag, SendUpdates: s.updatesFor(e), CreatedAt: s.now(),
 	})
 }
 
@@ -1014,7 +1056,8 @@ func (s *Service) updateFollowing(ctx context.Context, inst model.Event, ch Chan
 - **Delete `following`** truncates the series.
 - **Delete `all`** deletes the master.
 - **RSVP** changes only *your* attendee entry (`SelfAttendee`, Task 1.4). On events you weren't invited to,
-  it returns `ErrNotAttendee`.
+  it returns `ErrNotAttendee`. It queues an `rsvp` op **without If-Match** rather than a patch. The organizer
+  may edit the event at any time, and that must not make your reply fail (Task 6.2).
 
 **Files:** create `internal/service/delete_test.go`, `internal/service/delete.go`
 
@@ -1104,8 +1147,8 @@ func TestRSVP(t *testing.T) {
 	if got.SelfAttendee().Response != model.ResponseAccepted || got.Attendees[0].Response != model.ResponseAccepted {
 		t.Errorf("attendees = %+v", got.Attendees)
 	}
-	if ops := e.ops(); len(ops) != 1 || ops[0].SendUpdates != "all" {
-		t.Errorf("ops = %+v, want one patch that notifies the organizer", ops)
+	if ops := e.ops(); len(ops) != 1 || ops[0].Kind != store.OpRSVP || ops[0].IfMatch != "" || ops[0].SendUpdates != "all" {
+		t.Errorf("ops = %+v, want one unconditional rsvp op that notifies the organizer", ops)
 	}
 	if err := e.svc.RSVP(e.ctx, "mine", model.ResponseAccepted, service.ScopeNone); !errors.Is(err, service.ErrNotAttendee) {
 		t.Errorf("RSVP on own event: err = %v, want ErrNotAttendee", err)
@@ -1203,7 +1246,17 @@ func (s *Service) RSVP(ctx context.Context, id string, resp model.ResponseStatus
 		return ErrNotAttendee
 	}
 	self.Response = resp
-	return s.store.InTx(ctx, func(tx *store.Store) error { return s.save(ctx, tx, e, store.OpPatch) })
+	return s.store.InTx(ctx, func(tx *store.Store) error {
+		if err := tx.PutEvent(ctx, e); err != nil {
+			return err
+		}
+		// Unconditional (no If-Match): an RSVP must not fail just because the
+		// organizer edited the title meanwhile. Only the attendee list is sent.
+		return tx.Enqueue(ctx, store.Op{
+			AccountID: e.AccountID, CalendarID: e.CalendarID, EventID: e.ID,
+			Kind: store.OpRSVP, Payload: e, SendUpdates: s.updatesFor(e), CreatedAt: s.now(),
+		})
+	})
 }
 ```
 4. Run: pass.

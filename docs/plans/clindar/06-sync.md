@@ -196,6 +196,7 @@ type Remote interface {
 	GetEvent(ctx context.Context, calendarID, eventID string) (model.Event, error)
 	InsertEvent(ctx context.Context, calendarID string, e model.Event, sendUpdates string) (model.Event, error)
 	PatchEvent(ctx context.Context, calendarID string, e model.Event, ifMatch, sendUpdates string) (model.Event, error)
+	RespondEvent(ctx context.Context, calendarID string, e model.Event, sendUpdates string) (model.Event, error)
 	DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, sendUpdates string) error
 }
 
@@ -367,6 +368,12 @@ Behaviors (each has a test):
   first transient error, because later ops may depend on earlier ones (a split is patch-then-insert).
 - Instance edits and deletes reach Google as exceptions.
 - **An edit made during a push isn't lost.** This exercises `CompleteOp`'s superseded path (Task 2.5) end to end.
+- **A 401 keeps everything queued.** One login problem must never discard edits.
+- **The queue can't jam.** If an edit is rejected *and* Google won't even let us read the event back (403, e.g. we
+  lost access to the calendar), the op is dropped and logged anyway. The next pull fixes local state.
+  Otherwise that op would block every later one forever.
+- **RSVPs survive organizer edits.** The organizer renames the event while our acceptance is queued. After sync,
+  Google has *their* title and *our* response.
 
 **Files:** replace `internal/syncer/push.go`; create `internal/syncer/push_test.go`
 
@@ -377,10 +384,12 @@ package syncer_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 	_ "time/tzdata"
 
+	"github.com/yourname/clindar/internal/gcal"
 	"github.com/yourname/clindar/internal/model"
 	"github.com/yourname/clindar/internal/service"
 	"github.com/yourname/clindar/internal/store"
@@ -509,6 +518,75 @@ func TestEditDuringPushIsNotLost(t *testing.T) {
 		t.Errorf("%d ops still pending", n)
 	}
 }
+
+// A rejected edit whose event we can't even read back (403) must not block
+// every later edit forever.
+func TestUnreadableEventDoesNotJamTheQueue(t *testing.T) {
+	w := newWorld(t)
+	w.google.Put(testutil.Timed("e1", "Original", w.at(16, 9), time.Hour))
+	w.sync()
+	w.svc.Update(w.ctx, "e1", service.Changes{Title: ptr("Mine")}, service.ScopeNone)
+	remote, _ := w.google.Event(testutil.Calendar, "e1")
+	w.google.Put(remote) // new etag: our patch will get 412
+	w.google.FailGet = fmt.Errorf("%w: 403 forbidden", gcal.ErrPermanent)
+	later, _ := w.svc.Create(w.ctx, service.Draft{Title: "Later edit", Start: w.at(17, 9), End: w.at(17, 10)})
+
+	if err := w.engine.Push(w.ctx); err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+
+	if _, ok := w.google.Event(testutil.Calendar, later.ID); !ok {
+		t.Error("the op behind the rejected one never reached Google")
+	}
+	if n := w.pendingCount(); n != 0 {
+		t.Errorf("%d ops still pending", n)
+	}
+}
+
+func TestUnauthorizedKeepsOpsQueued(t *testing.T) {
+	w := newWorld(t)
+	w.sync()
+	w.svc.Create(w.ctx, service.Draft{Title: "x", Start: w.at(16, 9), End: w.at(16, 10)})
+	w.google.Fail = fmt.Errorf("%w: 401", gcal.ErrUnauthorized)
+
+	err := w.engine.Sync(w.ctx)
+
+	if !errors.Is(err, gcal.ErrUnauthorized) {
+		t.Errorf("Sync err = %v, want ErrUnauthorized", err)
+	}
+	if n := w.pendingCount(); n != 1 {
+		t.Errorf("pending = %d, want 1: a login problem must not discard edits", n)
+	}
+}
+
+// RSVPs go out as attendee-only patches without If-Match: the organizer
+// editing the title meanwhile must neither block our reply nor be overwritten.
+func TestRSVPSurvivesOrganizerEdits(t *testing.T) {
+	w := newWorld(t)
+	inv := testutil.Timed("inv", "Party", w.at(20, 18), 2*time.Hour)
+	inv.Attendees = []model.Attendee{
+		{Email: "host@example.com", Organizer: true, Response: model.ResponseAccepted},
+		{Email: testutil.Account, Self: true, Response: model.ResponseNeedsAction},
+	}
+	w.google.Put(inv)
+	w.sync()
+	if err := w.svc.RSVP(w.ctx, "inv", model.ResponseAccepted, service.ScopeNone); err != nil {
+		t.Fatal(err)
+	}
+	remote, _ := w.google.Event(testutil.Calendar, "inv")
+	remote.Title = "Party (moved to the roof)"
+	w.google.Put(remote)
+
+	w.sync()
+
+	got, _ := w.google.Event(testutil.Calendar, "inv")
+	if got.Title != "Party (moved to the roof)" {
+		t.Errorf("title = %q: the RSVP overwrote the organizer's edit", got.Title)
+	}
+	if got.SelfAttendee() == nil || got.Attendees[1].Response != model.ResponseAccepted {
+		t.Errorf("attendees = %+v, want our acceptance", got.Attendees)
+	}
+}
 ```
 2. Run: these fail against the stub (not a compile failure this time). **Check that they fail for the
    right reason:** "event never reached Google", etc.
@@ -557,6 +635,8 @@ func (e *Engine) pushOne(ctx context.Context, op store.Op) error {
 		}
 	case store.OpPatch:
 		got, err = e.Remote.PatchEvent(ctx, op.CalendarID, op.Payload, op.IfMatch, op.SendUpdates)
+	case store.OpRSVP:
+		got, err = e.Remote.RespondEvent(ctx, op.CalendarID, op.Payload, op.SendUpdates)
 	case store.OpDelete:
 		err = e.Remote.DeleteEvent(ctx, op.CalendarID, op.EventID, op.IfMatch, op.SendUpdates)
 		if errors.Is(err, gcal.ErrNotFound) {
@@ -594,10 +674,15 @@ func (e *Engine) complete(ctx context.Context, op store.Op, got model.Event) err
 // event from Google ("Google wins").
 func (e *Engine) discard(ctx context.Context, op store.Op, kind, msg string, cause error) error {
 	remote, err := e.Remote.GetEvent(ctx, op.CalendarID, op.EventID)
-	if err != nil && !errors.Is(err, gcal.ErrNotFound) {
+	gone := errors.Is(err, gcal.ErrNotFound)
+	// If Google refuses even to show us the event (e.g. 403: access to the
+	// calendar was lost), give up on restoring it: drop the op anyway so the
+	// queue keeps moving. The next pull fixes local state (a lost calendar
+	// disappears from the calendar list, taking its events with it).
+	unreadable := errors.Is(err, gcal.ErrPermanent)
+	if err != nil && !gone && !unreadable {
 		return err // transient: retry the whole op later
 	}
-	gone := errors.Is(err, gcal.ErrNotFound)
 	return e.Store.InTx(ctx, func(tx *store.Store) error {
 		if err := tx.DropOp(ctx, op.Seq); err != nil {
 			return err
@@ -606,8 +691,11 @@ func (e *Engine) discard(ctx context.Context, op store.Op, kind, msg string, cau
 			CalendarID: op.CalendarID, EventID: op.EventID, Message: msg, Detail: cause.Error()}); err != nil {
 			return err
 		}
-		if gone {
+		switch {
+		case gone:
 			return tx.DeleteSeries(ctx, op.AccountID, op.CalendarID, op.EventID)
+		case unreadable:
+			return nil
 		}
 		return tx.PutEvent(ctx, remote)
 	})

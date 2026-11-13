@@ -40,7 +40,13 @@ These files explain *how*, as small tasks.
 
 ### Go
 
-- Install **Go 1.26+** (`go version`). Our dependencies require it.
+- **Go 1.26+ is required.** Our pinned dependencies (`golang.org/x/oauth2`, `google.golang.org/api`,
+  `modernc.org/sqlite`) need it. **Do not downgrade dependencies to fit an older Go.**
+  If your installed Go is older (e.g. 1.24), that's usually fine. `go.mod` says `go 1.26`, so the `go` command
+  downloads the 1.26 toolchain automatically (`GOTOOLCHAIN=auto`, the default) from `proxy.golang.org` on first
+  use, and `go version` *inside the repo* then reports 1.26. If that download is blocked (corporate proxy,
+  sandbox, `GOTOOLCHAIN=local`), install Go 1.26 from <https://go.dev/dl/>, or ask for your environment to be
+  updated, before starting Task 1.1.
 - Layout: everything except `main.go` lives under `internal/`, which other modules cannot import.
   One directory = one package.
 - `go test ./...` runs everything. Useful flags:

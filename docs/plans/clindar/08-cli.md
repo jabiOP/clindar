@@ -996,11 +996,6 @@ func NewRootCmd(app *App) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help() // Phase 10 replaces this with the TUI
 		},
-				Now:          app.Now,
-				WeekStart:    app.Config.FirstWeekday(),
-				SyncInterval: app.Config.SyncInterval.Duration,
-			})
-		},
 	}
 	root.SetIn(app.Stdin)
 	root.SetOut(app.Stdout)
@@ -1964,5 +1959,8 @@ record the result in `DEVIATIONS.md`. If one is wrong, fix the code **and the fa
 | 412 on a stale `If-Match` | Edit an event offline (`--offline`), change it in the web UI, `clindar sync`, then `clindar log` should show a discarded edit |
 | Clearing a field works (`ForceSendFields`) | `clindar edit ID --desc ""` removes the description |
 | Cancelled instances arrive with `originalStartTime` in incremental sync | Delete one instance in the web UI, `clindar sync`, and check that the slot disappears in `clindar agenda` |
+| RSVP as a non-organizer works and changes nothing else | Have a second account invite you; `clindar rsvp ID yes`; the organizer sees "accepted" and the title/description are untouched. Also try it after the organizer edits the title. |
+| Single-occurrence invites show up | Have a second account invite you to **one** occurrence of their recurring meeting; `clindar sync`; it appears in `clindar agenda` as a normal event |
+| A 401 keeps edits queued | Revoke clindar at <https://myaccount.google.com/permissions>, make an edit, `clindar sync` should fail with the "log in" message, `clindar auth status` shows the pending change, `clindar auth login` then delivers it |
 | Keyring works | `secret-tool search service clindar` (Linux) or Keychain Access (macOS) shows the token |
 | Token refresh | Leave it for over an hour, then `clindar sync` still works without logging in |

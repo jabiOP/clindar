@@ -72,6 +72,9 @@ masters, materialized exceptions, and virtual (expanded) instances. Google's own
   slot it replaces, `ID` = Google's instance ID (`<masterID>_<YYYYMMDDTHHMMSSZ>`, or `_<YYYYMMDD>` for all-day).
 - **Virtual instance:** produced by expansion and shaped exactly like an exception, but not stored.
 
+**Orphan instance:** an occurrence whose series isn't in your calendar (someone invited you to one occurrence
+of their recurring meeting). It is stored like an exception but shown and edited as a one-off event.
+
 **IDs are generated locally** (base32hex, which Google accepts for client-supplied IDs). An event created offline
 therefore already has its final ID, and no temp-ID remapping is needed.
 
@@ -94,7 +97,14 @@ Each op carries `If-Match: <etag>` when one is known.
 | 404/410 on patch/delete | The event is gone, so drop the op and delete it locally |
 | **412** | **Google wins**: drop the op, log `discarded_edit`, re-fetch the event |
 | other 4xx | Permanent: drop the op and log an error |
-| network/5xx/429 | Transient: keep the op, increment `attempts`, stop pushing this cycle |
+| 401 | Login problem: transient. Keep everything queued, and tell the user to `auth login` if it persists |
+| network/5xx/429, 403 rate/quota limits | Transient: keep the op, increment `attempts`, stop pushing this cycle |
+
+When an op is dropped (412/404/permanent), the engine re-fetches the event to restore Google's version. If that
+re-fetch is itself refused (403), the op is still dropped, so one broken event can't block the queue.
+
+**RSVP** is a separate op kind: it patches only the attendee list and sends no If-Match, so it can't conflict
+with (or overwrite) the organizer's edits.
 
 If the user edits an event *while* its op is in flight, the op's `version` changes and the
 completed push does not delete it. It is rewritten as a patch against the new etag.
@@ -118,6 +128,7 @@ The TUI syncs on open, on the same interval, and after edits. CLI reads sync fir
 | all | PATCH the master; time changes are applied as a *shift* | DELETE the master |
 
 If "following" is chosen at the first instance, it becomes "all". RSVP supports *this* and *all*.
+Orphan instances (§2) have no series here, so they take no scope.
 
 ## 5. CLI surface
 
@@ -156,6 +167,7 @@ clindar daemon [--interval D] | daemon install | daemon uninstall
 
 - OAuth: desktop loopback flow with PKCE, scope `https://www.googleapis.com/auth/calendar`.
 - Tokens are stored in the OS keyring (`zalando/go-keyring`), or in a `0600` file in the data dir if no keyring is available.
+- The TUI add form and `clindar add` both default to `default_calendar`.
 - Client JSON goes in `$XDG_CONFIG_HOME/clindar/client.json`. `auth.BuiltinClientID`/`BuiltinClientSecret` can be set via `-ldflags`.
 - Config (`config.toml`): `sync_interval`, `stale_after`, `sync_timeout`, `default_calendar`,
   `week_start`, `send_updates`. Every key is optional.

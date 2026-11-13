@@ -19,8 +19,10 @@ go get google.golang.org/api@v0.314.0
 Pay attention to:
 - Deleted events in incremental sync arrive **almost empty** (no start/end). `FromAPI` must not fail on them.
 - `ToAPI` sets `ForceSendFields` so that clearing a description actually clears it (key fact #7).
-- 403 is usually permanent, but Google also uses 403 for rate limiting (`rateLimitExceeded`). Rate limits are
-  transient and must be retried.
+- 403 is usually permanent, but Google also uses 403 for rate and quota limits (`rateLimitExceeded`,
+  `dailyLimitExceeded`, `quotaExceeded`). Those are transient and must be retried.
+- **401 is not permanent.** It means our login is broken, and a re-login fixes it. Treating it as permanent would
+  throw away every queued edit on one auth hiccup. It maps to `ErrUnauthorized`, which the engine retries.
 
 **Files:** create `internal/gcal/errors.go`, `internal/gcal/convert_test.go`, `internal/gcal/convert.go`
 
@@ -48,6 +50,9 @@ var (
 	ErrConflict         = errors.New("changed on Google")        // 412: If-Match failed
 	ErrSyncTokenExpired = errors.New("sync token expired")       // 410 on a list call
 	ErrPermanent        = errors.New("rejected by Google")       // other 4xx: retrying won't help
+	// ErrUnauthorized (401) is NOT permanent: the token may refresh, or the user
+	// may log in again. Ops stay queued, and the message says what to do.
+	ErrUnauthorized = errors.New("Google rejected our login (run `clindar auth login` if this persists)")
 )
 
 func mapErr(err error) error {
@@ -62,6 +67,8 @@ func mapErr(err error) error {
 		return fmt.Errorf("%w: %v", ErrAlreadyExists, err)
 	case code == http.StatusPreconditionFailed:
 		return fmt.Errorf("%w: %v", ErrConflict, err)
+	case code == http.StatusUnauthorized:
+		return fmt.Errorf("%w: %v", ErrUnauthorized, err)
 	case code == http.StatusTooManyRequests || isRateLimit(gerr):
 		return err
 	case code >= 400 && code < 500:
@@ -70,10 +77,12 @@ func mapErr(err error) error {
 	return err
 }
 
-// Google reports some rate limiting as 403 with a reason like "rateLimitExceeded".
+// Google reports rate and quota limits as 403 with reasons like
+// "rateLimitExceeded", "userRateLimitExceeded", "dailyLimitExceeded", "quotaExceeded".
 func isRateLimit(gerr *googleapi.Error) bool {
 	for _, item := range gerr.Errors {
-		if strings.Contains(strings.ToLower(item.Reason), "ratelimit") {
+		reason := strings.ToLower(item.Reason)
+		if strings.Contains(reason, "limitexceeded") || strings.Contains(reason, "quotaexceeded") {
 			return true
 		}
 	}
@@ -159,6 +168,20 @@ func TestToAPIForcesClearableFields(t *testing.T) {
 	}
 	if ev.Start.TimeZone != "America/New_York" || ev.Start.DateTime != "2026-11-16T14:00:00Z" {
 		t.Errorf("start = %+v", ev.Start)
+	}
+}
+
+func TestAttendeesToAPISendsOnlyAttendees(t *testing.T) {
+	e := model.Event{ID: "e1", Title: "Their meeting", Description: "agenda",
+		Attendees: []model.Attendee{{Email: "me@example.com", Self: true, Response: model.ResponseAccepted}}}
+
+	body, err := gcal.AttendeesToAPI(e).MarshalJSON()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"attendees":[{"email":"me@example.com","responseStatus":"accepted"}]}`; string(body) != want {
+		t.Errorf("body = %s, want %s", body, want)
 	}
 }
 
@@ -273,6 +296,13 @@ func ToAPI(e model.Event) *calendar.Event {
 		ev.Start = &calendar.EventDateTime{DateTime: e.Start.Format(time.RFC3339), TimeZone: e.TimeZone}
 		ev.End = &calendar.EventDateTime{DateTime: e.End.Format(time.RFC3339), TimeZone: e.TimeZone}
 	}
+	ev.Attendees = AttendeesToAPI(e).Attendees
+	return ev
+}
+
+// AttendeesToAPI builds a patch body containing only the attendee list.
+func AttendeesToAPI(e model.Event) *calendar.Event {
+	ev := &calendar.Event{}
 	for _, a := range e.Attendees {
 		ev.Attendees = append(ev.Attendees, &calendar.EventAttendee{
 			Email: a.Email, ResponseStatus: string(a.Response), Optional: a.Optional,
@@ -302,6 +332,8 @@ func CalendarFromAPI(accountID string, c *calendar.CalendarListEntry) model.Cale
 ## Task 5.2: Client
 
 **Goal:** a thin wrapper over the Google client: paging, sync tokens, `If-Match`, `sendUpdates`.
+`RespondEvent` (RSVP) patches **only** the attendee list (`AttendeesToAPI`) and never sends If-Match. On
+events you don't own, Google won't let you change the title, so we don't send it.
 
 **How it's tested:** `httptest.NewServer` plays Google, and `option.WithEndpoint` points the real client
 library at it. That tests *our use of the library* (paths, headers, paging, error mapping) without the
@@ -386,12 +418,13 @@ func TestPatchSendsIfMatchAndMapsErrors(t *testing.T) {
 	tests := []struct {
 		status  int
 		body    string
-		wantErr error // nil = transient (not one of ours)
+		wantErr error // nil = plain transient error
 	}{
 		{http.StatusPreconditionFailed, `{"error":{"code":412,"message":"Precondition Failed"}}`, gcal.ErrConflict},
 		{http.StatusNotFound, `{"error":{"code":404,"message":"Not Found"}}`, gcal.ErrNotFound},
 		{http.StatusBadRequest, `{"error":{"code":400,"message":"Bad Request"}}`, gcal.ErrPermanent},
 		{http.StatusForbidden, `{"error":{"code":403,"message":"Rate","errors":[{"reason":"rateLimitExceeded"}]}}`, nil},
+		{http.StatusUnauthorized, `{"error":{"code":401,"message":"Invalid Credentials"}}`, gcal.ErrUnauthorized},
 		{http.StatusServiceUnavailable, `{"error":{"code":503,"message":"Unavailable"}}`, nil},
 	}
 	for _, tt := range tests {
@@ -412,7 +445,7 @@ func TestPatchSendsIfMatchAndMapsErrors(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected an error")
 			}
-			for _, sentinel := range []error{gcal.ErrConflict, gcal.ErrNotFound, gcal.ErrPermanent} {
+			for _, sentinel := range []error{gcal.ErrConflict, gcal.ErrNotFound, gcal.ErrPermanent, gcal.ErrUnauthorized} {
 				if errors.Is(err, sentinel) != (sentinel == tt.wantErr) {
 					t.Errorf("errors.Is(%v, %v) = %v", err, sentinel, !(sentinel == tt.wantErr))
 				}
@@ -552,6 +585,16 @@ func (c *Client) PatchEvent(ctx context.Context, calendarID string, e model.Even
 	return FromAPI(c.account, calendarID, ev)
 }
 
+// RespondEvent sends only the attendee list, which is how you RSVP to an
+// event you don't own. It is deliberately unconditional (no If-Match).
+func (c *Client) RespondEvent(ctx context.Context, calendarID string, e model.Event, sendUpdates string) (model.Event, error) {
+	ev, err := c.svc.Events.Patch(calendarID, e.ID, AttendeesToAPI(e)).SendUpdates(sendUpdates).Context(ctx).Do()
+	if err != nil {
+		return model.Event{}, mapErr(err)
+	}
+	return FromAPI(c.account, calendarID, ev)
+}
+
 func (c *Client) DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, sendUpdates string) error {
 	call := c.svc.Events.Delete(calendarID, eventID).SendUpdates(sendUpdates).Context(ctx)
 	if ifMatch != "" {
@@ -573,7 +616,7 @@ func (c *Client) DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, 
 
 **Goal:** `gcaltest.Fake`, an in-memory implementation of the same methods as `Client`, behaving like
 Google where we care: etags, sync tokens (a change counter), cancelled tombstones, 404/409/410/412, and
-instance IDs that create exceptions on write. It also has hooks: `Fail` simulates being offline, `ExpireTokens`
+instance IDs that create exceptions on write. It also has hooks: `Fail` simulates being offline, `FailGet` makes only `GetEvent` fail, `ExpireTokens`
 forces a 410, and `BeforeWrite` lets a test edit locally while a push is "in flight".
 
 Why a fake and not mocks: sync tests can then assert **outcomes** ("Google now has the event, the outbox is
@@ -673,6 +716,8 @@ type Fake struct {
 
 	// Fail, if set, is returned by every call (simulates being offline).
 	Fail error
+	// FailGet, if set, is returned by GetEvent only (e.g. lost access to a calendar).
+	FailGet error
 	// ExpireTokens makes the next list call with a token fail with ErrSyncTokenExpired.
 	ExpireTokens bool
 	// BeforeWrite, if set, runs at the start of every insert/patch/delete
@@ -767,6 +812,9 @@ func (f *Fake) GetEvent(ctx context.Context, calendarID, eventID string) (model.
 	if f.Fail != nil {
 		return model.Event{}, f.Fail
 	}
+	if f.FailGet != nil {
+		return model.Event{}, f.FailGet
+	}
 	e, ok := f.events[calendarID][eventID]
 	if !ok || e.Cancelled() {
 		return model.Event{}, gcal.ErrNotFound
@@ -803,6 +851,21 @@ func (f *Fake) PatchEvent(ctx context.Context, calendarID string, e model.Event,
 	if e.Recurrence != nil {
 		cur.Recurrence = e.Recurrence
 	}
+	return f.put(cur), nil
+}
+
+// RespondEvent changes only the attendee list.
+func (f *Fake) RespondEvent(ctx context.Context, calendarID string, e model.Event, sendUpdates string) (model.Event, error) {
+	if err := f.beforeWrite(); err != nil {
+		return model.Event{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cur, err := f.current(calendarID, e.ID, "")
+	if err != nil {
+		return model.Event{}, err
+	}
+	cur.Attendees = e.Attendees
 	return f.put(cur), nil
 }
 
