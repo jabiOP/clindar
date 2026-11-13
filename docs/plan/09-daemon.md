@@ -30,6 +30,119 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"testing"
+	"time"
+
+	"github.com/jabiOP/clindar/internal/daemon"
+)
+
+// fakeAfter records requested waits and fires immediately, so the test never sleeps.
+type fakeAfter struct{ waits []time.Duration }
+
+func (f *fakeAfter) after(d time.Duration) <-chan time.Time {
+	f.waits = append(f.waits, d)
+	ch := make(chan time.Time, 1)
+	ch <- time.Time{}
+	return ch
+}
+
+func TestLoopBacksOffOnErrorsAndResets(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	results := []error{nil, errors.New("offline"), errors.New("offline"), errors.New("offline"), nil}
+	calls := 0
+	sync := func(context.Context) error {
+		err := results[calls]
+		calls++
+		if calls == len(results) {
+			cancel()
+		}
+		return err
+	}
+	fa := &fakeAfter{}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	daemon.Loop(ctx, 45*time.Second, 2*time.Minute, sync, fa.after, log)
+
+	// ok → 45s; three failures double up to the 2m cap; success resets to 45s.
+	want := []time.Duration{45 * time.Second, 90 * time.Second, 2 * time.Minute, 2 * time.Minute, 45 * time.Second}
+	if len(fa.waits) != len(want) {
+		t.Fatalf("waits = %v, want %v", fa.waits, want)
+	}
+	for i := range want {
+		if fa.waits[i] != want[i] {
+			t.Errorf("waits = %v, want %v", fa.waits, want)
+			break
+		}
+	}
+}
+```
+2. Run: compile failure.
+3. Implement:
+```go
+// Package daemon runs sync on a timer and installs itself as a user service.
+package daemon
+
+import (
+	"context"
+	"log/slog"
+	"time"
+)
+
+// Loop calls sync every interval until ctx is cancelled. After a failure it
+// waits longer each time (doubling, capped at maxBackoff) so an offline
+// laptop doesn't spin; the first success resets the wait.
+//
+// after is time.After in production; tests pass a fake to avoid sleeping.
+func Loop(ctx context.Context, interval, maxBackoff time.Duration, sync func(context.Context) error,
+	after func(time.Duration) <-chan time.Time, log *slog.Logger) {
+	wait := interval
+	// Check ctx first: when both channels in the select below are ready, Go
+	// picks one at random, so the select alone can't guarantee we stop.
+	for ctx.Err() == nil {
+		if err := sync(ctx); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			wait = min(wait*2, maxBackoff)
+			log.Warn("sync failed", "err", err, "retry_in", wait)
+		} else {
+			wait = interval
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-after(wait):
+		}
+	}
+}
+```
+4. `go test -race -count=20 ./internal/daemon/`: pass every time.
+
+**Commit:** `feat(daemon): sync loop with backoff`
+
+---
+
+## Task 9.2: Service files
+
+**Goal:** `clindar daemon install` writes a systemd **user** unit on Linux or a launchd agent on macOS, then
+**prints** the command to start it. We don't run `systemctl`/`launchctl` ourselves: the user stays in control,
+and the code stays simple.
+
+References: `man systemd.service`, `man systemd.unit` (user units live in `~/.config/systemd/user/`);
+`man launchd.plist`.
+
+**Files:** create `internal/daemon/install.go`; extend `internal/daemon/daemon_test.go`
+
+**Steps**
+1. Add `TestUnitsRunTheGivenBinary` (and the `strings` import). The full file is now:
+```go
+package daemon_test
+
+import (
+	"context"
+	"errors"
+	"io"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -93,63 +206,6 @@ func TestUnitsRunTheGivenBinary(t *testing.T) {
 ```
 2. Run: compile failure.
 3. Implement:
-```go
-// Package daemon runs sync on a timer and installs itself as a user service.
-package daemon
-
-import (
-	"context"
-	"log/slog"
-	"time"
-)
-
-// Loop calls sync every interval until ctx is cancelled. After a failure it
-// waits longer each time (doubling, capped at maxBackoff) so an offline
-// laptop doesn't spin; the first success resets the wait.
-//
-// after is time.After in production; tests pass a fake to avoid sleeping.
-func Loop(ctx context.Context, interval, maxBackoff time.Duration, sync func(context.Context) error,
-	after func(time.Duration) <-chan time.Time, log *slog.Logger) {
-	wait := interval
-	// Check ctx first: when both channels in the select below are ready, Go
-	// picks one at random, so the select alone can't guarantee we stop.
-	for ctx.Err() == nil {
-		if err := sync(ctx); err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			wait = min(wait*2, maxBackoff)
-			log.Warn("sync failed", "err", err, "retry_in", wait)
-		} else {
-			wait = interval
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-after(wait):
-		}
-	}
-}
-```
-4. `go test -race -count=20 ./internal/daemon/`: pass every time. (`TestUnitsRunTheGivenBinary` passes after Task 9.2.)
-
-**Commit:** `feat(daemon): sync loop with backoff`
-
----
-
-## Task 9.2: Service files
-
-**Goal:** `clindar daemon install` writes a systemd **user** unit on Linux or a launchd agent on macOS, then
-**prints** the command to start it. We don't run `systemctl`/`launchctl` ourselves: the user stays in control,
-and the code stays simple.
-
-References: `man systemd.service`, `man systemd.unit` (user units live in `~/.config/systemd/user/`);
-`man launchd.plist`.
-
-**Files:** create `internal/daemon/install.go`
-
-**Steps**
-1. Implement:
 ```go
 package daemon
 
@@ -232,7 +288,7 @@ func (u Unit) Write() error {
 	return os.WriteFile(u.Path, []byte(u.Content), 0o644)
 }
 ```
-2. `go test ./internal/daemon/`: all pass.
+4. `go test ./internal/daemon/`: all pass.
 
 **Commit:** `feat(daemon): systemd and launchd service files`
 

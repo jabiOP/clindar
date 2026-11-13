@@ -61,6 +61,8 @@ These files explain *how*, as small tasks.
 - **Dependencies:** add them with `go get module@version` and finish with `go mod tidy`. **Never `go get`
   `github.com/charmbracelet/x/...` packages directly.** Lip Gloss pins compatible versions, and pulling a
   newer `x/ansi` breaks the build with errors like `ansi.Style has no field or method SlowBlink`.
+  Whatever versions Lip Gloss and Bubble Tea pull in themselves (e.g. `x/ansi v0.11.6` as an `// indirect`
+  line in `go.mod`) are expected and fine. The rule is only: never `go get` them yourself.
 - Timezones: `main.go` and every test package that loads named zones must `import _ "time/tzdata"`,
   so `time.LoadLocation("America/New_York")` works on machines without a zoneinfo database.
 
