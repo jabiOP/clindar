@@ -22,7 +22,9 @@ type gridView struct {
 	calendars       map[string]model.Calendar
 	width, height   int // space available for the grid, including its header
 	loc             *time.Location
-	handles         bool      // mouse on: draw ◂ ▸ resize handles on event lines
+	mouse           bool      // grab zones at event edges (Phase 12)
+	hover           edgeRef   // the edge under the pointer: draw its symbol
+	grabbed         edgeRef   // the handle being dragged: draw its symbol
 	drop            time.Time // while dragging: the day under the pointer (zero = none)
 }
 
@@ -93,25 +95,44 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 	return strings.Join(lines, "\n"), hits
 }
 
-// eventLine renders one event in a cell w cells wide. With handles on, the
-// event's first day gets ◂ at the start and its last day gets ▸ at the end.
+// edgeRef names one end of one event (zero value = none).
+type edgeRef struct {
+	calendarID, eventID string
+	part                part
+}
+
+func edgeOf(e model.Event, p part) edgeRef { return edgeRef{e.CalendarID, e.ID, p} }
+
+// eventLine renders one event in a cell w cells wide. With the mouse on, the
+// first-day line's leftmost cell is always the start handle and the last-day
+// line's rightmost cell the end handle; their symbols are drawn only while
+// hovered or dragged.
 func (g gridView) eventLine(e model.Event, day time.Time, w int) (string, hitMap) {
 	var hits hitMap
 	hits.add(0, 0, w, 1, target{kind: targetEvent, day: day, event: e, part: partBody})
 	start, end := "", ""
-	if g.handles {
+	if g.mouse {
 		first, last := eventDays(e, g.loc)
 		if day.Equal(first) {
-			start = "◂"
 			hits.add(0, 0, 1, 1, target{kind: targetEvent, day: day, event: e, part: partStart})
+			if g.showing(e, partStart) {
+				start = "◂"
+			}
 		}
 		if day.Equal(last) {
-			end = "▸"
 			hits.add(w-1, 0, 1, 1, target{kind: targetEvent, day: day, event: e, part: partEnd})
+			if g.showing(e, partEnd) {
+				end = "▸"
+			}
 		}
 	}
 	text := start + fit(eventLabel(e, g.loc), w-runewidth.StringWidth(start+end)) + end
 	return calendarStyle(g.calendars[e.CalendarID].Color).Render(text), hits
+}
+
+func (g gridView) showing(e model.Event, p part) bool {
+	r := edgeOf(e, p)
+	return r == g.hover || r == g.grabbed
 }
 
 // eventDays returns the first and last local day an event touches. An end at

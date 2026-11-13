@@ -23,6 +23,9 @@ One line per deviation: what changed, and why.
   `docs/cli.md` (that file comes with Task 11.2, not written yet). **Readability:** at 80 columns (11 per day)
   one-day titles shrink to `◂09:00 S…▸`, still usable to find and drag events but not to read them; at 112
   columns titles of ~8 characters fit (`◂09:00 Standup▸`). As the plan predicted.
+- **Task 12.7 (uncompiled spec):** after rewriting `TestGridHitMap` (edges found by column, not by symbol),
+  `grid_test.go` no longer uses `runewidth`; its import had to go, or the package doesn't compile. Everything else
+  compiled as written.
 
 ## Ideas
 - The detail pop-up shows [Edit] [Delete] [RSVP] for every event, including read-only ones and ones you aren't

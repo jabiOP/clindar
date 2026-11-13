@@ -28,7 +28,7 @@ func (m Model) layout() (string, hitMap) {
 			start: m.gridStart, today: m.today, selected: m.selected,
 			days:      model.GroupByDay(m.events, m.gridStart, gridDays),
 			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(),
-			handles: m.deps.Mouse, drop: m.drag.over,
+			mouse: m.deps.Mouse, hover: m.hover, grabbed: m.grabbedEdge(), drop: m.drag.over,
 		})
 	case viewList:
 		body, hits = renderList(listView{days: model.GroupByDay(m.events, m.selected, listDays), cursor: m.cursor,

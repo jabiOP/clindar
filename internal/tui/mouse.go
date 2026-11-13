@@ -34,6 +34,12 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m.wheel(1)
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
 		return m.press(t, onSomething)
+	case msg.Action == tea.MouseActionMotion && !m.drag.active:
+		m.hover = edgeRef{}
+		if t.kind == targetEvent && t.part != partBody {
+			m.hover = edgeOf(t.event, t.part)
+		}
+		return m, nil
 	case msg.Action == tea.MouseActionMotion && m.drag.active:
 		return m.dragOver(t, msg.Y)
 	case msg.Action == tea.MouseActionRelease && m.drag.active:
@@ -144,4 +150,12 @@ func keyMsg(k string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyEsc}
 	}
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+}
+
+// grabbedEdge is the handle being dragged (none while dragging an event's body).
+func (m Model) grabbedEdge() edgeRef {
+	if !m.drag.active || m.drag.part == partBody {
+		return edgeRef{}
+	}
+	return edgeOf(m.drag.event, m.drag.part)
 }

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,6 +130,8 @@ func TestDragMovesEventToAnotherDay(t *testing.T) {
 	}
 }
 
+// It never hovers, so it also proves edges are grabbable without hover
+// (terminals that don't report motion without a button held).
 func TestDragEndHandleLengthensTrip(t *testing.T) {
 	f := newMouseFixture(t)
 	x, y := f.eventAt("Trip to Lisbon", 21, partEnd)
@@ -206,5 +209,26 @@ func TestMouseOffIgnoresMouse(t *testing.T) {
 
 	if !f.model().selected.Equal(before) {
 		t.Error("with mouse off, clicks must do nothing")
+	}
+}
+
+// hover moves the pointer without a button pressed (all-motion mode).
+func (f *fixture) hover(x, y int) {
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonNone, Action: tea.MouseActionMotion})
+}
+
+func TestHoverOnEdgeRevealsHandle(t *testing.T) {
+	f := newMouseFixture(t)
+	if strings.Contains(f.m.View(), "▸") {
+		t.Fatal("no handle may show before hovering")
+	}
+
+	f.hover(f.eventAt("Trip to Lisbon", 21, partEnd))
+	if !strings.Contains(f.m.View(), "▸") {
+		t.Error("hovering the trip's end edge should show ▸")
+	}
+	f.hover(f.eventAt("Trip to Lisbon", 21, partBody))
+	if strings.Contains(f.m.View(), "▸") {
+		t.Error("moving off the edge should hide ▸")
 	}
 }

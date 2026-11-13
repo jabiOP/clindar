@@ -71,6 +71,7 @@ type Model struct {
 	detail    model.Event // the event shown in modeDetail
 	target    model.Event // the event an RSVP (modeRSVP) applies to
 	drag      dragState   // mouse drag in the grid (Phase 12)
+	hover     edgeRef     // the handle under the pointer (Phase 12.7)
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
 	allowedScopes string // e.g. "tfa" or "ta"
@@ -228,8 +229,8 @@ func ago(d time.Duration) string {
 func Run(ctx context.Context, d Deps) error {
 	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithContext(ctx)}
 	if d.Mouse {
-		// Cell motion: clicks, wheel, and movement while a button is held (dragging).
-		opts = append(opts, tea.WithMouseCellMotion())
+		// All motion: clicks, wheel, dragging, and hover (reveals resize handles).
+		opts = append(opts, tea.WithMouseAllMotion())
 	}
 	_, err := tea.NewProgram(New(ctx, d), opts...).Run()
 	if errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil {
