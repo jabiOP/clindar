@@ -167,13 +167,14 @@ func TestUnauthorizedKeepsOpsQueued(t *testing.T) {
 	w.svc.Create(w.ctx, service.Draft{Title: "x", Start: w.at(16, 9), End: w.at(16, 10)})
 	w.google.Fail = fmt.Errorf("%w: 401", gcal.ErrUnauthorized)
 
-	err := w.engine.Sync(w.ctx)
+	err := w.engine.Push(w.ctx) // Push, not Sync: only the push may produce this error
 
 	if !errors.Is(err, gcal.ErrUnauthorized) {
-		t.Errorf("Sync err = %v, want ErrUnauthorized", err)
+		t.Errorf("Push err = %v, want ErrUnauthorized", err)
 	}
-	if n := w.pendingCount(); n != 1 {
-		t.Errorf("pending = %d, want 1: a login problem must not discard edits", n)
+	ops, _ := w.store.PendingOps(w.ctx, testutil.Account)
+	if len(ops) != 1 || ops[0].Attempts != 1 {
+		t.Errorf("ops = %+v, want the op still queued with 1 attempt: a login problem must not discard edits", ops)
 	}
 }
 
