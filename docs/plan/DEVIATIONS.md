@@ -92,6 +92,10 @@ One line per deviation: what changed, and why.
   with or without a `_<date>` suffix and replaces the whole ID. My first test passed only because its made-up link
   had no date. Test: `TestInstanceLinkReplacesADatedSeriesLink` (built from the tester's real link shape); the old
   test still passes.
+- **Task 8.7 "each occurrence's link opens its own date" (tester, after 3c8897b):** every recurring event in the next
+  7 days now carries its own occurrence ID in its link (e.g. `…_20261117` for a yearly birthday that used to name
+  2024, `…_20261118T110000Z` for a weekly meeting that used to name Nov 4), and these are the IDs Google itself
+  uses (section C matched them exactly). Checked by decoding the links; opening one in a browser is the last step.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
