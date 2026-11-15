@@ -33,7 +33,7 @@ A golden test only proves the output didn't *change*. You are the one who decide
 
 ## Task 10.1: Golden helper, styles, and the grid
 
-> ⚠ **Fixed in Task 13.9:** measure every width with `lipgloss.Width` (one `width()` helper), not `go-runewidth`. They disagree on emoji like ❤️.
+> ⚠ **Superseded by Task 13.9 (one width measure):** this task's `fit()` in `styles.go` is rewritten on a `width()` helper (= `lipgloss.Width`); don't use `go-runewidth` for any width. They disagree on emoji like ❤️, which shifts grid columns.
 
 **Goal:** `renderGrid` draws 4 rows × 7 days. Each cell has a day label, then `HH:MM title` lines in the calendar's color,
 with `+N more` on overflow. Today is marked "today" and the selected day is marked `▶`. The first day of a month shows the month name.
@@ -282,6 +282,8 @@ Mon       Tue       Wed       Thu       Fri       Sat       Sun
 ---
 
 ## Task 10.2: The list
+
+> ⚠ **Superseded by Task 13.9 (one width measure):** in `list.go`, `runewidth.StringWidth(cal.Name)` becomes `width(cal.Name)`.
 
 **Goal:** `renderList` draws the day-grouped agenda for the two weeks from the selected day. The cursor row is
 marked `▶` and the view scrolls to keep it visible.
