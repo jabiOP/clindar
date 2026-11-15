@@ -14,8 +14,10 @@ Apply a diff by hand, or save it to a file and run `git apply that.diff`.
   becomes a `service.Changes` that goes through the same `applyChanges` as the edit form.
 - **Draw and hit-test together.** Every render function returns a **hit map** (what is drawn where) alongside its
   text. The mouse handler re-runs `layout()` and looks the click up there, so a click always matches the screen.
-- **Never measure styled text.** Same lesson as Task 10.2: widths come from plain text (`runewidth`), never from
-  strings that already contain color codes. *(Task 13.9 refines this: measure plain text with `lipgloss.Width`, one helper for the whole TUI.)*
+- **One width measure, on plain text.** Measure every width with the `width()` helper (= `lipgloss.Width`, the
+  measure lipgloss itself pads and joins with), and only on plain text, never on strings that already contain
+  color codes (Task 10.2's lesson). **Note:** the code in Tasks 12.2–12.7 below was written before this rule and still calls
+  `runewidth.StringWidth`. Task 13.9 replaces every such call with `width()`. Each affected task has a note.
 
 **Known trade-off (accepted in design):** the handles take 2 columns in every event line. At 70 columns (10 per day)
 titles of one-day events shrink to "09:00 …". At 110+ columns it's comfortable. Tests use 112.
@@ -130,6 +132,8 @@ titles of one-day events shrink to "09:00 …". At 110+ columns it's comfortable
 ---
 
 ## Task 12.2: Hit maps and pop-up builder
+
+> ⚠ **Superseded by Task 13.9 (one width measure):** in `modal.go` and `hits_test.go`, every `runewidth.StringWidth(…)` becomes `width(…)`, and the `go-runewidth` import goes.
 
 **Goal:** two small pure helpers everything else uses.
 - `hits.go`: a list of rectangles, each with a **target** (a day, an event and which part of it, a list row, a
@@ -356,6 +360,8 @@ func overlay(width, height int, box string) (s string, x, y int) {
 ---
 
 ## Task 12.3: Grid and list return hit maps; resize handles
+
+> ⚠ **Superseded by Task 13.9 (one width measure):** in `grid.go` (the handle-width arithmetic), `runewidth.StringWidth(…)` becomes `width(…)`. (`grid_test.go`'s use of `runewidth` disappears in Task 12.7.)
 
 **Goal:** `renderGrid` and `renderList` return `(string, hitMap)`. With `handles` on, an event's line starts with `◂`
 on its first day and ends with `▸` on its last day, and each handle has its own hit. `drop` marks the day under
@@ -903,7 +909,11 @@ func dragPreview(e model.Event, p part, ch service.Changes, loc *time.Location) 
 
 ## Task 12.5: Wire up the mouse
 
-> ⚠ **Fixed in Tasks 13.7–13.8:** the delete confirmation must name its keys, and the details box must wrap to the terminal width.
+> ⚠ **Fixed in Task 13.7:** the delete confirmation names its keys (`(y/n)`) with the mouse on, and says "not deleted" when cancelled. Changes `layout.go` (popup) and `nav.go` (`modeConfirm`).
+>
+> ⚠ **Fixed in Task 13.8:** the details box wraps to the terminal width. Changes `layout.go` (popup, `modeDetail`).
+>
+> ⚠ **Superseded by Task 13.9 (one width measure):** in `layout.go`'s `statusBar`, `runewidth.StringWidth(label)` becomes `width(label)`.
 
 **Goal:** the interactive part.
 - `layout.go`: `View`, pop-ups and status bar, now built with the hit map. This **replaces** `View`,
@@ -1856,6 +1866,8 @@ Windows Terminal, and tmux with `set -g mouse on`). macOS Terminal.app is unveri
 ---
 
 ## Task 12.7: Handles on hover
+
+> ⚠ **Superseded by Task 13.9 (one width measure):** in the `eventLine` code below, `runewidth.StringWidth(start+end)` becomes `width(start+end)`.
 
 **Goal:** with mouse on and nothing hovered, the grid looks exactly like the mouse-off grid (apart from the status-bar
 buttons). Edges stay grabbable. A symbol appears only on the edge cell under the pointer, or for the handle being dragged.
