@@ -94,3 +94,12 @@ One line per deviation: what changed, and why.
   test still passes.
 
 ## Ideas
+- **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
+  to two characters (`fmt.Sprintf("%2d")` in `gridView.cell`, Task 10.1), so " 2" puts its digit one column right
+  of the events below it. "Dec 1" and two-digit days have no leading space, which is why it looks like it starts
+  after Dec 1. The tester's positions match exactly (Dec 1 at 20; digits of " 2", " 3" at 41, 61). Every grid line
+  measures exactly the grid width with colors, emoji and selection (checked at 140 columns). If left-aligned
+  numbers are preferred, it's a one-character change (`%2d` → `%d`) plus regenerating the grid golden files.
+- The details box now wraps long lines, but a wrapped Guests or Link line continues at the box's left edge instead
+  of under its value (tester). Wrapping each `Label: value` row's value separately, indented 11 columns, would fix it.
+
