@@ -91,7 +91,7 @@ Nov 4, and a yearly birthday opened 2024. **Fix:** `recur.Instance` rewrites the
 `eid` = base64("<event id> <calendar>"); swap in the occurrence ID, keep the calendar part exactly, and re-encode with the
 same base64 variant. Links in any other shape stay unchanged (never break a working link).
 
-⚠ This relies on Google's link format. **Task 8.7 has a manual check** for it.
+⚠ This relies on Google's link format. **Task 8.7 has a manual check** for it, and that check found this version incomplete: **apply Task 13.10 too.**
 
 **Files:** `internal/recur/recur.go`, `internal/recur/recur_test.go`
 
@@ -983,3 +983,80 @@ with *its* ruler.
 4. `go mod tidy && go test -race ./...`: pass, and no golden file changes.
 
 **Commit:** `fix(tui): measure text with lipgloss's width so emoji don't shift grid columns`
+
+---
+
+## Task 13.10: Occurrence links: handle Google's real link shape (Task 13.2)
+
+**Bug (found by the real-Google check in Task 8.7):** Task 13.2's fix never fired on real data. A series' link doesn't
+name the bare series: its `eid` decodes to the **first occurrence's** ID, `"<series id>_<date> <calendar>"` (e.g.
+`j87pvipe…_20241117 8j2n…@g`). `instanceLink` only accepted `"<series id> <calendar>"`, so it returned every real link
+unchanged. **Fix:** accept the series ID with or without a `_<date>` suffix, and replace the whole ID.
+
+**Why the first test passed:** its made-up link had no date. A fixture invented from the docs, rather than copied
+from real data, passed while the real data failed. The new test is built from the tester's real link shape, and the old
+one still passes.
+
+**Files:** `internal/recur/recur.go`, `internal/recur/recur_test.go`
+
+1. Test:
+```diff
+--- a/internal/recur/recur_test.go
++++ b/internal/recur/recur_test.go
+@@ -150,3 +150,19 @@ func TestInstanceLinksToItsOwnOccurrence(t *testing.T) {
+ 		t.Errorf("Link = %s, want %s", inst.Link, want)
+ 	}
+ }
++
++// Real series links name their FIRST occurrence ("<id>_<date> <calendar>"), not
++// the bare series ID (tester's finding: the yearly birthday opened 2024's).
++func TestInstanceLinkReplacesADatedSeriesLink(t *testing.T) {
++	m := testutil.AllDay("j87pvipe", "pavlo bday", 2024, time.November, 17, 1)
++	m.Recurrence = []string{"RRULE:FREQ=YEARLY"}
++	eid := func(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
++	m.Link = "https://www.google.com/calendar/event?eid=" + eid("j87pvipe_20241117 8j2n@g")
++
++	inst := recur.Instance(m, time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC))
++
++	want := "https://www.google.com/calendar/event?eid=" + eid("j87pvipe_20261117 8j2n@g")
++	if inst.Link != want {
++		t.Errorf("Link = %s, want %s", inst.Link, want)
++	}
++}
+```
+2. Run: fails (the dated link comes back unchanged).
+3. Fix:
+```diff
+--- a/internal/recur/recur.go
++++ b/internal/recur/recur.go
+@@ -59,8 +59,9 @@ func Instance(master model.Event, originalStart time.Time) model.Event {
+ var eidEncodings = []*base64.Encoding{base64.RawURLEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.StdEncoding}
+ 
+ // instanceLink turns a series' web link into one occurrence's. Google's link
+-// carries eid = base64("<event id> <calendar>"); we swap the event ID and keep
+-// the calendar part exactly as Google wrote it. Links in any other shape are
++// carries eid = base64("<event id> <calendar>"), where a series' event id is
++// usually its first occurrence's ("<series id>_<date>"); we swap the event ID
++// and keep the calendar part exactly as Google wrote it. Links in any other shape are
+ // returned unchanged.
+ func instanceLink(link, seriesID, instanceID string) string {
+ 	u, err := url.Parse(link)
+@@ -74,8 +75,10 @@ func instanceLink(link, seriesID, instanceID string) string {
+ 		if err != nil {
+ 			continue
+ 		}
+-		rest, ok := strings.CutPrefix(string(raw), seriesID+" ")
+-		if !ok {
++		// The ID part is the series ID, or (as Google writes it for a series)
++		// its first occurrence's ID, "<series id>_<date>". Replace it whole.
++		id, rest, ok := strings.Cut(string(raw), " ")
++		if !ok || (id != seriesID && !strings.HasPrefix(id, seriesID+"_")) {
+ 			return link
+ 		}
+ 		q.Set("eid", enc.EncodeToString([]byte(instanceID+" "+rest)))
+```
+4. Run: pass.
+5. **Real check (Task 8.7):** `clindar show <occurrence id> --json` for a non-first occurrence, then open its `link` in a
+   browser: Google must show that date.
+
+**Commit:** `fix(recur): rewrite occurrence links whose eid already names a dated occurrence`
