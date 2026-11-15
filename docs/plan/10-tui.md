@@ -33,6 +33,8 @@ A golden test only proves the output didn't *change*. You are the one who decide
 
 ## Task 10.1: Golden helper, styles, and the grid
 
+> ⚠ **Fixed in Task 13.9:** measure every width with `lipgloss.Width` (one `width()` helper), not `go-runewidth`. They disagree on emoji like ❤️.
+
 **Goal:** `renderGrid` draws 4 rows × 7 days. Each cell has a day label, then `HH:MM title` lines in the calendar's color,
 with `+N more` on overflow. Today is marked "today" and the selected day is marked `▶`. The first day of a month shows the month name.
 

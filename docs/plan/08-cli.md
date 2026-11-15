@@ -22,6 +22,8 @@ Cobra basics (10 min): <https://cobra.dev/>. You need `Command{Use, Short, Args,
 
 ## Task 8.1: Output formats
 
+> ⚠ **Fixed in Task 13.5:** pretty details must show a multi-day event's whole span, and "Repeats: yes" without the CLI hint.
+
 **Goal:** one package that knows how events look in each mode. `EventJSON` is a **public contract** for
 users' scripts. Fields may be added, but never renamed or repurposed.
 
@@ -1281,6 +1283,8 @@ func main() {
 
 ## Task 8.4: Read commands (agenda, next, show, calendars)
 
+> ⚠ **Fixed in Task 13.6:** `show` must also call `RefreshIfStale` and take `--offline`.
+
 **Goal:** the scripting surface. `next` exits 1 **silently** when there's nothing upcoming, so status-bar scripts
 can write `clindar next --format '{{.Title}}' || echo free`. `agenda --within 10m` lists only events *starting* in
 the window, which is the right input for notification scripts.
@@ -1962,5 +1966,6 @@ record the result in `DEVIATIONS.md`. If one is wrong, fix the code **and the fa
 | RSVP as a non-organizer works and changes nothing else | Have a second account invite you; `clindar rsvp ID yes`; the organizer sees "accepted" and the title/description are untouched. Also try it after the organizer edits the title. |
 | Single-occurrence invites show up | Have a second account invite you to **one** occurrence of their recurring meeting; `clindar sync`; it appears in `clindar agenda` as a normal event |
 | A 401 keeps edits queued | Revoke clindar at <https://myaccount.google.com/permissions>, make an edit, `clindar sync` should fail with the "log in" message, `clindar auth status` shows the pending change, `clindar auth login` then delivers it |
+| Each occurrence's link opens its own date (Task 13.2) | `clindar show <occurrence id> --json` for a non-first occurrence of a recurring event; open its `link` in a browser; Google shows that date, not the first one |
 | Keyring works | `secret-tool search service clindar` (Linux) or Keychain Access (macOS) shows the token |
 | Token refresh | Leave it for over an hour, then `clindar sync` still works without logging in |

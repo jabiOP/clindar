@@ -82,6 +82,8 @@ func ParseInstanceID(id string) (seriesID string, originalStart time.Time, allDa
 
 ## Task 3.2: Expand a series
 
+> ⚠ **Fixed in Task 13.2:** `Instance` must also rewrite the web link so each occurrence opens its own date.
+
 **Goal:** `Expand(master, exceptions, from, to)` returns the instances overlapping the window, with
 exceptions applied. It is the core of every calendar view.
 

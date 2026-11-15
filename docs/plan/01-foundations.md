@@ -432,6 +432,8 @@ so changing `b.Attendees[0]` silently changes `a` as well. This bug is hard to s
 
 ## Task 1.5: Calendar type, sorting, and grouping by day
 
+> ⚠ **Fixed in Task 13.1:** `SortEvents` must sort by start *day* first; this version puts all all-day events first across the whole list.
+
 **Goal:** the shared helpers every view uses to order events and bucket them into days. CLI pretty output,
 the TUI list, and the TUI grid all call these. **Never re-implement grouping elsewhere.**
 
