@@ -3,8 +3,11 @@
 package recur
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/teambition/rrule-go"
@@ -47,7 +50,39 @@ func Instance(master model.Event, originalStart time.Time) model.Event {
 	inst.End = originalStart.Add(master.Duration())
 	inst.Recurrence = nil
 	inst.ETag = ""
+	inst.Link = instanceLink(master.Link, master.ID, inst.ID)
 	return inst
+}
+
+// eidEncodings are the base64 variants Google's eid parameter may use; we
+// re-encode with whichever one decoded it.
+var eidEncodings = []*base64.Encoding{base64.RawURLEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.StdEncoding}
+
+// instanceLink turns a series' web link into one occurrence's. Google's link
+// carries eid = base64("<event id> <calendar>"); we swap the event ID and keep
+// the calendar part exactly as Google wrote it. Links in any other shape are
+// returned unchanged.
+func instanceLink(link, seriesID, instanceID string) string {
+	u, err := url.Parse(link)
+	if err != nil {
+		return link
+	}
+	q := u.Query()
+	eid := q.Get("eid")
+	for _, enc := range eidEncodings {
+		raw, err := enc.DecodeString(eid)
+		if err != nil {
+			continue
+		}
+		rest, ok := strings.CutPrefix(string(raw), seriesID+" ")
+		if !ok {
+			return link
+		}
+		q.Set("eid", enc.EncodeToString([]byte(instanceID+" "+rest)))
+		u.RawQuery = q.Encode()
+		return u.String()
+	}
+	return link
 }
 
 // Expand returns the instances of master overlapping [from, to). A stored

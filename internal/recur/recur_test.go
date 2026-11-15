@@ -1,6 +1,7 @@
 package recur_test
 
 import (
+	"encoding/base64"
 	"errors"
 	"testing"
 	"time"
@@ -131,5 +132,21 @@ func TestLookup(t *testing.T) {
 	_, err = recur.Lookup(m, nil, mon.Add(time.Hour))
 	if !errors.Is(err, recur.ErrNoSuchInstance) {
 		t.Errorf("Lookup(not a slot) err = %v, want ErrNoSuchInstance", err)
+	}
+}
+
+// Google's web link names one event via eid = base64("<event id> <calendar>").
+// An occurrence must link to itself, not to the series (which opens the first one).
+func TestInstanceLinksToItsOwnOccurrence(t *testing.T) {
+	ny := testutil.NY(t)
+	m := weeklyStandup(t, "RRULE:FREQ=WEEKLY;BYDAY=MO")
+	eid := func(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
+	m.Link = "https://www.google.com/calendar/event?eid=" + eid("std me@example.com")
+
+	inst := recur.Instance(m, time.Date(2026, 11, 9, 9, 0, 0, 0, ny))
+
+	want := "https://www.google.com/calendar/event?eid=" + eid("std_20261109T140000Z me@example.com")
+	if inst.Link != want {
+		t.Errorf("Link = %s, want %s", inst.Link, want)
 	}
 }

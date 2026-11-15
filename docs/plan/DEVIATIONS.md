@@ -39,5 +39,12 @@ One line per deviation: what changed, and why.
   list, so `agenda` TSV/JSON listed Nov 17–20 birthdays before a Nov 16 10:00 meeting. (The pretty view hid it by
   grouping by day first.) It now sorts by start day in the given zone first, then all-day before timed within the
   day. Test: `TestSortEventsIsByDayFirst`.
+- **Tester bug 2 (Task 3.2):** every occurrence of a series reused the series' web link, which opens the first
+  occurrence (Nov 18 opened Nov 4; a yearly birthday opened 2024). `recur.Instance` now rewrites the link: Google's
+  link has `eid` = base64("<event id> <calendar>"), so it decodes the series' eid, swaps in the occurrence ID, keeps
+  the calendar part exactly as Google wrote it, and re-encodes with the same base64 variant. Links in any other
+  shape stay unchanged. Test: `TestInstanceLinksToItsOwnOccurrence`. **Needs a real-Google check (add to Task
+  8.7):** open a non-first occurrence's `Link` from `clindar show <occurrence id> --json` and confirm it opens that
+  date.
 
 ## Ideas
