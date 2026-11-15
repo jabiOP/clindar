@@ -70,5 +70,9 @@ One line per deviation: what changed, and why.
   and Enter cancelled silently. The question now reads "Delete this event? (y/n)" when the mouse is on (mouse-off
   text unchanged), and any key other than `y` cancels with "not deleted" in the status bar. Enter still cancels: for
   a delete, cancel is the safe default. Test: `TestDeleteConfirmShowsKeysAndSaysWhenCancelled`.
+- **Tester note (Task 12.5):** the details box grew wider than the terminal when the Link, Guests or description
+  line was long, cutting off its right border. The detail text is now wrapped to the screen width minus the box's
+  border and padding when it doesn't fit (wrapped, not truncated, so no link or guest is lost). It uses lipgloss's
+  ANSI-aware width and wrap, since the title is already bold. Test: `TestDetailFitsTheTerminal`.
 
 ## Ideas

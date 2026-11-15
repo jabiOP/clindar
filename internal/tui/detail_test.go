@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/testutil"
 )
@@ -74,5 +76,26 @@ func TestDetailOfInviteOnReadOnlyCalendarHidesRSVP(t *testing.T) {
 	f.keys("r")
 	if m := f.model(); m.mode != modeDetail || !strings.Contains(m.message, "read-only") {
 		t.Errorf("r: mode = %v, message = %q; want the pop-up kept open and the reason shown", m.mode, m.message)
+	}
+}
+
+// A long link, guest list or description must wrap inside the box, not push its
+// right border off the screen.
+func TestDetailFitsTheTerminal(t *testing.T) {
+	f := newFixture(t) // 84 columns
+	e := testutil.Timed("long", "Planning", time.Date(2026, 11, 13, 10, 0, 0, 0, f.ny), time.Hour)
+	e.Link = "https://www.google.com/calendar/event?eid=" + strings.Repeat("x", 120)
+	e.Description = strings.Repeat("word ", 40)
+	f.openDetail(e)
+
+	screen := f.m.View()
+
+	for i, line := range strings.Split(screen, "\n") {
+		if w := lipgloss.Width(line); w > 84 {
+			t.Errorf("line %d is %d columns wide (terminal: 84): %q", i, w, line)
+		}
+	}
+	if strings.Count(screen, "╮") != 1 || strings.Count(screen, "╯") != 1 {
+		t.Errorf("box borders missing:\n%s", screen)
 	}
 }
