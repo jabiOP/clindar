@@ -102,3 +102,22 @@ func TestRSVPOnOrphanInstanceNeedsNoScope(t *testing.T) {
 		t.Errorf("RSVP without scope: %v", err)
 	}
 }
+
+// An invitation seen through someone else's read-only calendar can't be answered
+// there: Google would reject the change. Refuse it before queuing anything.
+func TestRSVPOnReadOnlyCalendarIsRefused(t *testing.T) {
+	e := newEnv(t)
+	inv := testutil.Timed("inv", "Their meeting", e.at(20, 10, 0), time.Hour)
+	inv.CalendarID = "holidays" // read-only in newEnv
+	inv.Attendees = []model.Attendee{{Email: testutil.Account, Self: true, Response: model.ResponseNeedsAction}}
+	e.put(inv)
+
+	err := e.svc.RSVP(e.ctx, "inv", model.ResponseAccepted, service.ScopeNone)
+
+	if !errors.Is(err, service.ErrReadOnly) {
+		t.Errorf("err = %v, want ErrReadOnly", err)
+	}
+	if len(e.ops()) != 0 {
+		t.Errorf("a refused RSVP must not queue anything: %+v", e.ops())
+	}
+}

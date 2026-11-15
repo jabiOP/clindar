@@ -72,13 +72,23 @@ func canDrag(e model.Event, cal model.Calendar) (bool, string) {
 
 // allowed says which detail actions can succeed for e, and why editing can't.
 type allowed struct {
-	edit, delete, rsvp bool
-	whyNoEdit          string
+	edit, delete, rsvp   bool
+	whyNoEdit, whyNoRSVP string
 }
 
 func permissions(e model.Event, cal model.Calendar) allowed {
 	edit, why := canDrag(e, cal)
-	return allowed{edit: edit, delete: cal.Writable(), rsvp: e.SelfAttendee() != nil, whyNoEdit: why}
+	a := allowed{edit: edit, delete: cal.Writable(), whyNoEdit: why}
+	switch {
+	case e.SelfAttendee() == nil:
+		a.whyNoRSVP = "you are not invited to this event"
+	case !cal.Writable():
+		// Someone else's calendar showing your invitation: Google rejects replies there.
+		a.whyNoRSVP = "can't reply here: " + cal.Name + " is read-only (answer from your own calendar)"
+	default:
+		a.rsvp = true
+	}
+	return a
 }
 
 // dragPreview is the status-bar text while dragging, e.g. `Move "Trip" → Sat 21–Sun 22`.

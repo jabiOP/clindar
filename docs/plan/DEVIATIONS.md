@@ -46,5 +46,10 @@ One line per deviation: what changed, and why.
   shape stay unchanged. Test: `TestInstanceLinksToItsOwnOccurrence`. **Needs a real-Google check (add to Task
   8.7):** open a non-first occurrence's `Link` from `clindar show <occurrence id> --json` and confirm it opens that
   date.
+- **Tester bug 3 (Tasks 4.4, 12.8):** an invitation shown through someone else's read-only calendar offered [RSVP],
+  and `r` (and the CLI's `rsvp`) queued a reply Google would reject. `service.RSVP` now refuses read-only calendars
+  with `ErrReadOnly` before queuing anything, and the TUI's `permissions` requires a writable calendar for RSVP,
+  with a reason (`whyNoRSVP`) that `startRSVP` (list `r`) and `detailKey` both show: one rule, as for edit. Tests:
+  `TestRSVPOnReadOnlyCalendarIsRefused`, `TestDetailOfInviteOnReadOnlyCalendarHidesRSVP`.
 
 ## Ideas

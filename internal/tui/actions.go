@@ -110,8 +110,8 @@ func (m Model) applyChanges(e model.Event, ch service.Changes) (tea.Model, tea.C
 
 // startRSVP asks how to answer an invitation to e.
 func (m Model) startRSVP(e model.Event) Model {
-	if e.SelfAttendee() == nil {
-		m.mode, m.message = modeNormal, "you are not invited to this event"
+	if can := permissions(e, m.calendars[e.CalendarID]); !can.rsvp {
+		m.mode, m.message = modeNormal, can.whyNoRSVP
 		return m
 	}
 	m.target, m.mode = e, modeRSVP
@@ -127,7 +127,7 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Delete) && !can.delete:
 		m.message = "can't delete: the calendar is read-only"
 	case key.Matches(k, keys.RSVP) && !can.rsvp:
-		m.message = "you are not invited to this event"
+		m.message = can.whyNoRSVP
 	case key.Matches(k, keys.Edit):
 		m.form, m.mode = editEventForm(m.detail, m.loc()), modeForm
 	case key.Matches(k, keys.Delete):

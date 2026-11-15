@@ -68,6 +68,11 @@ func (s *Service) RSVP(ctx context.Context, id string, resp model.ResponseStatus
 	if err != nil {
 		return err
 	}
+	// Seen through someone else's read-only calendar, Google rejects the reply:
+	// answer from your own calendar's copy instead.
+	if _, err := s.writableCalendar(ctx, e.CalendarID); err != nil {
+		return err
+	}
 	if e.IsInstance() {
 		switch scope {
 		case ScopeThis:

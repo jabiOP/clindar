@@ -57,3 +57,22 @@ func TestDetailOnReadOnlyCalendarOffersOnlyClose(t *testing.T) {
 		}
 	}
 }
+
+// Invited, but seen through a read-only calendar (someone else's): no [RSVP],
+// and r explains why instead of opening "Going?".
+func TestDetailOfInviteOnReadOnlyCalendarHidesRSVP(t *testing.T) {
+	f := newMouseFixture(t)
+	invite := testutil.Timed("inv", "Their meeting", time.Date(2026, 11, 20, 10, 0, 0, 0, f.ny), time.Hour)
+	invite.CalendarID = "holidays" // not in the fixture's calendars: treated as read-only
+	invite.Attendees = []model.Attendee{
+		{Email: testutil.Account, Self: true}, {Email: "host@example.com", Organizer: true}}
+	f.openDetail(invite)
+
+	if screen := f.m.View(); strings.Contains(screen, "[RSVP]") {
+		t.Errorf("read-only invite shows [RSVP]:\n%s", screen)
+	}
+	f.keys("r")
+	if m := f.model(); m.mode != modeDetail || !strings.Contains(m.message, "read-only") {
+		t.Errorf("r: mode = %v, message = %q; want the pop-up kept open and the reason shown", m.mode, m.message)
+	}
+}
