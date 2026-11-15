@@ -74,5 +74,9 @@ One line per deviation: what changed, and why.
   line was long, cutting off its right border. The detail text is now wrapped to the screen width minus the box's
   border and padding when it doesn't fit (wrapped, not truncated, so no link or guest is lost). It uses lipgloss's
   ANSI-aware width and wrap, since the title is already bold. Test: `TestDetailFitsTheTerminal`.
+- **Tester note (Task 8.4):** `show` rejected `--offline`, unlike `agenda` and `next`. It also never refreshed a
+  stale cache, although design §3 says every CLI read syncs first when the last sync is older than `stale_after`.
+  `show` now calls `RefreshIfStale` and takes `--offline`, like the other read commands. Test:
+  `TestShowRefreshesWhenStaleUnlessOffline`.
 
 ## Ideas

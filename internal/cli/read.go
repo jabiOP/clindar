@@ -121,12 +121,14 @@ func newNextCmd(app *App) *cobra.Command {
 
 func newShowCmd(app *App) *cobra.Command {
 	var of outputFlags
+	var offline bool
 	cmd := &cobra.Command{
 		Use:   "show ID",
 		Short: "Show one event in detail",
 		Args:  exactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			app.RefreshIfStale(ctx, offline)
 			svc, err := app.Service(ctx)
 			if err != nil {
 				return err
@@ -143,6 +145,7 @@ func newShowCmd(app *App) *cobra.Command {
 		},
 	}
 	addOutputFlags(cmd, &of)
+	addOfflineFlag(cmd, &offline)
 	return cmd
 }
 

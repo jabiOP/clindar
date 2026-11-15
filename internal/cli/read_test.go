@@ -50,3 +50,18 @@ func TestNextWithNothingExits1Silently(t *testing.T) {
 		t.Errorf("exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
 }
+
+// show is a read like agenda: it refreshes a stale cache first (design §3),
+// and --offline skips that.
+func TestShowRefreshesWhenStaleUnlessOffline(t *testing.T) {
+	h := newHarness(t)
+	h.google.Put(testutil.Timed("e1", "Dentist", time.Date(2026, 11, 13, 15, 0, 0, 0, testutil.NY(t)), time.Hour))
+	h.now = h.now.Add(3 * time.Minute) // past stale_after (2m) since the harness's first sync
+
+	if _, _, code := h.run("show", "e1", "--offline"); code != 1 {
+		t.Errorf("show --offline: exit %d, want 1 (not synced yet, so not found)", code)
+	}
+	if out := h.mustRun("show", "e1", "--format", "{{.Title}}"); out != "Dentist\n" {
+		t.Errorf("show = %q, want Dentist (fetched by the refresh)", out)
+	}
+}
