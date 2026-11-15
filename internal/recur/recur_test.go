@@ -150,3 +150,19 @@ func TestInstanceLinksToItsOwnOccurrence(t *testing.T) {
 		t.Errorf("Link = %s, want %s", inst.Link, want)
 	}
 }
+
+// Real series links name their FIRST occurrence ("<id>_<date> <calendar>"), not
+// the bare series ID (tester's finding: the yearly birthday opened 2024's).
+func TestInstanceLinkReplacesADatedSeriesLink(t *testing.T) {
+	m := testutil.AllDay("j87pvipe", "pavlo bday", 2024, time.November, 17, 1)
+	m.Recurrence = []string{"RRULE:FREQ=YEARLY"}
+	eid := func(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
+	m.Link = "https://www.google.com/calendar/event?eid=" + eid("j87pvipe_20241117 8j2n@g")
+
+	inst := recur.Instance(m, time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC))
+
+	want := "https://www.google.com/calendar/event?eid=" + eid("j87pvipe_20261117 8j2n@g")
+	if inst.Link != want {
+		t.Errorf("Link = %s, want %s", inst.Link, want)
+	}
+}

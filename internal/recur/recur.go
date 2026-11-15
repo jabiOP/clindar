@@ -59,8 +59,9 @@ func Instance(master model.Event, originalStart time.Time) model.Event {
 var eidEncodings = []*base64.Encoding{base64.RawURLEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.StdEncoding}
 
 // instanceLink turns a series' web link into one occurrence's. Google's link
-// carries eid = base64("<event id> <calendar>"); we swap the event ID and keep
-// the calendar part exactly as Google wrote it. Links in any other shape are
+// carries eid = base64("<event id> <calendar>"), where a series' event id is
+// usually its first occurrence's ("<series id>_<date>"); we swap the event ID
+// and keep the calendar part exactly as Google wrote it. Links in any other shape are
 // returned unchanged.
 func instanceLink(link, seriesID, instanceID string) string {
 	u, err := url.Parse(link)
@@ -74,8 +75,10 @@ func instanceLink(link, seriesID, instanceID string) string {
 		if err != nil {
 			continue
 		}
-		rest, ok := strings.CutPrefix(string(raw), seriesID+" ")
-		if !ok {
+		// The ID part is the series ID, or (as Google writes it for a series)
+		// its first occurrence's ID, "<series id>_<date>". Replace it whole.
+		id, rest, ok := strings.Cut(string(raw), " ")
+		if !ok || (id != seriesID && !strings.HasPrefix(id, seriesID+"_")) {
 			return link
 		}
 		q.Set("eid", enc.EncodeToString([]byte(instanceID+" "+rest)))

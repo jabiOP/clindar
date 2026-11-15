@@ -86,5 +86,11 @@ One line per deviation: what changed, and why.
   top of it. This replaces Phase 12's rule "widths come from plain text (`runewidth`)": same idea, one measure.
   `go-runewidth` is now only an indirect dependency (same version). Test: `TestGridColumnsStayAlignedWithEmoji` (a
   "❤️" title made a 113-column line in a 112-column grid). All golden files unchanged.
+- **Tester re-test, Task 13.2 was incomplete:** real series links don't name the bare series: their `eid` decodes to
+  the *first occurrence's* ID, `"<series id>_<date> <calendar>"` (e.g. `j87pvipe…_20241117 8j2n…@g`). `instanceLink`
+  only accepted `"<series id> <calendar>"`, so it returned every real link unchanged. It now accepts the series ID
+  with or without a `_<date>` suffix and replaces the whole ID. My first test passed only because its made-up link
+  had no date. Test: `TestInstanceLinkReplacesADatedSeriesLink` (built from the tester's real link shape); the old
+  test still passes.
 
 ## Ideas
