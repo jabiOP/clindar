@@ -51,5 +51,14 @@ One line per deviation: what changed, and why.
   with `ErrReadOnly` before queuing anything, and the TUI's `permissions` requires a writable calendar for RSVP,
   with a reason (`whyNoRSVP`) that `startRSVP` (list `r`) and `detailKey` both show: one rule, as for edit. Tests:
   `TestRSVPOnReadOnlyCalendarIsRefused`, `TestDetailOfInviteOnReadOnlyCalendarHidesRSVP`.
+- **Tester bug 4 (Task 5.2):** one `clindar sync` took 49.7s (others ~2s): manual sync and the daemon have no
+  deadline, so a stalled connection could hang them for as long as it stalls. `gcal.NewClient` now gives the HTTP
+  client a per-request limit, `gcal.RequestTimeout` (30s), unless the caller already set one; it copies the client
+  rather than changing it. A timeout is an ordinary transient error: queued edits stay queued and the daemon backs
+  off. No overall cap on a whole sync, since a first sync of many calendars can legitimately take long. Test:
+  `TestStalledRequestTimesOut` (it took the stalling server's full 5s before the fix). The tester's other message,
+  "warning: sync failed … context deadline exceeded" after an edit that did reach Google, is the 5s `sync_timeout`
+  of the CLI's after-write sync expiring during the pull, after the push succeeded: expected, though the wording
+  could say "push done, refresh timed out".
 
 ## Ideas

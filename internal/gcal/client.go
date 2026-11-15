@@ -3,6 +3,7 @@ package gcal
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
@@ -16,9 +17,20 @@ type Client struct {
 	account string
 }
 
+// RequestTimeout bounds every request to Google. Without it a stalled
+// connection hangs a sync for as long as it stalls (manual sync and the daemon
+// have no overall deadline). A timeout is a transient error: queued edits stay
+// queued and are retried. Tests lower it.
+var RequestTimeout = 30 * time.Second
+
 // NewClient wraps an authorized HTTP client (see package auth). Extra options
 // let tests point it at an httptest server with option.WithEndpoint.
 func NewClient(ctx context.Context, accountID string, hc *http.Client, opts ...option.ClientOption) (*Client, error) {
+	if hc.Timeout == 0 {
+		limited := *hc // a copy: don't change the caller's client
+		limited.Timeout = RequestTimeout
+		hc = &limited
+	}
 	svc, err := calendar.NewService(ctx, append([]option.ClientOption{option.WithHTTPClient(hc)}, opts...)...)
 	if err != nil {
 		return nil, err

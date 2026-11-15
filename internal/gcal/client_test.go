@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"google.golang.org/api/option"
 
@@ -105,5 +106,32 @@ func TestPatchSendsIfMatchAndMapsErrors(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A stalled connection must not hang a sync (manual sync and the daemon have no
+// overall deadline): each request gives up after RequestTimeout, as a transient
+// error, so queued edits stay queued and are retried.
+func TestStalledRequestTimesOut(t *testing.T) {
+	old := gcal.RequestTimeout
+	gcal.RequestTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { gcal.RequestTimeout = old })
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		select { // stall until the client gives up (or 5s, so a failing test can't hang)
+		case <-r.Context().Done():
+		case <-time.After(5 * time.Second):
+		}
+	})
+	start := time.Now()
+
+	_, _, err := c.ListEvents(context.Background(), "cal", "")
+
+	if err == nil || time.Since(start) > 2*time.Second {
+		t.Fatalf("ListEvents = %v after %v; want an error within about %v", err, time.Since(start), gcal.RequestTimeout)
+	}
+	for _, sentinel := range []error{gcal.ErrConflict, gcal.ErrNotFound, gcal.ErrPermanent, gcal.ErrUnauthorized} {
+		if errors.Is(err, sentinel) {
+			t.Errorf("err = %v is %v; a timeout must be transient", err, sentinel)
+		}
 	}
 }
