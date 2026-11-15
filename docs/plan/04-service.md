@@ -1048,6 +1048,8 @@ func (s *Service) updateFollowing(ctx context.Context, inst model.Event, ch Chan
 
 ## Task 4.4: Delete and RSVP
 
+> ⚠ **Fixed in Task 13.3:** `RSVP` must refuse events on read-only calendars.
+
 **Goal:**
 - **Delete `this`** keeps a *cancelled tombstone* row, so `Expand` hides the slot, and queues a DELETE of the
   instance ID.

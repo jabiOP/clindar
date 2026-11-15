@@ -331,6 +331,8 @@ func CalendarFromAPI(accountID string, c *calendar.CalendarListEntry) model.Cale
 
 ## Task 5.2: Client
 
+> ⚠ **Fixed in Task 13.4:** `NewClient` must give the HTTP client a per-request timeout.
+
 **Goal:** a thin wrapper over the Google client: paging, sync tokens, `If-Match`, `sendUpdates`.
 `RespondEvent` (RSVP) patches **only** the attendee list (`AttendeesToAPI`) and never sends If-Match. On
 events you don't own, Google won't let you change the title, so we don't send it.

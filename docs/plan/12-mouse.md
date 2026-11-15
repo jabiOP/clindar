@@ -15,7 +15,7 @@ Apply a diff by hand, or save it to a file and run `git apply that.diff`.
 - **Draw and hit-test together.** Every render function returns a **hit map** (what is drawn where) alongside its
   text. The mouse handler re-runs `layout()` and looks the click up there, so a click always matches the screen.
 - **Never measure styled text.** Same lesson as Task 10.2: widths come from plain text (`runewidth`), never from
-  strings that already contain color codes.
+  strings that already contain color codes. *(Task 13.9 refines this: measure plain text with `lipgloss.Width`, one helper for the whole TUI.)*
 
 **Known trade-off (accepted in design):** the handles take 2 columns in every event line. At 70 columns (10 per day)
 titles of one-day events shrink to "09:00 …". At 110+ columns it's comfortable. Tests use 112.
@@ -902,6 +902,8 @@ func dragPreview(e model.Event, p part, ch service.Changes, loc *time.Location) 
 ---
 
 ## Task 12.5: Wire up the mouse
+
+> ⚠ **Fixed in Tasks 13.7–13.8:** the delete confirmation must name its keys, and the details box must wrap to the terminal width.
 
 **Goal:** the interactive part.
 - `layout.go`: `View`, pop-ups and status bar, now built with the hit map. This **replaces** `View`,
@@ -1909,7 +1911,8 @@ buttons). Edges stay grabbable. A symbol appears only on the edge cell under the
    	}
    }
    ```
-   Keep the "blank line is Tuesday" check from the old version. `TestGridMarksDropTarget` only needs the extra
+   Keep the "blank line is Tuesday" check from the old version. `grid_test.go` no longer uses `runewidth` after
+   this rewrite, so **remove that import** or the package won't compile. `TestGridMarksDropTarget` only needs the extra
    argument: `gridWithTrip(t, edgeRef{}, time.Date(2026, 11, 14, 0, 0, 0, 0, ny))`.
 
    c. In `mouse_test.go`, add:
@@ -2024,6 +2027,8 @@ buttons). Edges stay grabbable. A symbol appears only on the edge cell under the
 ---
 
 ## Task 12.8: Hide detail actions you can't take
+
+> ⚠ **Fixed in Task 13.3:** RSVP also needs a writable calendar, with its own reason (`whyNoRSVP`).
 
 **Goal:** the detail pop-up only offers actions that can succeed, and the keys `e`/`d`/`r` follow the same rules:
 - **[Edit]** / `e` only if the event can be changed: a writable calendar and you're not a guest. This is `canDrag`'s
