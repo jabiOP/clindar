@@ -3,8 +3,6 @@ package tui
 import (
 	"strings"
 	"testing"
-
-	"github.com/mattn/go-runewidth"
 )
 
 func TestHitMapTopmostWins(t *testing.T) {
@@ -28,7 +26,7 @@ func find(t *testing.T, screen, s string) (x, y int) {
 	t.Helper()
 	for y, line := range strings.Split(screen, "\n") {
 		if i := strings.Index(line, s); i >= 0 {
-			return runewidth.StringWidth(line[:i]), y
+			return width(line[:i]), y
 		}
 	}
 	t.Fatalf("%q not on screen:\n%s", s, screen)

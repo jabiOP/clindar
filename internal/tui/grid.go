@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 
 	"github.com/jabiOP/clindar/internal/model"
 )
@@ -126,7 +125,7 @@ func (g gridView) eventLine(e model.Event, day time.Time, w int) (string, hitMap
 			}
 		}
 	}
-	text := start + fit(eventLabel(e, g.loc), w-runewidth.StringWidth(start+end)) + end
+	text := start + fit(eventLabel(e, g.loc), w-width(start+end)) + end
 	return calendarStyle(g.calendars[e.CalendarID].Color).Render(text), hits
 }
 

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/testutil"
 )
@@ -96,4 +98,24 @@ func TestGridMarksDropTarget(t *testing.T) {
 	ny := testutil.NY(t)
 	screen, _ := gridWithTrip(t, edgeRef{}, time.Date(2026, 11, 14, 0, 0, 0, 0, ny))
 	find(t, screen, "»14") // fails the test if the marker is missing
+}
+
+// Emoji with a variation selector (❤️ ☀️ ✈️) are 2 columns in lipgloss and in
+// terminals but 1 in go-runewidth. If fit pads by a different measure than
+// lipgloss joins columns with, that day's column grows and shifts the row.
+func TestGridColumnsStayAlignedWithEmoji(t *testing.T) {
+	ny := testutil.NY(t)
+	start := time.Date(2026, 11, 30, 0, 0, 0, 0, ny)
+	events := []model.Event{testutil.Timed("e", "❤️ Ana's birthday", time.Date(2026, 12, 1, 9, 0, 0, 0, ny), time.Hour)}
+
+	got, _ := renderGrid(gridView{
+		start: start, today: start, selected: start,
+		days: model.GroupByDay(events, start, gridDays), width: 112, height: 18, loc: ny,
+	})
+
+	for i, line := range strings.Split(got, "\n")[2:] { // skip the month and weekday headers
+		if w := lipgloss.Width(line); w != 112 {
+			t.Errorf("grid line %d is %d columns, want 112: %q", i+2, w, line)
+		}
+	}
 }

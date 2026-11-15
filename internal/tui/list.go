@@ -4,8 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mattn/go-runewidth"
-
 	"github.com/jabiOP/clindar/internal/model"
 )
 
@@ -89,7 +87,7 @@ func (v listView) line(e model.Event, selected bool) string {
 	}
 	label := "● " + cal.Name
 	text := fit(marker+when+"  "+strings.Join(strings.Fields(e.Title), " ")+resp,
-		max(v.width-runewidth.StringWidth(cal.Name)-4, 10))
+		max(v.width-width(cal.Name)-4, 10))
 	if selected {
 		return selectedStyle.Render(text + "  " + label)
 	}

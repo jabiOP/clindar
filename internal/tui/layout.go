@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/output"
@@ -164,8 +163,8 @@ func (m Model) statusBar() (string, hitMap) {
 	bs := []button{{"+ Add", "a"}, {"⟳ Sync", "s"}, {"? Help", "?"}}
 	for i := len(bs) - 1; i >= 0; i-- { // lay out right to left
 		label := "[" + bs[i].label + "]"
-		x -= runewidth.StringWidth(label)
-		hits.add(x, 0, runewidth.StringWidth(label), 1, target{kind: targetKey, key: bs[i].key})
+		x -= width(label)
+		hits.add(x, 0, width(label), 1, target{kind: targetKey, key: bs[i].key})
 		labels = append([]string{label}, labels...)
 		x--
 	}

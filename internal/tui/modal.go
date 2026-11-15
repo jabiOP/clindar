@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 )
 
 // modal builds a pop-up line by line and remembers where its buttons and
@@ -25,7 +24,7 @@ func (m *modal) buttons(bs ...button) {
 	x, y := 0, len(m.lines)
 	for _, b := range bs {
 		label := "[" + b.label + "]"
-		w := runewidth.StringWidth(label)
+		w := width(label)
 		m.hits.add(x, y, w, 1, target{kind: targetKey, key: b.key})
 		parts = append(parts, label)
 		x += w + 2
@@ -35,7 +34,7 @@ func (m *modal) buttons(bs ...button) {
 
 // field adds a clickable line (a form field).
 func (m *modal) field(line string, index int) {
-	m.hits.add(0, len(m.lines), runewidth.StringWidth(line), 1, target{kind: targetField, field: index})
+	m.hits.add(0, len(m.lines), width(line), 1, target{kind: targetField, field: index})
 	m.lines = append(m.lines, line)
 }
 

@@ -78,5 +78,13 @@ One line per deviation: what changed, and why.
   stale cache, although design §3 says every CLI read syncs first when the last sync is older than `stale_after`.
   `show` now calls `RefreshIfStale` and takes `--offline`, like the other read commands. Test:
   `TestShowRefreshesWhenStaleUnlessOffline`.
+- **Tester note (Tasks 10.1–10.2, 12.2–12.3):** in the grid, the day numbers after "Dec 1" sat one column right of
+  their events. Cause: emoji with a variation selector (❤️ ☀️ ✈️) are 1 cell in `go-runewidth` but 2 in lipgloss and
+  in terminals; `fit` padded by runewidth while `lipgloss.JoinHorizontal` joined by lipgloss's measure, so that
+  day's column came out 1 cell too wide and shifted the row. The TUI now measures everything with one helper,
+  `width()` = `lipgloss.Width` (plain text still; it is the measure lipgloss pads with), and `fit` is rewritten on
+  top of it. This replaces Phase 12's rule "widths come from plain text (`runewidth`)": same idea, one measure.
+  `go-runewidth` is now only an indirect dependency (same version). Test: `TestGridColumnsStayAlignedWithEmoji` (a
+  "❤️" title made a 113-column line in a 112-column grid). All golden files unchanged.
 
 ## Ideas

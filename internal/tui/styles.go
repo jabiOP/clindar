@@ -1,8 +1,9 @@
 package tui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 )
 
 var (
@@ -14,13 +15,32 @@ var (
 	modalStyle    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 1)
 )
 
+// width is the number of terminal cells s takes. Every width in this package
+// comes from here, and it is the measure lipgloss itself uses to join and pad
+// blocks: if we padded by a different measure (go-runewidth counts "❤️" as 1
+// cell, lipgloss and terminals as 2), a grid column would come out one cell
+// wider than planned and shift the whole row. Display width, never len():
+// "–" is 3 bytes, CJK runes are 2 cells.
+func width(s string) int { return lipgloss.Width(s) }
+
 // fit truncates s to w terminal cells (with "…") and pads it to exactly w.
-// Uses display width, not len(): "–" is 3 bytes, CJK runes are 2 cells.
 func fit(s string, w int) string {
 	if w <= 0 {
 		return ""
 	}
-	return runewidth.FillRight(runewidth.Truncate(s, w, "…"), w)
+	if sw := width(s); sw <= w {
+		return s + strings.Repeat(" ", w-sw)
+	}
+	out := ""
+	for _, r := range s { // keep as much as fits in w-1 cells, then "…"
+		next := out + string(r)
+		if width(next) > w-1 {
+			break
+		}
+		out = next
+	}
+	out += "…"
+	return out + strings.Repeat(" ", max(w-width(out), 0))
 }
 
 func calendarStyle(color string) lipgloss.Style {
