@@ -60,5 +60,11 @@ One line per deviation: what changed, and why.
   "warning: sync failed … context deadline exceeded" after an edit that did reach Google, is the 5s `sync_timeout`
   of the CLI's after-write sync expiring during the pull, after the push succeeded: expected, though the wording
   could say "push done, refresh timed out".
+- **Tester notes (Task 8.1, shown in `clindar show` and the TUI details):** "When" showed only the first day of a
+  multi-day event ("Wed 18 Nov 2026 all day" for Nov 18–22); it now shows first and last day (`Wed 18 Nov 2026 – Sun
+  22 Nov 2026  all day`, or `Mon 16 Nov 2026 22:00 – Tue 17 Nov 2026 02:00` for timed events crossing midnight).
+  "Repeats" said "yes (edit with --scope this|following|all)", a command-line hint that also appeared inside the
+  TUI; it now says "yes" (the CLI's "choose a scope" error already explains the flag). Test:
+  `TestPrettyDetailShowsWholeSpanAndPlainRepeats`.
 
 ## Ideas

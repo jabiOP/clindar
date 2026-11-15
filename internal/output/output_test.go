@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 	_ "time/tzdata"
@@ -138,5 +139,28 @@ func TestNextIncludesMinutes(t *testing.T) {
 	json.Unmarshal([]byte(jsonOut), &j)
 	if j.StartsInMinutes == nil || *j.StartsInMinutes != 12 {
 		t.Errorf("starts_in_minutes = %v", j.StartsInMinutes)
+	}
+}
+
+func TestPrettyDetailShowsWholeSpanAndPlainRepeats(t *testing.T) {
+	ny := testutil.NY(t)
+	trip := testutil.AllDay("t", "Trip", 2026, time.November, 18, 5) // Wed 18 – Sun 22
+	overnight := testutil.Timed("o", "Night shift", time.Date(2026, 11, 16, 22, 0, 0, 0, ny), 4*time.Hour)
+	weekly := sample(t)[0] // an occurrence of a series
+
+	tests := []struct {
+		e    model.Event
+		want string
+	}{
+		{trip, "When:      Wed 18 Nov 2026 – Sun 22 Nov 2026  all day\n"},
+		{overnight, "When:      Mon 16 Nov 2026 22:00 – Tue 17 Nov 2026 02:00\n"},
+		{weekly, "When:      Mon 16 Nov 2026  09:00–09:15\n"},
+		{weekly, "Repeats:   yes\n"}, // shared by the CLI and the TUI: no command-line hint
+	}
+	for _, tt := range tests {
+		got := render(t, output.Pretty, "", func(p *output.Printer) error { return p.Event(tt.e) })
+		if !strings.Contains(got, tt.want) {
+			t.Errorf("%s: want line %q in:\n%s", tt.e.Title, tt.want, got)
+		}
 	}
 }

@@ -242,18 +242,17 @@ func (p *Printer) prettyAgenda(events []model.Event, from time.Time, days int) e
 }
 
 func (p *Printer) prettyDetail(e model.Event) error {
-	start, _ := e.Span(p.loc)
 	row := func(label, value string) {
 		if value != "" {
 			fmt.Fprintf(p.w, "%-10s %s\n", label+":", value)
 		}
 	}
 	fmt.Fprintln(p.w, dayStyle.Render(e.Title))
-	row("When", start.Format("Mon 02 Jan 2006")+"  "+strings.TrimSpace(p.timeRange(e)))
+	row("When", p.when(e))
 	row("Calendar", p.calendars[e.CalendarID].Name)
 	row("Where", e.Location)
 	if e.IsInstance() || e.IsMaster() {
-		row("Repeats", "yes (edit with --scope this|following|all)")
+		row("Repeats", "yes") // shared by the CLI and the TUI, so no command-line hint here
 	}
 	var people []string
 	for _, a := range e.Attendees {
@@ -266,4 +265,23 @@ func (p *Printer) prettyDetail(e model.Event) error {
 		fmt.Fprintf(p.w, "\n%s\n", e.Description)
 	}
 	return nil
+}
+
+// when describes an event's whole span: one date for a one-day event, first and
+// last date for a longer one (all-day ends are exclusive, so the last day is
+// the day before End).
+func (p *Printer) when(e model.Event) string {
+	const day = "Mon 02 Jan 2006"
+	start, end := e.Span(p.loc)
+	if e.AllDay {
+		last := end.AddDate(0, 0, -1)
+		if !last.After(start) {
+			return start.Format(day) + "  all day"
+		}
+		return start.Format(day) + " – " + last.Format(day) + "  all day"
+	}
+	if end.After(start) && !model.StartOfDay(end.Add(-time.Nanosecond)).Equal(model.StartOfDay(start)) {
+		return start.Format(day+" 15:04") + " – " + end.Format(day+" 15:04")
+	}
+	return start.Format(day) + "  " + p.timeRange(e)
 }
