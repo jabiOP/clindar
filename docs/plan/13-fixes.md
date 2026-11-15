@@ -91,7 +91,7 @@ Nov 4, and a yearly birthday opened 2024. **Fix:** `recur.Instance` rewrites the
 `eid` = base64("<event id> <calendar>"); swap in the occurrence ID, keep the calendar part exactly, and re-encode with the
 same base64 variant. Links in any other shape stay unchanged (never break a working link).
 
-⚠ This relies on Google's link format. **Task 8.7 has a manual check** for it, and that check found this version incomplete: **apply Task 13.10 too.**
+⚠ This relies on Google's link format. **Task 8.7 has a manual check** for it.
 
 **Files:** `internal/recur/recur.go`, `internal/recur/recur_test.go`
 
@@ -1060,3 +1060,182 @@ one still passes.
    browser: Google must show that date.
 
 **Commit:** `fix(recur): rewrite occurrence links whose eid already names a dated occurrence`
+
+---
+
+# Product decisions after testing
+
+> ⚠ **Tasks 13.11–13.12 are written as a plan only; they were not compiled or run.** Treat them as precise specs.
+> If the compiler disagrees, follow the intent and note the fix in `DEVIATIONS.md`.
+
+## Task 13.11: Left-align day numbers in the grid (Task 10.1)
+
+**Decision:** day numbers start exactly where their events start. Until now single-digit days were right-aligned to two
+characters (`" 2"`), so their digit sat one column right of the events below. "Dec 1" and two-digit days had no
+leading space, which is why the tester saw "an offset that starts after Dec 1". It was never a width bug; every grid
+line measured exactly right.
+
+```
+before                                   after
+30        Dec 1      2         3         30        Dec 1     2         3
+09:00 Gym           09:00 Dentist        09:00 Gym           09:00 Dentist
+```
+
+**Files:** modify `internal/tui/grid.go`, `internal/tui/grid_test.go`; regenerate the grid golden files
+
+1. Test, in `grid_test.go`:
+   ```go
+   // Day numbers start where their events start (" 2" would put the digit one column right).
+   func TestDayNumbersAreLeftAligned(t *testing.T) {
+   	ny := testutil.NY(t)
+   	start := time.Date(2026, 11, 30, 0, 0, 0, 0, ny) // Mon Nov 30
+   	later := time.Date(2026, 12, 25, 0, 0, 0, 0, ny) // keeps the today/selected markers off the first row
+   	got, _ := renderGrid(gridView{start: start, today: later, selected: later,
+   		days: model.GroupByDay(nil, start, gridDays), width: 70, height: 18, loc: ny})
+
+   	row := strings.Split(got, "\n")[2] // title, weekday names, then the first week's day numbers
+   	if !strings.HasPrefix(row, "30        Dec 1     2         3 ") {
+   		t.Errorf("first week's labels = %q", row)
+   	}
+   }
+   ```
+   (Width 70 gives 10 columns per day: 9 of content plus 1 of gutter.) Run: fails, with `" 2"` and `" 3"`.
+2. In `gridView.cell` (`grid.go`), change
+   ```go
+   	label := fmt.Sprintf("%2d", day.Date.Day())
+   ```
+   to
+   ```go
+   	label := strconv.Itoa(day.Date.Day()) // left-aligned: the digit starts where the events start
+   ```
+   and add the `strconv` import (`fmt` is still used for "+N more").
+3. `go test ./internal/tui -update`, then **review the diff of every grid golden file** (`grid`, `grid_cells`,
+   `grid_hover`, `grid_mouse`): only day-number lines may change, each losing a leading space before a single digit.
+   `git diff --stat internal/tui/testdata` should list only grid files. Then `go test -race ./internal/tui`.
+
+**Commit:** `feat(tui): left-align day numbers in the grid`
+
+---
+
+## Task 13.12: Wrapped detail lines continue under their value (Task 13.8)
+
+**Decision (tester's idea):** when a long Guests or Link value wraps in the details box, the continuation lines start
+under the value, not at the box's left edge:
+
+```
+before                                    after
+Guests:    alice@example.com (accepted),  Guests:    alice@example.com (accepted),
+bob@example.com (needsAction)                        bob@example.com (needsAction)
+```
+
+**Design:** wrapping belongs where the rows are built, in `output.prettyDetail`, not in the TUI. Afterwards the TUI
+can't tell a label from a value. So the `Printer` gets an optional width:
+- **0 (default, the CLI):** no wrapping; the terminal wraps, as today.
+- **>0 (the TUI):** each row's value wraps to `width − 11` and its continuation lines are indented 11 cells, the label
+  column. The title and description wrap to the full width.
+
+The TUI drops its own whole-text wrapping (Task 13.8's `lipgloss.NewStyle().Width(maxW)` block) and calls `SetWidth`.
+
+**Files:** modify `internal/output/output.go`, `internal/output/output_test.go`, `internal/tui/layout.go`
+
+1. Test, in `output_test.go`:
+   ```go
+   func TestPrettyDetailWrapsValuesUnderThemselves(t *testing.T) {
+   	e := sample(t)[0]
+   	e.Attendees = []model.Attendee{
+   		{Email: "alice@example.com", Response: model.ResponseAccepted},
+   		{Email: "bob@example.com", Response: model.ResponseNeedsAction},
+   		{Email: "carol@example.com", Response: model.ResponseDeclined},
+   	}
+   	var buf bytes.Buffer
+   	p, err := output.NewPrinter(&buf, output.Pretty, "", testutil.NY(t), cals)
+   	if err != nil {
+   		t.Fatal(err)
+   	}
+   	p.SetWidth(40)
+
+   	if err := p.Event(e); err != nil {
+   		t.Fatal(err)
+   	}
+
+   	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+   	inGuests := false
+   	continued := 0
+   	for _, l := range lines {
+   		if w := lipgloss.Width(l); w > 40 {
+   			t.Errorf("line wider than 40 (%d): %q", w, l)
+   		}
+   		switch {
+   		case strings.HasPrefix(l, "Guests:"):
+   			inGuests = true
+   		case inGuests && strings.HasPrefix(l, strings.Repeat(" ", 11)):
+   			continued++
+   		default:
+   			inGuests = false
+   		}
+   	}
+   	if continued == 0 {
+   		t.Errorf("Guests should wrap onto indented lines:\n%s", buf.String())
+   	}
+   }
+   ```
+   (Add the `strings` import if `output_test.go` doesn't have it. `lipgloss` is already imported for `TestMain`.)
+   Run: compile failure (`SetWidth` doesn't exist).
+2. In `output.go`, add a `width int` field to `Printer`, then:
+   ```go
+   // SetWidth makes pretty details wrap to w cells: each "Label: value" row wraps its
+   // value under itself. 0 (the default, used by the CLI) means don't wrap.
+   func (p *Printer) SetWidth(w int) { p.width = w }
+
+   const labelColumn = 11 // "%-10s ": a 10-cell label plus one space
+
+   // wrap splits s into lines of at most w cells (ANSI-aware). It returns s
+   // unchanged when wrapping is off or s already fits.
+   func (p *Printer) wrap(s string, w int) []string {
+   	if p.width <= 0 || w <= 0 || lipgloss.Width(s) <= w {
+   		return []string{s}
+   	}
+   	lines := strings.Split(lipgloss.NewStyle().Width(w).Render(s), "\n")
+   	for i := range lines {
+   		lines[i] = strings.TrimRight(lines[i], " ") // Render pads every line to w
+   	}
+   	return lines
+   }
+   ```
+   and in `prettyDetail`:
+   ```go
+   	row := func(label, value string) {
+   		if value == "" {
+   			return
+   		}
+   		lines := p.wrap(value, p.width-labelColumn)
+   		fmt.Fprintf(p.w, "%-10s %s\n", label+":", lines[0])
+   		for _, l := range lines[1:] {
+   			fmt.Fprintf(p.w, "%s%s\n", strings.Repeat(" ", labelColumn), l)
+   		}
+   	}
+   	for _, l := range p.wrap(dayStyle.Render(e.Title), p.width) {
+   		fmt.Fprintln(p.w, l)
+   	}
+   ```
+   replacing the old `row` and the title's `Fprintln`. For the description:
+   ```go
+   	if e.Description != "" {
+   		fmt.Fprintln(p.w)
+   		for _, l := range p.wrap(e.Description, p.width) {
+   			fmt.Fprintln(p.w, l)
+   		}
+   	}
+   ```
+3. In `layout.go` (`popup`, `modeDetail`), delete Task 13.8's wrapping block (`if maxW := …; lipgloss.Width(text) > maxW
+   { … }`) and, right after `output.NewPrinter(…)`, add:
+   ```go
+   		p.SetWidth(max(m.width-4, 20)) // the box adds a border and 1 cell of padding per side
+   ```
+4. `go test -race ./...`: pass. That includes Task 13.8's `TestDetailFitsTheTerminal` (the box still fits) and the
+   existing output tests (width 0 is unchanged). **Red-step check:** make `row` print continuation lines without the
+   indent. The new test must fail. Then undo that.
+5. Look at it: in the TUI at 80 columns, open an event with several guests and a long link. Each wrapped line should
+   start under its value.
+
+**Commit:** `feat(output): wrap detail values under themselves`
