@@ -61,3 +61,21 @@ func TestGroupByDayPutsMultiDayEventsOnEveryDay(t *testing.T) {
 		t.Errorf("days[0].Date = %v, want %v", days[0].Date, want)
 	}
 }
+
+// Scripts read TSV/JSON in list order, so the order must be by day first:
+// an all-day event on Nov 17 must not come before a timed event on Nov 16.
+func TestSortEventsIsByDayFirst(t *testing.T) {
+	ny := mustLoc(t, "America/New_York")
+	events := []model.Event{
+		{Title: "birthday", AllDay: true,
+			Start: time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC),
+			End:   time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)},
+		{Title: "meeting", Start: time.Date(2026, 11, 16, 10, 0, 0, 0, ny), End: time.Date(2026, 11, 16, 11, 0, 0, 0, ny)},
+	}
+
+	model.SortEvents(events, ny)
+
+	if events[0].Title != "meeting" || events[1].Title != "birthday" {
+		t.Errorf("order = %s, %s; want meeting (Nov 16) then birthday (Nov 17)", events[0].Title, events[1].Title)
+	}
+}

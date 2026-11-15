@@ -6,17 +6,22 @@ import (
 	"time"
 )
 
-// SortEvents orders events for display: all-day first, then by start, then title.
+// SortEvents orders events for display: by the day they start (in loc), then
+// all-day before timed within that day, then by start, then title. Day comes
+// first because scripts read TSV/JSON in this order.
 func SortEvents(events []Event, loc *time.Location) {
 	slices.SortStableFunc(events, func(a, b Event) int {
+		as, _ := a.Span(loc)
+		bs, _ := b.Span(loc)
+		if c := StartOfDay(as).Compare(StartOfDay(bs)); c != 0 {
+			return c
+		}
 		if a.AllDay != b.AllDay {
 			if a.AllDay {
 				return -1
 			}
 			return 1
 		}
-		as, _ := a.Span(loc)
-		bs, _ := b.Span(loc)
 		if c := as.Compare(bs); c != 0 {
 			return c
 		}

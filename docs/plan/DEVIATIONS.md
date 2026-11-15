@@ -35,5 +35,9 @@ One line per deviation: what changed, and why.
   only the possible keys). **Not checked:** whether real terminals report hover. Injecting the escape sequences tests
   clindar's handling of all-motion events, not whether macOS Terminal.app, or tmux with `set -g mouse on`, actually
   sends them. That needs a person with a mouse.
+- **Tester bug 1 (Task 1.5):** `model.SortEvents` put every all-day event before every timed one across the whole
+  list, so `agenda` TSV/JSON listed Nov 17–20 birthdays before a Nov 16 10:00 meeting. (The pretty view hid it by
+  grouping by day first.) It now sorts by start day in the given zone first, then all-day before timed within the
+  day. Test: `TestSortEventsIsByDayFirst`.
 
 ## Ideas
