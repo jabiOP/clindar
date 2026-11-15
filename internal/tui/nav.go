@@ -24,6 +24,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if k.String() == "y" {
 			return m, m.afterScope(service.ScopeNone)
 		}
+		m.message = "not deleted" // any other key cancels: say so
 		return m, nil
 	case modeRSVP:
 		return m.rsvpKey(k)

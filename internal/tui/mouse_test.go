@@ -232,3 +232,22 @@ func TestHoverOnEdgeRevealsHandle(t *testing.T) {
 		t.Error("moving off the edge should hide ▸")
 	}
 }
+
+// With the mouse on, the delete confirmation still names its keys, and a key
+// other than y cancels visibly rather than silently.
+func TestDeleteConfirmShowsKeysAndSaysWhenCancelled(t *testing.T) {
+	f := newMouseFixture(t)
+	f.keys("tab", "j", "d") // list from Thu 12: Standup, then Lunch (a one-off)
+
+	if screen := f.m.View(); !strings.Contains(screen, "(y/n)") || !strings.Contains(screen, "[Delete]") {
+		t.Fatalf("confirm pop-up should show (y/n) and the buttons:\n%s", screen)
+	}
+	f.keys("enter")
+
+	if m := f.model(); m.mode != modeNormal || !strings.Contains(m.message, "not deleted") {
+		t.Errorf("mode = %v, message = %q; want back to normal with \"not deleted\"", m.mode, m.message)
+	}
+	if got := f.titlesOn(12); !slices.Contains(got, "Lunch with Sam") {
+		t.Errorf("Nov 12 = %v: lunch must still be there", got)
+	}
+}

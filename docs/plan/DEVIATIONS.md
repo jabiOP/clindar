@@ -66,5 +66,9 @@ One line per deviation: what changed, and why.
   "Repeats" said "yes (edit with --scope this|following|all)", a command-line hint that also appeared inside the
   TUI; it now says "yes" (the CLI's "choose a scope" error already explains the flag). Test:
   `TestPrettyDetailShowsWholeSpanAndPlainRepeats`.
+- **Tester note (Task 12.5):** with the mouse on, "Delete this event?" showed [Delete] [Cancel] but not its keys,
+  and Enter cancelled silently. The question now reads "Delete this event? (y/n)" when the mouse is on (mouse-off
+  text unchanged), and any key other than `y` cancels with "not deleted" in the status bar. Enter still cancels: for
+  a delete, cancel is the safe default. Test: `TestDeleteConfirmShowsKeysAndSaysWhenCancelled`.
 
 ## Ideas

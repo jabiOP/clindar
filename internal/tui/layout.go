@@ -110,8 +110,13 @@ func (m Model) popup() (modal, bool) {
 		md.text("")
 		choices(strings.Join(parts, "   ")+"\n\nesc cancel", append(bs, button{"Cancel", "esc"})...)
 	case modeConfirm:
-		md.text("Delete this event?")
-		choices("(y/n)", button{"Delete", "y"}, button{"Cancel", "n"})
+		if m.deps.Mouse { // the buttons don't name their keys, so the question does
+			md.text("Delete this event? (y/n)")
+			md.buttons(button{"Delete", "y"}, button{"Cancel", "n"})
+		} else {
+			md.text("Delete this event?")
+			md.text("(y/n)")
+		}
 	case modeRSVP:
 		md.text("Going?")
 		choices("(y)es  (n)o  (m)aybe", button{"Yes", "y"}, button{"No", "n"}, button{"Maybe", "m"}, button{"Cancel", "esc"})
