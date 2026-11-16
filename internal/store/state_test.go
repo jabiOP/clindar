@@ -81,3 +81,22 @@ func TestResetSyncTokens(t *testing.T) {
 		t.Errorf("calendar list token = %q, want empty", tok)
 	}
 }
+
+func TestEventColorsRoundTripAndReset(t *testing.T) {
+	s := testutil.NewStore(t)
+	ctx := context.Background()
+	palette := map[string]string{"11": "#dc2127", "4": "#ff887c"}
+
+	if err := s.SetEventColors(ctx, "a", palette); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.EventColors(ctx, "a"); err != nil || len(got) != 2 || got["11"] != "#dc2127" {
+		t.Fatalf("EventColors = %v, %v", got, err)
+	}
+	if err := s.ResetSyncTokens(ctx, "a"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.EventColors(ctx, "a"); len(got) != 0 {
+		t.Errorf("after ResetSyncTokens: %v, want empty (sync --full refreshes the palette)", got)
+	}
+}

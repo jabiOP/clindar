@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
+	"github.com/jabiOP/clindar/internal/gcal/gcaltest"
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/output"
 	"github.com/jabiOP/clindar/internal/testutil"
@@ -201,5 +202,31 @@ func TestPrettyDetailWrapsValuesUnderThemselves(t *testing.T) {
 	}
 	if continued == 0 {
 		t.Errorf("Guests should wrap onto indented lines:\n%s", buf.String())
+	}
+}
+
+func TestJSONHasTheEffectiveColor(t *testing.T) {
+	ny := testutil.NY(t)
+	own := sample(t)[1]
+	own.ColorID = "11"
+	plain := sample(t)[2]
+	colored := []model.Calendar{{ID: testutil.Calendar, Name: "Me", Color: "#4285f4"}}
+	var buf bytes.Buffer
+	p, err := output.NewPrinter(&buf, output.JSON, "", ny, colored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.SetPalette(gcaltest.Palette)
+
+	if err := p.Events([]model.Event{own, plain}, time.Date(2026, 11, 16, 0, 0, 0, 0, ny), 2); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	var a, b output.EventJSON
+	json.Unmarshal([]byte(lines[0]), &a)
+	json.Unmarshal([]byte(lines[1]), &b)
+	if a.Color != "#dc2127" || b.Color != "#4285f4" {
+		t.Errorf("colors = %q, %q; want the event's own #dc2127, then the calendar's #4285f4", a.Color, b.Color)
 	}
 }

@@ -161,4 +161,13 @@ CREATE TABLE calendar_prefs (
 	shown       INTEGER NOT NULL, -- local choice; overrides Google's "selected"
 	PRIMARY KEY (account_id, calendar_id)
 );
+`,
+	// 3: Google's event color palette, cached (Task 14.19)
+	`
+CREATE TABLE event_colors (
+	account_id TEXT NOT NULL,
+	color_id   TEXT NOT NULL,
+	background TEXT NOT NULL,
+	PRIMARY KEY (account_id, color_id)
+);
 `}

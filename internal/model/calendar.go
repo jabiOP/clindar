@@ -14,3 +14,12 @@ type Calendar struct {
 }
 
 func (c Calendar) Writable() bool { return c.AccessRole == "owner" || c.AccessRole == "writer" }
+
+// EffectiveColor is the color an event is drawn in: its own color from the
+// palette (colorId → "#rrggbb") if it has one, else its calendar's.
+func EffectiveColor(e Event, cal Calendar, palette map[string]string) string {
+	if c, ok := palette[e.ColorID]; ok && e.ColorID != "" {
+		return c
+	}
+	return cal.Color
+}

@@ -158,3 +158,16 @@ func (c *Client) DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, 
 	}
 	return nil
 }
+
+// EventColors returns Google's event palette: colorId → background "#rrggbb".
+func (c *Client) EventColors(ctx context.Context) (map[string]string, error) {
+	res, err := c.svc.Colors.Get().Context(ctx).Do()
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	out := map[string]string{}
+	for id, def := range res.Event {
+		out[id] = def.Background
+	}
+	return out, nil
+}

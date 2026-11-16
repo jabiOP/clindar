@@ -58,3 +58,19 @@ func TestFakeInstanceWriteCreatesException(t *testing.T) {
 		t.Errorf("exception = %+v, %v", got, err)
 	}
 }
+
+func TestFakeColors(t *testing.T) {
+	f := newFake()
+	ctx := context.Background()
+	if p, err := f.EventColors(ctx); err != nil || p["11"] != gcaltest.Palette["11"] || len(p) != len(gcaltest.Palette) {
+		t.Errorf("EventColors = %v, %v", p, err)
+	}
+	e := f.Put(model.Event{CalendarID: "c", ID: "a", Title: "A", ColorID: "11", Start: at(1), End: at(1)})
+	e.ColorID = ""
+
+	got, err := f.PatchEvent(ctx, "c", e, "", "none")
+
+	if err != nil || got.ColorID != "" {
+		t.Errorf("after patching ColorID \"\": %q, %v; want the color cleared", got.ColorID, err)
+	}
+}

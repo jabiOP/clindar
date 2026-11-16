@@ -64,3 +64,13 @@ func TestExpiredSyncTokenResyncs(t *testing.T) {
 		t.Errorf("e1=%q e2=%q", w.localTitle("e1"), w.localTitle("e2"))
 	}
 }
+
+func TestPaletteIsFetchedOnce(t *testing.T) {
+	w := newWorld(t)
+	w.sync()
+	w.sync()
+
+	if w.google.ColorCalls != 1 {
+		t.Errorf("EventColors called %d times, want 1 (cached in the store)", w.google.ColorCalls)
+	}
+}

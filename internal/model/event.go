@@ -61,7 +61,8 @@ type Event struct {
 
 	ETag    string    `json:"etag,omitempty"`
 	Updated time.Time `json:"updated,omitzero"`
-	Link    string    `json:"link,omitempty"` // Google web URL
+	Link    string    `json:"link,omitempty"`     // Google web URL
+	ColorID string    `json:"color_id,omitempty"` // Google's event colorId; "" = the calendar's color
 }
 
 func (e Event) IsMaster() bool          { return len(e.Recurrence) > 0 }

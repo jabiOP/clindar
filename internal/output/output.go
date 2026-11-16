@@ -68,6 +68,7 @@ type EventJSON struct {
 	Recurring       bool           `json:"recurring"`
 	Link            string         `json:"link,omitempty"`
 	StartsInMinutes *int           `json:"starts_in_minutes,omitempty"` // only from `clindar next`
+	Color           string         `json:"color,omitempty"`             // effective color: the event's own, else its calendar's ("#rrggbb")
 }
 
 type AttendeeJSON struct {
@@ -82,12 +83,17 @@ type Printer struct {
 	tmpl      *template.Template
 	loc       *time.Location
 	calendars map[string]model.Calendar
-	width     int // pretty details wrap to this many cells; 0 = don't wrap
+	width     int               // pretty details wrap to this many cells; 0 = don't wrap
+	palette   map[string]string // event colorId → "#rrggbb"
 }
 
 // SetWidth makes pretty details wrap to w cells: each "Label: value" row wraps its
 // value under itself. 0 (the default, used by the CLI) means don't wrap.
 func (p *Printer) SetWidth(w int) { p.width = w }
+
+// SetPalette gives the printer Google's event palette, so JSON can report each
+// event's effective color.
+func (p *Printer) SetPalette(palette map[string]string) { p.palette = palette }
 
 const labelColumn = 11 // "%-10s ": a 10-cell label plus one space
 
@@ -135,6 +141,7 @@ func (p *Printer) toJSON(e model.Event) EventJSON {
 		ID: e.ID, SeriesID: e.SeriesID, CalendarID: e.CalendarID, Calendar: p.calendars[e.CalendarID].Name,
 		Title: e.Title, AllDay: e.AllDay, Status: e.Status, Location: e.Location, Description: e.Description,
 		Recurring: e.IsInstance() || e.IsMaster(), Link: e.Link,
+		Color: model.EffectiveColor(e, p.calendars[e.CalendarID], p.palette),
 	}
 	if e.AllDay {
 		j.Start, j.End = e.Start.UTC().Format(time.DateOnly), e.End.UTC().Format(time.DateOnly)

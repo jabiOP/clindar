@@ -132,3 +132,23 @@ func TestToAPIClearsTheOtherKindOfStartAndEnd(t *testing.T) {
 		}
 	}
 }
+
+func TestEventColorRoundTrip(t *testing.T) {
+	got, err := gcal.FromAPI("a", "c", &calendar.Event{Id: "e", ColorId: "11",
+		Start: &calendar.EventDateTime{Date: "2026-11-26"}, End: &calendar.EventDateTime{Date: "2026-11-27"}})
+	if err != nil || got.ColorID != "11" {
+		t.Errorf("FromAPI ColorID = %q, %v", got.ColorID, err)
+	}
+	e := model.Event{ID: "e", Title: "x", AllDay: true,
+		Start: time.Date(2026, 11, 26, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC)}
+	for colorID, want := range map[string]string{"11": `"colorId":"11"`, "": `"colorId":null`} {
+		e.ColorID = colorID
+		body, err := gcal.ToAPI(e).MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(body), want) {
+			t.Errorf("ColorID %q: body = %s, want it to contain %s", colorID, body, want)
+		}
+	}
+}

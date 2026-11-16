@@ -16,7 +16,7 @@ func FromAPI(accountID, calendarID string, ev *calendar.Event) (model.Event, err
 		AccountID: accountID, CalendarID: calendarID, ID: ev.Id,
 		SeriesID: ev.RecurringEventId, Status: ev.Status,
 		Title: ev.Summary, Description: ev.Description, Location: ev.Location,
-		Recurrence: ev.Recurrence, ETag: ev.Etag, Link: ev.HtmlLink,
+		Recurrence: ev.Recurrence, ETag: ev.Etag, Link: ev.HtmlLink, ColorID: ev.ColorId,
 	}
 	if e.Status == "" {
 		e.Status = model.StatusConfirmed
@@ -100,6 +100,10 @@ func ToAPI(e model.Event) *calendar.Event {
 		ev.End = &calendar.EventDateTime{DateTime: e.End.Format(time.RFC3339), TimeZone: e.TimeZone, NullFields: []string{"Date"}}
 	}
 	ev.Attendees = AttendeesToAPI(e).Attendees
+	ev.ColorId = e.ColorID
+	if e.ColorID == "" {
+		ev.NullFields = append(ev.NullFields, "ColorId") // back to the calendar's color; omitted fields don't clear
+	}
 	return ev
 }
 

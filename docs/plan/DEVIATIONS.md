@@ -163,6 +163,12 @@ One line per deviation: what changed, and why.
   design: `TestGridHitMap` (Task 12.3) asserted that a blank line under a day's events is `targetDay`; it is now
   `targetEmpty`, and the test also checks that the day number is still `targetDay`. Checked in tmux: dragging blank
   space from Tue 17 to Thu 19 opens quick add with "Tue 17 Nov – Thu 19 Nov, all day".
+- **Task 14.19:** compiled as specified. The per-layer tests, described but not written out in the plan, are
+  `TestEffectiveColor` (model), `TestEventColorRoundTrip` (convert), `TestEventColorsReadsThePalette` (client),
+  `TestFakeColors`, `TestEventColorsRoundTripAndReset` (store), `TestPaletteIsFetchedOnce` (syncer) and
+  `TestJSONHasTheEffectiveColor` (output). `pullPalette` runs first in `Pull`, so offline the pull fails at
+  "colors:" rather than "calendars:"; it is the same transient error either way. **Needs a real-Google check (Task
+  14.23):** setting a color, then "Calendar default", clears `colorId`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

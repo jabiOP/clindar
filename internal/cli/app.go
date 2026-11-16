@@ -161,5 +161,14 @@ func (a *App) Printer(ctx context.Context, svc *service.Service, f outputFlags) 
 	if err != nil {
 		return nil, err
 	}
-	return output.NewPrinter(a.Stdout, mode, f.format, a.Now().Location(), cals)
+	p, err := output.NewPrinter(a.Stdout, mode, f.format, a.Now().Location(), cals)
+	if err != nil {
+		return nil, err
+	}
+	palette, err := svc.EventColors(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p.SetPalette(palette)
+	return p, nil
 }

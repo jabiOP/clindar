@@ -6,6 +6,7 @@ package gcaltest
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strconv"
 	"sync"
 
@@ -30,6 +31,8 @@ type Fake struct {
 	// BeforeWrite, if set, runs at the start of every insert/patch/delete
 	// (lets tests change local state while a push is "in flight").
 	BeforeWrite func()
+	// ColorCalls counts EventColors calls (the palette should be fetched once).
+	ColorCalls int
 }
 
 func NewFake(cals ...model.Calendar) *Fake {
@@ -154,7 +157,7 @@ func (f *Fake) PatchEvent(ctx context.Context, calendarID string, e model.Event,
 	}
 	cur.Title, cur.Description, cur.Location = e.Title, e.Description, e.Location
 	cur.Start, cur.End, cur.AllDay, cur.TimeZone = e.Start, e.End, e.AllDay, e.TimeZone
-	cur.Attendees = e.Attendees
+	cur.Attendees, cur.ColorID = e.Attendees, e.ColorID
 	if e.Recurrence != nil {
 		cur.Recurrence = e.Recurrence
 	}
@@ -233,4 +236,20 @@ func (f *Fake) beforeWrite() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.Fail
+}
+
+// Palette is Google's standard event palette (colorId → background).
+var Palette = map[string]string{
+	"1": "#a4bdfc", "2": "#7ae7bf", "3": "#dbadff", "4": "#ff887c", "5": "#fbd75b", "6": "#ffb878",
+	"7": "#46d6db", "8": "#e1e1e1", "9": "#5484ed", "10": "#51b749", "11": "#dc2127",
+}
+
+func (f *Fake) EventColors(ctx context.Context) (map[string]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ColorCalls++
+	if f.Fail != nil {
+		return nil, f.Fail
+	}
+	return maps.Clone(Palette), nil
 }

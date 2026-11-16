@@ -98,7 +98,44 @@ func (s *Store) ResetSyncTokens(ctx context.Context, accountID string) error {
 		if _, err := tx.q.ExecContext(ctx, `UPDATE calendars SET sync_token = '' WHERE account_id = ?`, accountID); err != nil {
 			return err
 		}
-		_, err := tx.q.ExecContext(ctx, `UPDATE sync_state SET calendars_token = '' WHERE account_id = ?`, accountID)
+		if _, err := tx.q.ExecContext(ctx, `UPDATE sync_state SET calendars_token = '' WHERE account_id = ?`, accountID); err != nil {
+			return err
+		}
+		_, err := tx.q.ExecContext(ctx, `DELETE FROM event_colors WHERE account_id = ?`, accountID) // refetched by the next pull
 		return err
+	})
+}
+
+// EventColors returns the cached event palette (colorId → "#rrggbb"); empty if not fetched yet.
+func (s *Store) EventColors(ctx context.Context, accountID string) (map[string]string, error) {
+	rows, err := s.q.QueryContext(ctx, `SELECT color_id, background FROM event_colors WHERE account_id = ?`, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var id, bg string
+		if err := rows.Scan(&id, &bg); err != nil {
+			return nil, err
+		}
+		out[id] = bg
+	}
+	return out, rows.Err()
+}
+
+// SetEventColors replaces the cached event palette.
+func (s *Store) SetEventColors(ctx context.Context, accountID string, palette map[string]string) error {
+	return s.InTx(ctx, func(tx *Store) error {
+		if _, err := tx.q.ExecContext(ctx, `DELETE FROM event_colors WHERE account_id = ?`, accountID); err != nil {
+			return err
+		}
+		for id, bg := range palette {
+			if _, err := tx.q.ExecContext(ctx, `INSERT INTO event_colors (account_id, color_id, background) VALUES (?, ?, ?)`,
+				accountID, id, bg); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }

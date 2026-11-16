@@ -135,3 +135,19 @@ func TestStalledRequestTimesOut(t *testing.T) {
 		}
 	}
 }
+
+func TestEventColorsReadsThePalette(t *testing.T) {
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/colors" {
+			http.Error(w, "unexpected path "+r.URL.Path, 500)
+			return
+		}
+		fmt.Fprint(w, `{"event":{"11":{"background":"#dc2127","foreground":"#1d1d1d"}}}`)
+	})
+
+	got, err := c.EventColors(context.Background())
+
+	if err != nil || len(got) != 1 || got["11"] != "#dc2127" {
+		t.Errorf("EventColors = %v, %v", got, err)
+	}
+}

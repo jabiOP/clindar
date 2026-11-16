@@ -12,6 +12,9 @@ import (
 
 // Pull fetches calendar-list changes, then event changes for every calendar.
 func (e *Engine) Pull(ctx context.Context) error {
+	if err := e.pullPalette(ctx); err != nil {
+		return fmt.Errorf("colors: %w", err)
+	}
 	if err := e.pullCalendars(ctx); err != nil {
 		return fmt.Errorf("calendars: %w", err)
 	}
@@ -117,4 +120,18 @@ func (e *Engine) apply(ctx context.Context, tx *store.Store, ev model.Event) err
 	default:
 		return tx.DeleteSeries(ctx, ev.AccountID, ev.CalendarID, ev.ID)
 	}
+}
+
+// pullPalette fetches Google's event color palette once and caches it;
+// sync --full (ResetSyncTokens) clears the cache so it's fetched again.
+func (e *Engine) pullPalette(ctx context.Context) error {
+	have, err := e.Store.EventColors(ctx, e.AccountID)
+	if err != nil || len(have) > 0 {
+		return err
+	}
+	palette, err := e.Remote.EventColors(ctx)
+	if err != nil {
+		return err
+	}
+	return e.Store.SetEventColors(ctx, e.AccountID, palette)
 }

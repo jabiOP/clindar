@@ -78,6 +78,11 @@ func (s *Service) Status(ctx context.Context, since time.Time) (Status, error) {
 	return st, err
 }
 
+// EventColors returns Google's event palette (colorId → "#rrggbb"), as cached by sync.
+func (s *Service) EventColors(ctx context.Context) (map[string]string, error) {
+	return s.store.EventColors(ctx, s.account)
+}
+
 // SetCalendarShown shows or hides a calendar in clindar. It is a local choice:
 // it overrides Google's "selected" flag and is never sent to Google.
 func (s *Service) SetCalendarShown(ctx context.Context, calendarID string, shown bool) error {
