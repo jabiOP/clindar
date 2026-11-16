@@ -48,15 +48,22 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+const wheelEvery = 100 * time.Millisecond // trackpads send dozens of events per swipe
+
 func (m Model) wheel(dir int) (tea.Model, tea.Cmd) {
 	if m.mode != modeNormal {
 		return m, nil
 	}
+	now := m.deps.Now()
+	if now.Sub(m.lastWheel) < wheelEvery {
+		return m, nil
+	}
+	m.lastWheel = now
 	if m.view == viewList {
 		m.cursor = min(max(m.cursor+dir, 0), max(len(m.entries())-1, 0))
 		return m, nil
 	}
-	m = m.moveDays(7*dir, true)
+	m = m.moveDays(dir, false)
 	return m, m.reloadIfNeeded()
 }
 

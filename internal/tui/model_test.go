@@ -13,6 +13,7 @@ import (
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
 	"github.com/jabiOP/clindar/internal/testutil"
 )
 
@@ -22,10 +23,12 @@ func TestMain(m *testing.M) {
 }
 
 type fixture struct {
-	t   *testing.T
-	svc *service.Service
-	ny  *time.Location
-	m   tea.Model
+	t     *testing.T
+	svc   *service.Service
+	st    *store.Store
+	ny    *time.Location
+	m     tea.Model
+	clock time.Time // what Deps.Now returns; tests may move it
 }
 
 // newFixture: Thursday Nov 12 2026, a real service over a temp store with a
@@ -54,13 +57,22 @@ func newFixtureWith(t *testing.T, extra Deps) *fixture {
 	}
 	now := time.Date(2026, 11, 12, 10, 30, 0, 0, ny)
 	svc := service.New(st, testutil.Account, func() time.Time { return now }, "none")
-	f := &fixture{t: t, svc: svc, ny: ny}
+	f := &fixture{t: t, svc: svc, st: st, ny: ny, clock: now}
 	d := extra
-	d.Service, d.Now, d.WeekStart = svc, func() time.Time { return now }, time.Monday
+	d.Service, d.Now, d.WeekStart = svc, func() time.Time { return f.clock }, time.Monday
 	m := New(ctx, d)
 	f.m = f.drain(m, m.Init())
 	f.send(tea.WindowSizeMsg{Width: 84, Height: 20})
 	return f
+}
+
+// put stores e and reloads, as if a sync brought it in.
+func (f *fixture) put(e model.Event) {
+	f.t.Helper()
+	if err := f.st.PutEvent(context.Background(), e); err != nil {
+		f.t.Fatal(err)
+	}
+	f.send(f.model().load()())
 }
 
 // drain runs cmd and feeds its messages back into the model until nothing is

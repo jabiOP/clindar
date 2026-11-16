@@ -72,6 +72,7 @@ type Model struct {
 	target    model.Event // the event an RSVP (modeRSVP) applies to
 	drag      dragState   // mouse drag in the grid (Phase 12)
 	hover     edgeRef     // the handle under the pointer (Phase 12.7)
+	lastWheel time.Time   // last wheel step taken (throttle, Task 14.4)
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
 	allowedScopes string // e.g. "tfa" or "ta"

@@ -79,14 +79,24 @@ func TestClickSelectsDayThenOpensList(t *testing.T) {
 	}
 }
 
-func TestWheelScrollsGridAWeek(t *testing.T) {
-	f := newMouseFixture(t)
-	before := f.model().gridStart
-
+func (f *fixture) wheelDown() {
 	f.send(tea.MouseMsg{X: 5, Y: 5, Button: tea.MouseButtonWheelDown, Action: tea.MouseActionPress})
+}
 
-	if got := f.model().gridStart; !got.Equal(before.AddDate(0, 0, 7)) {
-		t.Errorf("gridStart = %v, want a week after %v", got, before)
+func TestWheelMovesOneDayAndIsThrottled(t *testing.T) {
+	f := newMouseFixture(t)
+	sel := f.model().selected
+
+	f.wheelDown()
+	f.wheelDown() // same instant: dropped
+	if got := f.model().selected; !got.Equal(sel.AddDate(0, 0, 1)) {
+		t.Fatalf("selected = %v, want one day later", got)
+	}
+	f.clock = f.clock.Add(150 * time.Millisecond)
+	f.wheelDown()
+
+	if got := f.model().selected; !got.Equal(sel.AddDate(0, 0, 2)) {
+		t.Errorf("selected = %v, want two days later", got)
 	}
 }
 
