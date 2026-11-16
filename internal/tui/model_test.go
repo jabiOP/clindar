@@ -344,3 +344,24 @@ func TestGotoDayNumberAndRefusedTime(t *testing.T) {
 		t.Errorf("g 14:00: selected = %v, message = %q; want unchanged and \"isn't a day\"", m.selected, m.message)
 	}
 }
+
+func TestCalendarMenuHidesACalendar(t *testing.T) {
+	f := newFixture(t)
+	f.keys("c")
+	if m := f.model(); m.mode != modeCalendars || !strings.Contains(f.m.View(), "[x]") {
+		t.Fatalf("mode = %v:\n%s", m.mode, f.m.View())
+	}
+
+	f.keys(" ") // untick "Me", the only calendar
+
+	if got := f.titlesOn(12); len(got) != 0 {
+		t.Errorf("Nov 12 = %v: a hidden calendar's events must disappear", got)
+	}
+	if f.model().mode != modeCalendars {
+		t.Error("toggling must keep the menu open")
+	}
+	f.keys("esc")
+	if strings.Contains(f.m.View(), "Lunch") {
+		t.Error("the grid still shows the hidden calendar's events")
+	}
+}

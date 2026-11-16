@@ -119,6 +119,8 @@ func (m Model) popup() (modal, bool) {
 			md.text("Delete this event?")
 			md.text("(y/n)")
 		}
+	case modeCalendars:
+		return m.calMenu.view(min(m.width-4, 50), m.deps.Mouse), true
 	case modeRSVP:
 		md.text("Going?")
 		choices("(y)es  (n)o  (m)aybe", button{"Yes", "y"}, button{"No", "n"}, button{"Maybe", "m"}, button{"Cancel", "esc"})
@@ -156,7 +158,7 @@ func (m Model) statusBar() (string, hitMap) {
 	var hits hitMap
 	var labels []string
 	x := m.width
-	bs := []button{{"+ Add", "a"}, {"⟳ Sync", "s"}, {"? Help", "?"}}
+	bs := []button{{"+ Add", "a"}, {"Calendars", "c"}, {"⟳ Sync", "s"}, {"? Help", "?"}}
 	for i := len(bs) - 1; i >= 0; i-- { // lay out right to left
 		label := "[" + bs[i].label + "]"
 		x -= width(label)

@@ -299,3 +299,20 @@ func TestEdgeOfReadOnlyEventShowsReasonOnly(t *testing.T) {
 		t.Errorf("mode = %v, message = %q", m.mode, m.message)
 	}
 }
+
+func TestCalendarsButtonOpensMenuAndRowClickToggles(t *testing.T) {
+	f := newMouseFixture(t)
+	f.click(f.button("c"))
+	if m := f.model(); m.mode != modeCalendars {
+		t.Fatalf("mode = %v, want the calendar menu", m.mode)
+	}
+
+	f.click(f.where(func(t target) bool { return t.kind == targetOption && t.field == 0 })) // the "Me" row
+
+	if got := f.titlesOn(12); len(got) != 0 {
+		t.Errorf("Nov 12 = %v: clicking the row should hide Me", got)
+	}
+	if !strings.Contains(f.m.View(), "[ ]") {
+		t.Errorf("the row should show unticked:\n%s", f.m.View())
+	}
+}

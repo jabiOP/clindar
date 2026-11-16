@@ -74,6 +74,11 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 			return m.handleKey(keyMsg(t.key))
 		case t.kind == targetField && m.mode == modeForm:
 			m.form = m.form.focusField(t.field)
+		case t.kind == targetOption && m.mode == modeCalendars:
+			var ev pickEvent
+			var i int
+			m.calMenu, ev, i = m.calMenu.pick(t.field)
+			return m.calMenuEvent(ev, i)
 		case !onSomething && (m.mode == modeDetail || m.mode == modeGoto):
 			m.mode = modeNormal // click outside closes
 		case m.mode == modeHelp:

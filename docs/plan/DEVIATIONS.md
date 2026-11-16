@@ -131,6 +131,10 @@ One line per deviation: what changed, and why.
   on the cursor row the colored swatch's own reset code (`\x1b[0m` after the `●`) also ended the row's reverse
   video, so the highlight stopped after the dot. The cursor row is now built from plain text (an uncolored `● `) and
   styled once with `selectedStyle`; other rows keep the colored swatch.
+- **Task 14.13:** compiled as written. To get the stated red step (`c` does nothing) instead of a compile error, the
+  `modeCalendars` constant was added before the tests ran. The mouse test described in step 1 is
+  `TestCalendarsButtonOpensMenuAndRowClickToggles`. `grid_mouse.golden` changed only in its status bar, which gained
+  `[Calendars]`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

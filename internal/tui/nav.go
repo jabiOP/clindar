@@ -32,6 +32,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case modeHelp:
 		m.mode = modeNormal
 		return m, nil
+	case modeCalendars:
+		return m.calMenuKey(k)
 	}
 	if m.drag.active && key.Matches(k, keys.Back) {
 		m.drag, m.message = dragState{}, "drag cancelled"
@@ -46,6 +48,12 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case key.Matches(k, keys.Help):
 		m.mode = modeHelp
+	case key.Matches(k, keys.Calendars):
+		m.calMenu = picker{title: "Calendars", checklist: true, open: true}
+		for _, c := range m.calList {
+			m.calMenu.options = append(m.calMenu.options, option{label: c.Name, value: c.ID, swatch: c.Color, checked: c.Visible})
+		}
+		m.mode = modeCalendars
 	case key.Matches(k, keys.Toggle):
 		if m.view == viewGrid {
 			m = m.openList(m.selected)
@@ -245,6 +253,26 @@ func (m Model) dayKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	default: // any other key leaves event mode and does its usual job
 		m.dayMode = false
 		return m.handleKey(k)
+	}
+	return m, nil
+}
+
+func (m Model) calMenuKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	var ev pickEvent
+	var i int
+	m.calMenu, ev, i = m.calMenu.Update(k)
+	return m.calMenuEvent(ev, i)
+}
+
+// calMenuEvent saves a toggle at once, or closes the menu.
+func (m Model) calMenuEvent(ev pickEvent, i int) (tea.Model, tea.Cmd) {
+	switch ev {
+	case pickClosed:
+		m.mode = modeNormal
+	case pickToggled:
+		o := m.calMenu.options[i]
+		svc, ctx := m.deps.Service, m.ctx
+		return m, func() tea.Msg { return calShownMsg{svc.SetCalendarShown(ctx, o.value, o.checked)} }
 	}
 	return m, nil
 }

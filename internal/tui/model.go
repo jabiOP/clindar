@@ -49,6 +49,7 @@ const (
 	modeRSVP    // y/n/m
 	modeGoto
 	modeHelp
+	modeCalendars // the calendar menu (Task 14.13)
 )
 
 type Model struct {
@@ -80,6 +81,9 @@ type Model struct {
 	dayMode   bool // event mode: j/k pick an event on the selected grid day (Task 14.8)
 	dayCursor int  // event mode: index into dayEvents()
 
+	calMenu picker           // the calendar menu (Task 14.13)
+	calList []model.Calendar // calendars in the store's order (primary first)
+
 	listFrom   time.Time // first day of the list
 	listSpan   int       // days loaded in the list
 	listAnchor *entryRef // after prepending: the entry the cursor must land just before
@@ -99,6 +103,7 @@ type loadedMsg struct {
 }
 type syncDoneMsg struct{ err error }
 type tickMsg struct{}
+type calShownMsg struct{ err error }
 type actionDoneMsg struct {
 	info string
 	err  error
@@ -191,7 +196,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.loadedFrom, m.loadedTo, m.events, m.status = msg.from, msg.to, msg.events, msg.status
-		m.calendars = map[string]model.Calendar{}
+		m.calendars, m.calList = map[string]model.Calendar{}, msg.calendars
 		for _, c := range msg.calendars {
 			m.calendars[c.ID] = c
 		}
@@ -219,6 +224,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.today = model.StartOfDay(m.deps.Now()) // the TUI may stay open past midnight
 		m.syncing = m.deps.Sync != nil
 		return m, tea.Batch(m.syncCmd(), m.tick())
+	case calShownMsg: // a calendar menu toggle was saved; the menu stays open
+		if msg.err != nil {
+			m.message = msg.err.Error()
+		}
+		return m, m.load()
 	case actionDoneMsg:
 		m.mode = modeNormal
 		if msg.err != nil {
