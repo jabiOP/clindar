@@ -135,6 +135,8 @@ One line per deviation: what changed, and why.
   `modeCalendars` constant was added before the tests ran. The mouse test described in step 1 is
   `TestCalendarsButtonOpensMenuAndRowClickToggles`. `grid_mouse.golden` changed only in its status bar, which gained
   `[Calendars]`.
+- **Task 14.14:** compiled and passed as written (after `gofmt`). New package `internal/quickadd` (→ `timeparse`,
+  `recur`): the README's "Final package map" and its dependency-direction list should gain it.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

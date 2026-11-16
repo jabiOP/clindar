@@ -201,3 +201,27 @@ func parseClock(s string) (h, m int, ok bool) {
 func atClock(day time.Time, h, m int) time.Time {
 	return time.Date(day.Year(), day.Month(), day.Day(), h, m, 0, 0, day.Location())
 }
+
+// ParseDate reads a date token (no time): today, fri, +3d, 20/11, 2026-11-20.
+func (p Parser) ParseDate(s string, now time.Time) (time.Time, bool) {
+	return p.parseDate(strings.ToLower(s), now)
+}
+
+// ParseClock reads a time of day: 14:00, 9:30am, 2pm.
+func ParseClock(s string) (h, m int, ok bool) { return parseClock(strings.ToLower(s)) }
+
+// ParseDateRange reads "<date>-<date>" (e.g. 20/11-23/11, fri-sun, ISO too).
+// to is the inclusive last day; ok is false if s isn't a range.
+func (p Parser) ParseDateRange(s string, now time.Time) (from, to time.Time, ok bool) {
+	for i := range len(s) { // try every "-": ISO dates contain dashes too
+		if s[i] != '-' {
+			continue
+		}
+		a, okA := p.ParseDate(s[:i], now)
+		b, okB := p.ParseDate(s[i+1:], now)
+		if okA && okB && !b.Before(a) {
+			return a, b, true
+		}
+	}
+	return time.Time{}, time.Time{}, false
+}
