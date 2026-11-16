@@ -99,3 +99,21 @@ func TestDetailFitsTheTerminal(t *testing.T) {
 		t.Errorf("box borders missing:\n%s", screen)
 	}
 }
+
+func TestOpenInGoogle(t *testing.T) {
+	var opened string
+	f := newFixtureWith(t, Deps{OpenURL: func(u string) error { opened = u; return nil }})
+	e := testutil.Timed("ev", "Review", time.Date(2026, 11, 12, 15, 0, 0, 0, f.ny), time.Hour)
+	e.Link = "https://www.google.com/calendar/event?eid=abc"
+	f.put(e)
+	f.openDetail(e)
+
+	if s := f.m.View(); strings.Contains(s, "ID:") || strings.Contains(s, "Link:") {
+		t.Errorf("internals in the details box:\n%s", s)
+	}
+	f.keys("o")
+
+	if opened != e.Link || !strings.Contains(f.model().message, "browser") {
+		t.Errorf("opened %q, message %q", opened, f.model().message)
+	}
+}

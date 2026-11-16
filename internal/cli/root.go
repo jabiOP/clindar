@@ -12,6 +12,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/jabiOP/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/browser"
 	"github.com/jabiOP/clindar/internal/config"
 	"github.com/jabiOP/clindar/internal/gcal"
 	"github.com/jabiOP/clindar/internal/service"
@@ -140,6 +141,7 @@ func tuiDeps(app *App, svc *service.Service) tui.Deps {
 		SyncInterval:    app.Config.SyncInterval.Duration,
 		DefaultCalendar: app.Config.DefaultCalendar,
 		Dates:           app.Dates(),
+		OpenURL:         browser.Open,
 		Mouse:           app.Config.Mouse,
 	}
 }

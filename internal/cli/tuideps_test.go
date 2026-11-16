@@ -23,7 +23,7 @@ func TestTUIDepsCarryConfig(t *testing.T) {
 	if d.DefaultCalendar != "Work" || d.WeekStart != time.Sunday || d.SyncInterval != 20*time.Second || !d.Mouse || d.Dates.Order != timeparse.MDY {
 		t.Errorf("deps = %+v", d)
 	}
-	if d.Sync == nil || d.Now == nil {
-		t.Error("Sync and Now must be set")
+	if d.Sync == nil || d.Now == nil || d.OpenURL == nil {
+		t.Error("Sync, Now and OpenURL must be set")
 	}
 }

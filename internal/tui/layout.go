@@ -89,6 +89,7 @@ func (m Model) popup() (modal, bool) {
 		p, _ := output.NewPrinter(&b, output.Pretty, "", m.loc(), cals)
 		p.SetWidth(max(m.width-4, 20)) // the box adds a border and 1 cell of padding per side
 		p.SetPalette(m.palette)
+		p.OmitInternals()
 		p.Event(m.detail)
 		text := strings.TrimRight(b.String(), "\n")
 		md.text(text)
@@ -104,6 +105,9 @@ func (m Model) popup() (modal, bool) {
 		}
 		if can.rsvp {
 			bs, hints = append(bs, button{"RSVP", "r"}), append(hints, "r RSVP")
+		}
+		if m.detail.Link != "" {
+			bs, hints = append(bs, button{"Open in Google", "o"}), append(hints, "o open in Google")
 		}
 		bs, hints = append(bs, button{"Close", "esc"}), append(hints, "esc close")
 		choices(dimStyle.Render(strings.Join(hints, " · ")), bs...)

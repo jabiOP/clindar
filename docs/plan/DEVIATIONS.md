@@ -175,6 +175,9 @@ One line per deviation: what changed, and why.
   required. (2) The form gets the palette through a `withPalette` method at its three call sites, rather than
   through yet another constructor parameter. The form and service tests described in the plan are
   `TestColorPickerSetsAndClearsTheColor` and `TestUpdateColor`.
+- **Task 14.21:** compiled as written apart from imports. `o` also requires `Deps.OpenURL` to be set (most tests
+  build the TUI without it); opening runs through a small `openURL` helper that Task 14.22's [Join] reuses. The
+  output test described in the plan is `TestOmitInternalsDropsIDAndLink`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

@@ -26,10 +26,11 @@ type Deps struct {
 	Sync            func(context.Context) error // nil disables syncing (tests)
 	Now             func() time.Time
 	WeekStart       time.Weekday
-	DefaultCalendar string           // config default_calendar: pre-fills the add form
-	Dates           timeparse.Parser // config date_order: how typed dates are read
-	Mouse           bool             // config mouse: clicks, wheel, drag-and-drop (Phase 12)
-	SyncInterval    time.Duration    // 0 disables periodic sync (tests)
+	DefaultCalendar string             // config default_calendar: pre-fills the add form
+	Dates           timeparse.Parser   // config date_order: how typed dates are read
+	OpenURL         func(string) error // opens a link in the browser (Task 14.21); nil in most tests
+	Mouse           bool               // config mouse: clicks, wheel, drag-and-drop (Phase 12)
+	SyncInterval    time.Duration      // 0 disables periodic sync (tests)
 }
 
 type view int
@@ -111,6 +112,7 @@ type loadedMsg struct {
 type syncDoneMsg struct{ err error }
 type tickMsg struct{}
 type calShownMsg struct{ err error }
+type infoMsg struct{ text string } // a one-off result shown in the status bar
 type actionDoneMsg struct {
 	info string
 	err  error
@@ -235,6 +237,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.today = model.StartOfDay(m.deps.Now()) // the TUI may stay open past midnight
 		m.syncing = m.deps.Sync != nil
 		return m, tea.Batch(m.syncCmd(), m.tick())
+	case infoMsg:
+		m.message = msg.text
+		return m, nil
 	case calShownMsg: // a calendar menu toggle was saved; the menu stays open
 		if msg.err != nil {
 			m.message = msg.err.Error()

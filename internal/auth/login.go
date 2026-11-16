@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os/exec"
-	"runtime"
 
 	"golang.org/x/oauth2"
 )
@@ -63,15 +61,6 @@ func Login(ctx context.Context, cfg *oauth2.Config, openBrowser func(url string)
 		}
 		return c.Exchange(ctx, res.code, oauth2.VerifierOption(verifier))
 	}
-}
-
-// OpenBrowser tries the platform's opener; the URL is printed too in case it fails.
-func OpenBrowser(url string) error {
-	cmd := "xdg-open"
-	if runtime.GOOS == "darwin" {
-		cmd = "open"
-	}
-	return exec.Command(cmd, url).Start()
 }
 
 func randomString() string {

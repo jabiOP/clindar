@@ -123,8 +123,22 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(k, keys.Edit, keys.Delete, keys.RSVP) {
 		return m.eventAction(k, m.detail)
 	}
+	if k.String() == "o" && m.detail.Link != "" && m.deps.OpenURL != nil {
+		return m, m.openURL(m.detail.Link)
+	}
 	m.mode = modeNormal
 	return m, nil
+}
+
+// openURL opens link in the browser off the UI goroutine and reports in the status bar.
+func (m Model) openURL(link string) tea.Cmd {
+	open := m.deps.OpenURL
+	return func() tea.Msg {
+		if err := open(link); err != nil {
+			return infoMsg{"couldn't open the browser: " + err.Error()}
+		}
+		return infoMsg{"opened in your browser"}
+	}
 }
 
 // eventAction applies e/d/r to e with the same permission rules everywhere

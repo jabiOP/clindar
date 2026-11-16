@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jabiOP/clindar/internal/auth"
+	"github.com/jabiOP/clindar/internal/browser"
 	"github.com/jabiOP/clindar/internal/gcal"
 )
 
@@ -64,7 +65,7 @@ func newAuthLoginCmd(app *App) *cobra.Command {
 			}
 			tok, err := auth.Login(ctx, cfg, func(url string) error {
 				fmt.Fprintf(app.Stderr, "Opening your browser. If it doesn't open, visit:\n\n  %s\n\n", url)
-				_ = auth.OpenBrowser(url) // the printed URL is the fallback
+				_ = browser.Open(url) // the printed URL is the fallback
 				return nil
 			})
 			if err != nil {

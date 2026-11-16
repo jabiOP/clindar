@@ -230,3 +230,23 @@ func TestJSONHasTheEffectiveColor(t *testing.T) {
 		t.Errorf("colors = %q, %q; want the event's own #dc2127, then the calendar's #4285f4", a.Color, b.Color)
 	}
 }
+
+func TestOmitInternalsDropsIDAndLink(t *testing.T) {
+	e := sample(t)[1]
+	e.Link = "https://www.google.com/calendar/event?eid=abc"
+	for _, omit := range []bool{false, true} {
+		var buf bytes.Buffer
+		p, err := output.NewPrinter(&buf, output.Pretty, "", testutil.NY(t), cals)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if omit {
+			p.OmitInternals()
+		}
+		p.Event(e)
+		has := strings.Contains(buf.String(), "ID:") || strings.Contains(buf.String(), "Link:")
+		if has == omit {
+			t.Errorf("OmitInternals=%v: ID/Link shown = %v:\n%s", omit, has, buf.String())
+		}
+	}
+}

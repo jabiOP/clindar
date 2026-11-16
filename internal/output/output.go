@@ -78,18 +78,23 @@ type AttendeeJSON struct {
 }
 
 type Printer struct {
-	w         io.Writer
-	mode      Mode
-	tmpl      *template.Template
-	loc       *time.Location
-	calendars map[string]model.Calendar
-	width     int               // pretty details wrap to this many cells; 0 = don't wrap
-	palette   map[string]string // event colorId → "#rrggbb"
+	w             io.Writer
+	mode          Mode
+	tmpl          *template.Template
+	loc           *time.Location
+	calendars     map[string]model.Calendar
+	width         int               // pretty details wrap to this many cells; 0 = don't wrap
+	palette       map[string]string // event colorId → "#rrggbb"
+	omitInternals bool              // pretty details: no ID or Link rows (the TUI)
 }
 
 // SetWidth makes pretty details wrap to w cells: each "Label: value" row wraps its
 // value under itself. 0 (the default, used by the CLI) means don't wrap.
 func (p *Printer) SetWidth(w int) { p.width = w }
+
+// OmitInternals drops the ID and raw Link rows from pretty details: the TUI
+// shows a button to open the event instead. clindar show keeps them (scripts use the ID).
+func (p *Printer) OmitInternals() { p.omitInternals = true }
 
 // SetPalette gives the printer Google's event palette, so JSON can report each
 // event's effective color.
@@ -293,8 +298,10 @@ func (p *Printer) prettyDetail(e model.Event) error {
 		people = append(people, fmt.Sprintf("%s (%s)", a.Email, a.Response))
 	}
 	row("Guests", strings.Join(people, ", "))
-	row("ID", e.ID)
-	row("Link", e.Link)
+	if !p.omitInternals {
+		row("ID", e.ID)
+		row("Link", e.Link)
+	}
 	if e.Description != "" {
 		fmt.Fprintln(p.w)
 		for _, l := range p.wrap(e.Description, p.width) {
