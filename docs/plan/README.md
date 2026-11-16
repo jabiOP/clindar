@@ -36,7 +36,8 @@ These files explain *how*, as small tasks.
 | 10 | `10-tui.md` | Bubble Tea UI: grid, list, detail, forms |
 | 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build |
 | 12 | `12-mouse.md` | Mouse: clicks, wheel, buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
-| 13 | `13-fixes.md` | Fixes from testing (13.1–13.10), then two product decisions: left-aligned day numbers, indented wrapped details |
+| 13 | `13-fixes.md` | Fixes from testing (13.1–13.10, 13.13), then two product decisions: left-aligned day numbers, indented wrapped details |
+| 14 | `14-ux-round-1.md` | UX round 1: event mode, quick add, pickers, calendar menu, colors, Meet links, day/month dates (spec, not compiled) |
 
 ## Toolset primer (read once)
 
@@ -177,6 +178,7 @@ main.go                       entry point → cli.Main()
 internal/
   model/        Event, Calendar, Attendee, IDs, GroupByDay, SortEvents      (no deps)
   timeparse/    "tomorrow 2pm" → time.Time; "1h30m"/"2d" → Duration         (no deps)
+  quickadd/     "Dentist 20/11 15:30 45m" → title + span + repeat (Phase 14)
   config/       Paths (XDG), Config (TOML)
   store/        SQLite persistence; outbox coalescing
   recur/        expand series, instance lookup, split, --repeat parsing
@@ -184,6 +186,8 @@ internal/
   gcal/         Google adapter (convert + Client); gcal/gcaltest: Fake
   syncer/       Engine (push/pull), file lock
   auth/         OAuth loopback+PKCE, token stores
+  browser/      open a URL in the user's browser (Phase 14)
+  clipboard/    copy text via the terminal, OSC 52 (Phase 14)
   output/       pretty / TSV / JSON / template printers
   cli/          cobra commands, App wiring
   daemon/       loop + backoff, systemd/launchd files
@@ -194,7 +198,7 @@ internal/
 Dependency direction (enforced in code review):
 
 - `model` and `timeparse` depend on nothing internal.
-- `store` → model; `recur` → model; `service` → store, recur, model.
+- `store` → model; `recur` → model; `service` → store, recur, model; `quickadd` → timeparse, recur.
 - `gcal` → model; `syncer` → store, gcal, model.
 - `output` → model; `cli`, `tui`, `daemon` → anything above.
 - **Nothing imports `cli` or `tui`.** If you need something from them, it belongs lower down.

@@ -1063,6 +1063,101 @@ one still passes.
 
 ---
 
+## Task 13.13: Switching between all-day and timed sticks (Task 5.1)
+
+**Bug (found by the user):** turning an all-day event into a timed one, or back, reverted after sync. Google's PATCH
+**merges nested objects field by field**. Sending `start: {dateTime, timeZone}` onto a stored `start: {date}` kept the
+`date`, so the event stayed all-day, and the reverse kept a stale `dateTime`. clindar then stored Google's copy, so the
+edit looked undone. Moving the day or hour worked, because it doesn't change *which* fields exist.
+**Fix:** `ToAPI` sends the other kind's fields as explicit nulls (`NullFields`): `Date` for timed events, `DateTime`
+and `TimeZone` for all-day ones. This is harmless on insert.
+
+**Why no test caught it:** the fake Google replaces `start`/`end` wholesale, so it can't model the merge. (Our fake
+works on `model.Event`, and the merge happens a level below that, on Google's JSON.) The test therefore checks the
+**request body** `ToAPI` produces, like Task 5.1's `ForceSendFields` test. It's the same family of gotcha as
+README fact #7: the Go client omits zero values, and Google merges what it does receive.
+
+**Files:** `internal/gcal/convert.go`, `internal/gcal/convert_test.go`
+
+1. Test:
+```diff
+--- a/internal/gcal/convert_test.go
++++ b/internal/gcal/convert_test.go
+@@ -97,3 +97,38 @@ func TestToAPIAllDayUsesDates(t *testing.T) {
+ 		t.Errorf("start=%+v end=%+v", ev.Start, ev.End)
+ 	}
+ }
++
++// PATCH merges nested objects: sending start {dateTime} onto a stored start
++// {date} keeps the date, so the event stays all-day (and the other way round).
++// Switching kinds therefore sends the other kind's fields as explicit nulls.
++func TestToAPIClearsTheOtherKindOfStartAndEnd(t *testing.T) {
++	timed := model.Event{ID: "e", Title: "x", TimeZone: "America/New_York",
++		Start: time.Date(2026, 11, 16, 14, 0, 0, 0, time.UTC), End: time.Date(2026, 11, 16, 15, 0, 0, 0, time.UTC)}
++	allDay := model.Event{ID: "e", Title: "x", AllDay: true,
++		Start: time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)}
++
++	for _, tt := range []struct {
++		name  string
++		e     model.Event
++		nulls []string
++	}{
++		{"timed clears date", timed, []string{`"date":null`}},
++		{"all-day clears dateTime and timeZone", allDay, []string{`"dateTime":null`, `"timeZone":null`}},
++	} {
++		ev := gcal.ToAPI(tt.e)
++		for _, part := range []struct {
++			name string
++			dt   *calendar.EventDateTime
++		}{{"start", ev.Start}, {"end", ev.End}} {
++			body, err := part.dt.MarshalJSON()
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, want := range tt.nulls {
++				if !strings.Contains(string(body), want) {
++					t.Errorf("%s: %s = %s, want it to contain %s", tt.name, part.name, body, want)
++				}
++			}
++		}
++	}
++}
+```
+2. Run: fails (no `null` in the body).
+3. Fix:
+```diff
+--- a/internal/gcal/convert.go
++++ b/internal/gcal/convert.go
+@@ -88,12 +88,16 @@ func ToAPI(e model.Event) *calendar.Event {
+ 		// description would silently do nothing.
+ 		ForceSendFields: []string{"Summary", "Description", "Location"},
+ 	}
++	// PATCH merges nested objects field by field: sending start {dateTime}
++	// onto a stored start {date} keeps the date, and the event silently stays
++	// all-day (likewise the other way). So always send the other kind's fields
++	// as explicit nulls; on insert they're harmless.
+ 	if e.AllDay {
+-		ev.Start = &calendar.EventDateTime{Date: e.Start.UTC().Format(time.DateOnly)}
+-		ev.End = &calendar.EventDateTime{Date: e.End.UTC().Format(time.DateOnly)}
++		ev.Start = &calendar.EventDateTime{Date: e.Start.UTC().Format(time.DateOnly), NullFields: []string{"DateTime", "TimeZone"}}
++		ev.End = &calendar.EventDateTime{Date: e.End.UTC().Format(time.DateOnly), NullFields: []string{"DateTime", "TimeZone"}}
+ 	} else {
+-		ev.Start = &calendar.EventDateTime{DateTime: e.Start.Format(time.RFC3339), TimeZone: e.TimeZone}
+-		ev.End = &calendar.EventDateTime{DateTime: e.End.Format(time.RFC3339), TimeZone: e.TimeZone}
++		ev.Start = &calendar.EventDateTime{DateTime: e.Start.Format(time.RFC3339), TimeZone: e.TimeZone, NullFields: []string{"Date"}}
++		ev.End = &calendar.EventDateTime{DateTime: e.End.Format(time.RFC3339), TimeZone: e.TimeZone, NullFields: []string{"Date"}}
+ 	}
+ 	ev.Attendees = AttendeesToAPI(e).Attendees
+ 	return ev
+```
+4. Run: pass.
+5. **Real check (Task 8.7):** make an all-day event timed, `clindar sync`, then all-day again, `clindar sync`. The web
+   UI keeps each change.
+
+**Commit:** `fix(gcal): send nulls for the other kind of start/end so all-day <-> timed sticks`
+
+---
+
 # Product decisions after testing
 
 > ⚠ **Tasks 13.11–13.12 are written as a plan only; they were not compiled or run.** Treat them as precise specs.
