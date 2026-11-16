@@ -151,3 +151,24 @@ func TestEventColorsReadsThePalette(t *testing.T) {
 		t.Errorf("EventColors = %v, %v", got, err)
 	}
 }
+
+func TestMoveEventPostsToMove(t *testing.T) {
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if r.Method != http.MethodPost || r.URL.Path != "/calendars/from/events/e1/move" ||
+			q.Get("destination") != "to" || q.Get("sendUpdates") != "all" {
+			http.Error(w, "unexpected "+r.Method+" "+r.URL.String(), 500)
+			return
+		}
+		fmt.Fprint(w, `{"id":"e1","etag":"\"2\"","summary":"Dentist","start":{"date":"2026-11-14"},"end":{"date":"2026-11-15"}}`)
+	})
+
+	got, err := c.MoveEvent(context.Background(), "from", "e1", "to", "all")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "e1" || got.CalendarID != "to" || got.ETag != `"2"` {
+		t.Errorf("got %+v, want e1 in calendar to with the new etag", got)
+	}
+}

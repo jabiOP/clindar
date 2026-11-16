@@ -74,3 +74,43 @@ func TestFakeColors(t *testing.T) {
 		t.Errorf("after patching ColorID \"\": %q, %v; want the color cleared", got.ColorID, err)
 	}
 }
+
+func TestFakeMoveKeepsIDAndLeavesTombstones(t *testing.T) {
+	ctx := context.Background()
+	f := gcaltest.NewFake(model.Calendar{ID: "a", Name: "A"}, model.Calendar{ID: "b", Name: "B"})
+	master := f.Put(model.Event{CalendarID: "a", ID: "s1", Title: "Yoga", Start: at(2), End: at(2).Add(time.Hour),
+		Recurrence: []string{"RRULE:FREQ=DAILY;COUNT=5"}})
+	if _, err := f.PatchEvent(ctx, "a", model.Event{ID: model.InstanceID("s1", at(3), false), Title: "Yoga (late)",
+		Start: at(3).Add(time.Hour), End: at(3).Add(2 * time.Hour)}, "", "none"); err != nil {
+		t.Fatal(err)
+	}
+	_, tokenA, _ := f.ListEvents(ctx, "a", "")
+
+	moved, err := f.MoveEvent(ctx, "a", "s1", "b", "none")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved.ID != "s1" || moved.CalendarID != "b" || moved.ETag == master.ETag {
+		t.Errorf("moved = %+v: want the same ID, calendar b, a new etag", moved)
+	}
+	inA, _, _ := f.ListEvents(ctx, "a", tokenA)
+	if len(inA) != 2 || !inA[0].Cancelled() || !inA[1].Cancelled() {
+		t.Errorf("calendar a's changes = %+v, want the master and the exception cancelled", inA)
+	}
+	if inB, _, _ := f.ListEvents(ctx, "b", ""); len(inB) != 2 {
+		t.Errorf("calendar b = %+v, want the master and its exception", inB)
+	}
+}
+
+func TestFakeRefusesToMoveAnOccurrence(t *testing.T) {
+	f := gcaltest.NewFake(model.Calendar{ID: "a", Name: "A"}, model.Calendar{ID: "b", Name: "B"})
+	f.Put(model.Event{CalendarID: "a", ID: "s1", Title: "Yoga", Start: at(2), End: at(2).Add(time.Hour),
+		Recurrence: []string{"RRULE:FREQ=DAILY;COUNT=5"}})
+
+	_, err := f.MoveEvent(context.Background(), "a", model.InstanceID("s1", at(3), false), "b", "none")
+
+	if !errors.Is(err, gcal.ErrPermanent) {
+		t.Errorf("err = %v, want ErrPermanent (Google refuses to move one occurrence)", err)
+	}
+}

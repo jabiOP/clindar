@@ -26,6 +26,8 @@ type Fake struct {
 	Fail error
 	// FailPull, if set, is returned by ListCalendars only: a pull that fails after a push.
 	FailPull error
+	// MoveFail, if set, is returned by MoveEvent only (Google refusing a move).
+	MoveFail error
 	// FailGet, if set, is returned by GetEvent only (e.g. lost access to a calendar).
 	FailGet error
 	// ExpireTokens makes the next list call with a token fail with ErrSyncTokenExpired.
@@ -205,6 +207,44 @@ func (f *Fake) DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, se
 		}
 	}
 	return nil
+}
+
+// MoveEvent moves an event, or a series with its exceptions, as Google does:
+// same IDs and new etags in the destination, and cancelled tombstones in the
+// source (what a later events.list there returns). An occurrence can't move.
+func (f *Fake) MoveEvent(ctx context.Context, calendarID, eventID, destination, sendUpdates string) (model.Event, error) {
+	if err := f.beforeWrite(); err != nil {
+		return model.Event{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.MoveFail != nil {
+		return model.Event{}, f.MoveFail
+	}
+	cur, ok := f.events[calendarID][eventID]
+	if _, _, _, isInstance := model.ParseInstanceID(eventID); isInstance || cur.SeriesID != "" {
+		return model.Event{}, fmt.Errorf("%w: cannot move one occurrence of a series", gcal.ErrPermanent)
+	}
+	if _, known := f.events[destination]; !ok || cur.Cancelled() || !known {
+		return model.Event{}, gcal.ErrNotFound
+	}
+	group := []model.Event{cur}
+	for _, ex := range f.events[calendarID] {
+		if ex.SeriesID == cur.ID {
+			group = append(group, ex)
+		}
+	}
+	var moved model.Event
+	for i, e := range group {
+		gone := e
+		gone.Status = model.StatusCancelled
+		f.put(gone)
+		e.CalendarID, e.Organizer = destination, destination
+		if got := f.put(e); i == 0 {
+			moved = got
+		}
+	}
+	return moved, nil
 }
 
 // current returns the live event for a write, creating an exception on the fly

@@ -159,6 +159,16 @@ func (c *Client) DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, 
 	return nil
 }
 
+// MoveEvent moves an event (or a whole series) to another calendar. Google
+// keeps the ID and returns the event with a new etag. It takes no If-Match.
+func (c *Client) MoveEvent(ctx context.Context, calendarID, eventID, destination, sendUpdates string) (model.Event, error) {
+	ev, err := c.svc.Events.Move(calendarID, eventID, destination).SendUpdates(sendUpdates).Context(ctx).Do()
+	if err != nil {
+		return model.Event{}, mapErr(err)
+	}
+	return FromAPI(c.account, destination, ev)
+}
+
 // EventColors returns Google's event palette: colorId → background "#rrggbb".
 func (c *Client) EventColors(ctx context.Context) (map[string]string, error) {
 	res, err := c.svc.Colors.Get().Context(ctx).Do()

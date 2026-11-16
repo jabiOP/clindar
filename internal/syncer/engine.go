@@ -22,6 +22,7 @@ type Remote interface {
 	PatchEvent(ctx context.Context, calendarID string, e model.Event, ifMatch, sendUpdates string) (model.Event, error)
 	RespondEvent(ctx context.Context, calendarID string, e model.Event, sendUpdates string) (model.Event, error)
 	DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, sendUpdates string) error
+	MoveEvent(ctx context.Context, calendarID, eventID, destination, sendUpdates string) (model.Event, error)
 	EventColors(ctx context.Context) (map[string]string, error)
 }
 
