@@ -98,6 +98,7 @@ type Model struct {
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
 	allowedScopes string // e.g. "tfa" or "ta"
+	scopeNote     string // why the scope choices are limited, if they are
 }
 
 // --- messages ---

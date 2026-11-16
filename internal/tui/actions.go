@@ -20,7 +20,7 @@ func (m Model) startDelete(e model.Event) Model {
 		})
 	}
 	if e.IsInstance() {
-		m.mode, m.allowedScopes = modeScope, "tfa"
+		m.mode, m.allowedScopes, m.scopeNote = modeScope, "tfa", ""
 	} else {
 		m.mode = modeConfirm
 	}
@@ -42,7 +42,7 @@ func (m Model) rsvpKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		})
 	}
 	if e.IsInstance() {
-		m.mode, m.allowedScopes = modeScope, "ta"
+		m.mode, m.allowedScopes, m.scopeNote = modeScope, "ta", ""
 		return m, nil
 	}
 	m.mode = modeNormal
@@ -117,7 +117,11 @@ func (m Model) applyChanges(e model.Event, ch service.Changes) (tea.Model, tea.C
 		})
 	}
 	if e.IsInstance() {
-		m.mode, m.allowedScopes = modeScope, "tfa"
+		m.mode, m.allowedScopes, m.scopeNote = modeScope, "tfa", ""
+		if ch.CalendarID != nil { // Google can't move one occurrence
+			m.allowedScopes = "a"
+			m.scopeNote = "One occurrence can't move to another calendar. Move the whole series?"
+		}
 		return m, nil
 	}
 	return m, m.afterScope(service.ScopeNone)

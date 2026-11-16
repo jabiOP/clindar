@@ -12,6 +12,7 @@ import (
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/service"
 	"github.com/jabiOP/clindar/internal/testutil"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 func TestNewEventDefaultsToAllDayOnTheSelectedDay(t *testing.T) {
@@ -252,5 +253,80 @@ func TestFormHintSaysHowToDiscard(t *testing.T) {
 	f.openFullForm()
 	if !strings.Contains(f.m.View(), "esc then enter discard") {
 		t.Errorf("hint should say how to discard:\n%s", f.m.View())
+	}
+}
+
+// moreCalendars adds a writable Work and a read-only Holidays calendar, and reloads.
+func (f *fixture) moreCalendars() {
+	f.t.Helper()
+	for _, c := range []model.Calendar{
+		{AccountID: testutil.Account, ID: "work", Name: "Work", Selected: true, AccessRole: "writer"},
+		{AccountID: testutil.Account, ID: "holidays", Name: "Holidays", Selected: true, AccessRole: "reader"},
+	} {
+		if err := f.st.UpsertCalendar(context.Background(), c); err != nil {
+			f.t.Fatal(err)
+		}
+	}
+	f.send(f.model().load()())
+}
+
+func TestEditFormListsWritableCalendars(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	f.keys("enter", "j", "e") // edit Lunch
+	f.focus(fCalendar)
+	f.keys(" ")
+
+	var labels []string
+	for _, o := range f.model().form.pickers[fCalendar].options {
+		labels = append(labels, o.label)
+	}
+	if !slices.Equal(labels, []string{"Me", "Work"}) {
+		t.Errorf("options = %v, want the writable calendars", labels)
+	}
+}
+
+func TestEditFormMovesAnEvent(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	f.keys("enter", "j", "e")
+	f.focus(fCalendar)
+	f.keys("l", "enter") // Me → Work, save
+
+	if m := f.model(); m.mode != modeNormal {
+		t.Fatalf("mode = %v, want saved", m.mode)
+	}
+	if e, err := f.svc.Get(context.Background(), "lunch"); err != nil || e.CalendarID != "work" {
+		t.Errorf("lunch in %q (%v), want work", e.CalendarID, err)
+	}
+}
+
+func TestEditFormLocksCalendarOnAnInvitation(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	inv := testutil.Timed("inv", "Their meeting", time.Date(2026, 11, 13, 10, 0, 0, 0, f.ny), time.Hour)
+	inv.Attendees = []model.Attendee{{Email: testutil.Account, Self: true}, {Email: "boss@example.com", Organizer: true}}
+	f.put(inv)
+
+	form := editEventForm(inv, f.ny, f.model().calList, timeparse.Parser{})
+
+	if got := form.locked[fCalendar]; got != "can't move: an invitation" {
+		t.Errorf("locked = %q", got)
+	}
+}
+
+func TestMovingAnOccurrenceOffersOnlyTheWholeSeries(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	f.keys("enter", "e") // the Standup occurrence on Thu Nov 12
+	f.focus(fCalendar)
+	f.keys("l", "enter")
+
+	if m := f.model(); m.mode != modeScope || m.allowedScopes != "a" || !strings.Contains(f.m.View(), "Move the whole series?") {
+		t.Fatalf("mode %v scopes %q:\n%s", m.mode, m.allowedScopes, f.m.View())
+	}
+	f.keys("a")
+	if e, err := f.svc.Get(context.Background(), "std"); err != nil || e.CalendarID != "work" {
+		t.Errorf("series in %q (%v), want work", e.CalendarID, err)
 	}
 }

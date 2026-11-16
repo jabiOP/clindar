@@ -124,6 +124,9 @@ func (m Model) popup() (modal, bool) {
 			bs = append(bs, labels[m.allowedScopes[i]])
 			parts = append(parts, plain[m.allowedScopes[i]])
 		}
+		if m.scopeNote != "" {
+			md.text(m.scopeNote)
+		}
 		md.text("Recurring event. Apply to:")
 		md.text("")
 		choices(strings.Join(parts, "   ")+"\n\nesc cancel", append(bs, button{"Cancel", "esc"})...)

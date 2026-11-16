@@ -108,16 +108,12 @@ func (f form) dateLayout() string {
 // name or ID, else the primary), choosing among writable calendars only.
 func newEventForm(day time.Time, cals []model.Calendar, defaultCal string, dates timeparse.Parser) form {
 	f := newForm(nil, dates)
-	var opts []option
+	opts := writableCalendars(cals)
 	chosen := -1
-	for _, c := range cals {
-		if !c.Writable() {
-			continue
+	for i, o := range opts {
+		if chosen < 0 && (o.value == defaultCal || (defaultCal != "" && strings.EqualFold(o.label, defaultCal))) {
+			chosen = i
 		}
-		if chosen < 0 && (c.ID == defaultCal || (defaultCal != "" && strings.EqualFold(c.Name, defaultCal))) {
-			chosen = len(opts)
-		}
-		opts = append(opts, option{label: c.Name, value: c.ID, swatch: c.Color})
 	}
 	if chosen < 0 {
 		chosen = 0
@@ -135,6 +131,17 @@ func newEventForm(day time.Time, cals []model.Calendar, defaultCal string, dates
 	return f.remember()
 }
 
+// writableCalendars are the Calendar picker's options: only calendars you can write to.
+func writableCalendars(cals []model.Calendar) []option {
+	var opts []option
+	for _, c := range cals {
+		if c.Writable() {
+			opts = append(opts, option{label: c.Name, value: c.ID, swatch: c.Color})
+		}
+	}
+	return opts
+}
+
 func indexOfCalendar(opts []option, id string) int {
 	for i, o := range opts {
 		if o.value == id {
@@ -144,23 +151,29 @@ func indexOfCalendar(opts []option, id string) int {
 	return 0
 }
 
-// editEventForm pre-fills a form from an existing event. Calendar and Repeat
-// can't change on an existing event in v1, so they're locked.
+// editEventForm pre-fills a form from an existing event. Calendar is unlocked
+// when the event may move (service.CanMove); Repeat can't change on edit.
 func editEventForm(e model.Event, loc *time.Location, cals []model.Calendar, dates timeparse.Parser) form {
 	f := newForm(&e, dates)
-	calName := e.CalendarID
+	from := model.Calendar{ID: e.CalendarID, Name: e.CalendarID}
 	for _, c := range cals {
 		if c.ID == e.CalendarID {
-			calName = c.Name
+			from = c
 		}
 	}
-	f.pickers[fCalendar] = picker{title: "Calendar", options: []option{{label: calName, value: e.CalendarID}}}
+	if err := service.CanMove(e, from); err != nil {
+		f.pickers[fCalendar] = picker{title: "Calendar", options: []option{{label: from.Name, value: e.CalendarID}}}
+		f.locked[fCalendar] = whyNoMove(err)
+	} else {
+		opts := writableCalendars(cals)
+		f.pickers[fCalendar] = picker{title: "Calendar", options: opts, chosen: indexOfCalendar(opts, e.CalendarID)}
+	}
 	repeat := "none"
 	if e.IsInstance() || e.IsMaster() {
 		repeat = "repeats"
 	}
 	f.pickers[fRepeat] = picker{title: "Repeat", options: []option{{label: repeat, value: repeat}}}
-	f.locked[fCalendar], f.locked[fRepeat] = "can't change", "can't change"
+	f.locked[fRepeat] = "can't change"
 
 	start, end := e.Span(loc)
 	layout := f.dateLayout()
@@ -192,6 +205,18 @@ func editEventForm(e model.Event, loc *time.Location, cals []model.Calendar, dat
 		}
 	}
 	return f.setText(fInvite, strings.Join(emails, ", ")).remember()
+}
+
+// whyNoMove is the short reason shown after a locked Calendar picker.
+func whyNoMove(err error) string {
+	switch {
+	case errors.Is(err, service.ErrInvitation):
+		return "can't move: an invitation"
+	case errors.Is(err, service.ErrMoveOccurrence):
+		return "can't move: one occurrence"
+	default:
+		return "can't move: read-only"
+	}
 }
 
 // remember records the current values as the starting point, so an edit can
@@ -386,6 +411,9 @@ func (f form) changes(now time.Time) (service.Changes, error) {
 	}
 	if f.changed(fColor) {
 		ch.ColorID = str(fColor)
+	}
+	if f.changed(fCalendar) {
+		ch.CalendarID = str(fCalendar)
 	}
 	if f.changed(fDate) || f.changed(fAllDay) || f.changed(fStart) || f.changed(fEnd) || f.changed(fDuration) {
 		g := f
