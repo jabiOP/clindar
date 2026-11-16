@@ -330,3 +330,17 @@ func TestEscInListReturnsToGrid(t *testing.T) {
 		t.Error("esc in the list should return to the grid")
 	}
 }
+
+func TestGotoDayNumberAndRefusedTime(t *testing.T) {
+	f := newFixture(t)
+	f.keys("g", "15", "enter")
+	if got := f.model().selected; !got.Equal(time.Date(2026, 11, 15, 0, 0, 0, 0, f.ny)) {
+		t.Fatalf("g 15: selected = %v, want Nov 15", got)
+	}
+
+	f.keys("g", "14:00", "enter")
+	m := f.model()
+	if !m.selected.Equal(time.Date(2026, 11, 15, 0, 0, 0, 0, f.ny)) || !strings.Contains(m.message, "isn't a day") {
+		t.Errorf("g 14:00: selected = %v, message = %q; want unchanged and \"isn't a day\"", m.selected, m.message)
+	}
+}

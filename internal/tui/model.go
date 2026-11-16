@@ -108,7 +108,7 @@ func New(ctx context.Context, d Deps) Model {
 	now := d.Now()
 	today := model.StartOfDay(now)
 	gi := textinput.New()
-	gi.Placeholder = "fri, +2w, 2026-12-24"
+	gi.Placeholder = "fri, +2w, 20/12, dec, 15"
 	gi.Cursor.SetMode(cursor.CursorStatic)
 	return Model{
 		deps: d, ctx: ctx, width: 80, height: 24,

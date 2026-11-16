@@ -175,7 +175,7 @@ func (m Model) gotoKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyEnter:
 		m.mode = modeNormal
-		t, _, err := m.deps.Dates.ParseTime(m.gotoInput.Value(), m.deps.Now())
+		t, err := m.deps.Dates.ParseDay(m.gotoInput.Value(), m.deps.Now())
 		if err != nil {
 			m.message = err.Error()
 			return m, nil
