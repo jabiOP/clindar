@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/testutil"
@@ -131,5 +132,22 @@ func TestDayNumbersAreLeftAligned(t *testing.T) {
 	row := strings.Split(got, "\n")[2] // title, weekday names, then the first week's day numbers
 	if !strings.HasPrefix(row, "30        Dec 1     2         3 ") {
 		t.Errorf("first week's labels = %q", row)
+	}
+}
+
+func TestPastDaysAreFaint(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	ny := testutil.NY(t)
+	start := time.Date(2026, 11, 9, 0, 0, 0, 0, ny)
+	today := time.Date(2026, 11, 12, 0, 0, 0, 0, ny)
+	got, _ := renderGrid(gridView{start: start, today: today, selected: today,
+		days: model.GroupByDay(nil, start, gridDays), width: 70, height: 18, loc: ny})
+
+	if !strings.Contains(got, "\x1b[2m9 ") {
+		t.Error("Mon 9 (past) should be faint")
+	}
+	if strings.Contains(got, "\x1b[2m13 ") {
+		t.Error("Fri 13 (future) must not be faint")
 	}
 }

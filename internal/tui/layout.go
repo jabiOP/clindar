@@ -31,7 +31,7 @@ func (m Model) layout() (string, hitMap) {
 		})
 	case viewList:
 		body, hits = renderList(listView{days: model.GroupByDay(m.events, m.selected, listDays), cursor: m.cursor,
-			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc()})
+			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(), today: m.today})
 	}
 	if md, ok := m.popup(); ok {
 		box, boxHits := md.render()

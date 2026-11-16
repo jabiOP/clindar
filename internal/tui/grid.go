@@ -60,6 +60,7 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 	if day.Date.Day() == 1 {
 		label = day.Date.Format("Jan 2")
 	}
+	past := day.Date.Before(g.today) // dimmed like Google; color only, so golden files don't change
 	switch {
 	case day.Date.Equal(g.drop):
 		label = selectedStyle.Render(fit("»"+label, w-1)) // drop target while dragging
@@ -67,6 +68,8 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 		label = selectedStyle.Render(fit("▶"+label, w-1))
 	case day.Date.Equal(g.today):
 		label = todayStyle.Render(fit(label+" today", w-1))
+	case past:
+		label = dimStyle.Render(fit(label, w-1))
 	default:
 		label = fit(label, w-1)
 	}
@@ -81,7 +84,7 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 		if i == room {
 			break
 		}
-		line, lineHits := g.eventLine(e, day.Date, w-1)
+		line, lineHits := g.eventLine(e, day.Date, w-1, past)
 		hits = append(hits, lineHits.offset(0, len(lines))...)
 		lines = append(lines, line)
 	}
@@ -107,7 +110,7 @@ func edgeOf(e model.Event, p part) edgeRef { return edgeRef{e.CalendarID, e.ID, 
 // first-day line's leftmost cell is always the start handle and the last-day
 // line's rightmost cell the end handle; their symbols are drawn only while
 // hovered or dragged.
-func (g gridView) eventLine(e model.Event, day time.Time, w int) (string, hitMap) {
+func (g gridView) eventLine(e model.Event, day time.Time, w int, past bool) (string, hitMap) {
 	var hits hitMap
 	hits.add(0, 0, w, 1, target{kind: targetEvent, day: day, event: e, part: partBody})
 	start, end := "", ""
@@ -127,7 +130,7 @@ func (g gridView) eventLine(e model.Event, day time.Time, w int) (string, hitMap
 		}
 	}
 	text := start + fit(eventLabel(e, g.loc), w-width(start+end)) + end
-	return calendarStyle(g.calendars[e.CalendarID].Color).Render(text), hits
+	return calendarStyle(g.calendars[e.CalendarID].Color).Faint(past).Render(text), hits
 }
 
 func (g gridView) showing(e model.Event, p part) bool {

@@ -104,6 +104,10 @@ One line per deviation: what changed, and why.
   harmless on insert. The fake replaces start/end wholesale, so it can't model this; the test checks the request
   body instead: `TestToAPIClearsTheOtherKindOfStartAndEnd`. **Needs a real-Google check (add to Task 8.7):** turn an
   all-day event into a timed one and back, `clindar sync` after each, and the web UI keeps the change.
+- **Task 14.3:** lipgloss emitted faint as the plain `\x1b[2m` for both the grid label and the list header (not
+  combined with bold), so the literal-string tests work. The list test, described but not written out in the plan,
+  is `TestPastDayHeadersAreFaint`; `renderList` returns `(string, hitMap)` since Task 12.3. To get the stated red
+  step (no faint codes) instead of a compile error, the `today` field was added to `listView` before the test ran.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

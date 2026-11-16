@@ -17,6 +17,7 @@ type listView struct {
 	calendars     map[string]model.Calendar
 	width, height int
 	loc           *time.Location
+	today         time.Time // local midnight: earlier day headers are dimmed
 }
 
 func listEntries(days []model.Day) []model.Event {
@@ -38,7 +39,11 @@ func renderList(v listView) (string, hitMap) {
 		if len(d.Events) == 0 {
 			continue
 		}
-		rows = append(rows, row{headerStyle.Render(d.Date.Format("Mon 02 Jan")), -1})
+		header := headerStyle
+		if d.Date.Before(v.today) {
+			header = dimStyle // past days are dimmed, like Google
+		}
+		rows = append(rows, row{header.Render(d.Date.Format("Mon 02 Jan")), -1})
 		for _, e := range d.Events {
 			rows = append(rows, row{v.line(e, n == v.cursor), n})
 			n++

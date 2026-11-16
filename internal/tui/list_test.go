@@ -65,3 +65,24 @@ func TestListHitMap(t *testing.T) {
 		t.Error("day headers are not clickable")
 	}
 }
+
+func TestPastDayHeadersAreFaint(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	ny := testutil.NY(t)
+	from := time.Date(2026, 11, 9, 0, 0, 0, 0, ny)
+	today := time.Date(2026, 11, 10, 0, 0, 0, 0, ny)
+	events := []model.Event{
+		testutil.Timed("a", "Past", time.Date(2026, 11, 9, 9, 0, 0, 0, ny), time.Hour),
+		testutil.Timed("b", "Today", time.Date(2026, 11, 10, 9, 0, 0, 0, ny), time.Hour),
+	}
+
+	got, _ := renderList(listView{days: model.GroupByDay(events, from, 2), cursor: 1, width: 60, height: 10, loc: ny, today: today})
+
+	if !strings.Contains(got, "\x1b[2mMon 09 Nov") {
+		t.Errorf("the past day's header should be faint: %q", got)
+	}
+	if strings.Contains(got, "\x1b[2mTue 10 Nov") {
+		t.Errorf("today's header must not be faint: %q", got)
+	}
+}
