@@ -10,6 +10,8 @@ the app. They read like user stories: "I edit offline, I reconnect, Google has m
 
 ## Task 6.1: Engine skeleton and pull
 
+> ⚠ **Changed in Task 15.7:** `apply` also skips exceptions of a series being moved out of the calendar, and `pullEvents` applies cancelled masters last.
+
 **Goal:** the `Remote` interface (both `*gcal.Client` and `*gcaltest.Fake` satisfy it), `Engine.Sync`, and
 pulling calendars and events.
 
@@ -358,6 +360,8 @@ func (e *Engine) Push(ctx context.Context) error { return nil }
 ---
 
 ## Task 6.2: Push
+
+> ⚠ **Changed in Task 15.7:** push sends `move` ops; `complete` doesn't store Google's copy while a later op owns the event, and retargets etags after a move; `discard` puts a refused move's rows back.
 
 **Goal:** send outbox ops in order and handle every outcome in the design §3 table.
 

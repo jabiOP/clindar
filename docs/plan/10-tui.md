@@ -461,6 +461,8 @@ Sun 15 Nov
 
 ## Task 10.3: The model, navigation, and actions
 
+> ⚠ **Changed in Tasks 14.17, 15.2, 15.4 and 15.10:** the form is rebuilt in 14.17. Enter always saves (Space opens a list, `Ctrl-S` saves from anywhere), Esc on a changed form asks before discarding, and the Calendar picker unlocks when the event may move.
+
 **Goal:** the interactive app. This task is larger than the others because the files reference each other.
 Write all the tests first, then the files in the order below, and **commit after each step that compiles**.
 

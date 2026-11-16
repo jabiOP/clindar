@@ -335,6 +335,8 @@ func CalendarFromAPI(accountID string, c *calendar.CalendarListEntry) model.Cale
 
 > ⚠ **Fixed in Task 13.4:** `NewClient` must give the HTTP client a per-request timeout.
 
+> ⚠ **Extended in Task 15.5:** `MoveEvent` (`events.move`), also in `syncer.Remote`.
+
 **Goal:** a thin wrapper over the Google client: paging, sync tokens, `If-Match`, `sendUpdates`.
 `RespondEvent` (RSVP) patches **only** the attendee list (`AttendeesToAPI`) and never sends If-Match. On
 events you don't own, Google won't let you change the title, so we don't send it.
@@ -617,6 +619,8 @@ func (c *Client) DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, 
 ---
 
 ## Task 5.3: The fake Google
+
+> ⚠ **Extended in Task 15.5:** the fake's `MoveEvent` keeps IDs, gives new etags, and leaves cancelled tombstones in the source calendar.
 
 **Goal:** `gcaltest.Fake`, an in-memory implementation of the same methods as `Client`, behaving like
 Google where we care: etags, sync tokens (a change counter), cancelled tombstones, 404/409/410/412, and

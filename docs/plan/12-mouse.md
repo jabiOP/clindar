@@ -910,10 +910,12 @@ func dragPreview(e model.Event, p part, ch service.Changes, loc *time.Location) 
 ## Task 12.5: Wire up the mouse
 
 > ⚠ **Fixed in Task 13.7:** the delete confirmation names its keys (`(y/n)`) with the mouse on, and says "not deleted" when cancelled. Changes `layout.go` (popup) and `nav.go` (`modeConfirm`).
->
+
 > ⚠ **Fixed in Task 13.8:** the details box wraps to the terminal width. Changes `layout.go` (popup, `modeDetail`).
 >
 > ⚠ **Superseded by Task 13.9 (one width measure):** in `layout.go`'s `statusBar`, `runewidth.StringWidth(label)` becomes `width(label)`.
+
+> ⚠ **The wheel is off (Task 15.3).** It was slowed in Task 14.4 and then turned off: trackpad swipes made it unusable. Skip the wheel code and `TestWheelScrollsGridAWeek` below; `handleMouse` ignores wheel events.
 
 **Goal:** the interactive part.
 - `layout.go`: `View`, pop-ups and status bar, now built with the hit map. This **replaces** `View`,

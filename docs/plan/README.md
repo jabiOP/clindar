@@ -35,9 +35,10 @@ These files explain *how*, as small tasks.
 | 9 | `09-daemon.md` | Background sync + systemd/launchd install |
 | 10 | `10-tui.md` | Bubble Tea UI: grid, list, detail, forms |
 | 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build |
-| 12 | `12-mouse.md` | Mouse: clicks, wheel, buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
+| 12 | `12-mouse.md` | Mouse: clicks, wheel (turned off in Task 15.3), buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
 | 13 | `13-fixes.md` | Fixes from testing (13.1–13.10, 13.13), then two product decisions: left-aligned day numbers, indented wrapped details |
 | 14 | `14-ux-round-1.md` | UX round 1: event mode, quick add, pickers, calendar menu, colors, Meet links, day/month dates (spec, not compiled) |
+| 15 | `15-after-ux-round-1.md` | Done: one full resync (migration 4), form keys (Enter saves, Space lists, `Ctrl-S`), Esc asks before discarding, wheel off. To do: moving an event to another calendar (spec, not compiled) |
 
 ## Toolset primer (read once)
 
@@ -77,6 +78,12 @@ These files explain *how*, as small tasks.
   transaction grab the write lock up front. This avoids `SQLITE_BUSY` errors when two processes (daemon and TUI)
   both read and then write.
 - Schema versioning uses `PRAGMA user_version` (an integer stored in the DB file header).
+- **When `FromAPI` starts reading a new field, append a migration that resets the sync tokens**
+  (`UPDATE calendars SET sync_token = ''; UPDATE sync_state SET calendars_token = '';`, as migration 4 does).
+  Incremental sync only resends changed events, so without it events cached earlier never get the field.
+- SQLite can't alter a `CHECK` constraint or drop most constraints: to change one, rebuild the table
+  (`CREATE TABLE x_new …; INSERT INTO x_new SELECT …; DROP TABLE x; ALTER TABLE x_new RENAME TO x;` and recreate its
+  indexes), as migration 5 does for the outbox.
 
 ### Google Calendar API v3 (read these pages; ~45 min total)
 

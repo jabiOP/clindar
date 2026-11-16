@@ -1540,6 +1540,8 @@ func newCalendarsCmd(app *App) *cobra.Command {
 
 ## Task 8.5: Write commands (add, edit, rm, rsvp)
 
+> ⚠ **Extended in Task 15.9:** `edit` takes `-c/--calendar` to move an event to another calendar.
+
 **Goal:** create and change events from the shell.
 
 - Titles can come from **stdin** (`clindar add - …`, or no title), which is how the GTD integration pipes a task line
@@ -1968,5 +1970,11 @@ record the result in `DEVIATIONS.md`. If one is wrong, fix the code **and the fa
 | A 401 keeps edits queued | Revoke clindar at <https://myaccount.google.com/permissions>, make an edit, `clindar sync` should fail with the "log in" message, `clindar auth status` shows the pending change, `clindar auth login` then delivers it |
 | Each occurrence's link opens its own date (Task 13.2) | `clindar show <occurrence id> --json` for a non-first occurrence of a recurring event; open its `link` in a browser; Google shows that date, not the first one |
 | Switching all-day ↔ timed sticks (Task 13.13) | Make an all-day event timed with `clindar edit ID --at "fri 10:00"`, `clindar sync`, then all-day again with `--at fri --all-day`, `clindar sync`. The web UI shows each change. |
+| A new `FromAPI` field reaches cached events (Task 15.1) | After upgrading past migration 4 (restart the daemon), the first `clindar sync` is a full one; events colored in the web UI show their color, and Meet events their link, in `clindar show` |
+| A one-off event moves and keeps its ID (Task 15.5) | `clindar edit ID -c Other`, `clindar sync`; the web UI shows it in Other; `clindar show ID --json` has the same `id` and `calendar_id` Other; a second `clindar sync` still shows exactly one copy |
+| A series moves with its exceptions (Task 15.5) | Edit one occurrence of a series in the web UI, then `clindar edit <series id> -c Other --scope all`, `clindar sync`; the web UI shows the series *and* the edited occurrence in Other |
+| Moving doesn't re-invite guests (`sendUpdates=none`) | Move an event that has a guest (second account); the guest gets no new invitation and their copy still works. If it breaks, record what Google does and try `sendUpdates=all` |
+| An event with a Meet link keeps it after a move | Move an event created with Meet in the web UI; `clindar show` and the web UI still have the same Meet link |
+| Google refuses to move one occurrence | `clindar edit <occurrence id> -c Other --scope this` is refused locally; the API Explorer `events.move` on an instance ID returns an error (confirms the fake's `ErrPermanent`) |
 | Keyring works | `secret-tool search service clindar` (Linux) or Keychain Access (macOS) shows the token |
 | Token refresh | Leave it for over an hour, then `clindar sync` still works without logging in |

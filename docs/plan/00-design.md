@@ -88,7 +88,8 @@ Every sync cycle **pushes first, then pulls**.
 
 **Push** sends outbox ops to Google in sequence order. There is at most one pending op per event, because
 `Enqueue` coalesces them: insert+patch becomes insert, patch+patch becomes patch, insert+delete becomes nothing, and patch+delete becomes delete.
-Each op carries `If-Match: <etag>` when one is known.
+Each op carries `If-Match: <etag>` when one is known. (Since Phase 15 the rule is "one pending op per event *and
+calendar*": a move adds a second one; see **Move** below.)
 
 | Result | Action |
 |---|---|
@@ -103,6 +104,14 @@ Each op carries `If-Match: <etag>` when one is known.
 When an op is dropped (412/404/permanent), the engine re-fetches the event to restore Google's version. If that
 re-fetch is itself refused (403), the op is still dropped, so one broken event can't block the queue.
 
+**Move** (Phase 15) is a separate op kind: `events.move` from the source calendar (which keys the op) to a
+`destination`. Google keeps the ID and gives a new etag; the old calendar then lists the event as cancelled and the
+new one as new. Locally the rows change calendar at once, in the transaction that queues the op. A move is never
+merged into another op: an edit made before it stays on the source calendar and is pushed first; an edit made after
+it is keyed by the destination and pushed after (with the move's new etag). A move after an unpushed insert just
+re-addresses the insert. Until the move lands, the source calendar's pull skips the event and its exceptions, and a
+full resync of the destination keeps them.
+
 **RSVP** is a separate op kind: it patches only the attendee list and sends no If-Match, so it can't conflict
 with (or overwrite) the organizer's edits.
 
@@ -114,6 +123,10 @@ completed push does not delete it. It is rewritten as a patch against the new et
 recurrence is **expanded locally** (`rrule-go`), so offline-created series display correctly.
 Events with a pending outbox op are skipped, because local wins until pushed. A `410 Gone`
 clears that calendar's cached events and does a full resync.
+
+**New fields need a resync.** Incremental sync only resends events that changed. So whenever `FromAPI` starts
+reading a field it ignored before, a migration resets the sync tokens once (migration 4 did it for `colorId` and Meet
+links); otherwise events cached earlier never get the field.
 
 **Freshness:** daemon every `sync_interval` (default 45s) with exponential backoff up to 5 minutes when offline.
 The TUI syncs on open, on the same interval, and after edits. CLI reads sync first if the last sync is older than
@@ -129,6 +142,10 @@ The TUI syncs on open, on the same interval, and after edits. CLI reads sync fir
 
 If "following" is chosen at the first instance, it becomes "all". RSVP supports *this* and *all*.
 Orphan instances (§2) have no series here, so they take no scope.
+
+**Changing the calendar** (Phase 15) moves a one-off or a **whole series** (scope *all* only, exceptions included).
+One occurrence can't move on its own: Google refuses it, so neither *this* nor *following* is offered, and an orphan
+instance can't move either. You must own the event (not an invitation), and both calendars must be writable.
 
 ## 5. CLI surface
 
@@ -169,7 +186,7 @@ Off by default (`mouse = true` in `config.toml`). While on, clindar captures the
 
 - **Clicks:** click a day to select it, and click the selected day again to open the list there. Click an event to open
   its details, with [Edit] [Delete] [RSVP] [Close]. In the list, click to select and click again to open. Click
-  `+N more` to open the list at that day. The wheel moves a week (grid) or an event (list).
+  `+N more` to open the list at that day. *(The wheel was here, then slowed in §6c, then turned off in §6d.)*
 - **Buttons:** every pop-up choice is clickable (scope, delete confirm, RSVP, form [Save] [Cancel]). Form fields are
   clickable. The status bar has [+ Add] [⟳ Sync] [? Help]. Click outside the detail, help or go-to pop-ups to close them.
 - **Drag (grid only):** the leftmost cell of an event's first-day line is its start handle; the rightmost cell of its
@@ -200,8 +217,8 @@ Decisions from real use (brief "UX round 1"):
   details box's permission rules, `Esc` back). The list stays on `Tab`; `Esc` in the list returns to the grid.
 - **List:** endless in both directions; loads ahead so a screen and a page are always ready.
 - **Past days** are dimmed with color only (no change with colors off).
-- **Mouse wheel:** one day (grid) or one event (list) per step, at most one step per 100 ms. Grabbing an edge never opens
-  details. Click empty space to add; drag across empty days to add an all-day span.
+- **Mouse:** grabbing an edge never opens details. Click empty space to add; drag across empty days to add an
+  all-day span. *(The wheel was slowed here to one day or event per step, at most one per 100 ms; §6d turned it off.)*
 - **Dates:** slashes are day/month (`date_order = "mdy"` flips it); English names only. Go-to takes days only: a bare
   number is the next such day of the month, a month name is its 1st (this month included); times are refused.
 - **Adding:** quick add is the default, a Google-style line whose date/time/range/duration/repeat tokens come at the
@@ -215,6 +232,17 @@ Decisions from real use (brief "UX round 1"):
   `color` (effective color).
 - **Details:** no ID or raw link in the TUI; [Open in Google] (`o`); Meet links shown, with [Join] (`m`) and [Copy] (`y`,
   OSC 52; not in macOS Terminal.app). JSON field `meet_link`.
+
+## 6d. After UX round 1 (Phase 15)
+
+- **Form keys:** `Enter` always saves, except inside an open list, where it chooses. `Space` opens a list. `Ctrl-S`
+  and [Save] save from anywhere (with a list open, they first take the highlighted option).
+- **Esc on a changed form** asks "Discard changes? (y/n)": `y` discards, any other key keeps editing. An untouched
+  form closes at once; an open list closes first. [Cancel] is Esc.
+- **The mouse wheel is off.** Trackpad swipes made it unusable even throttled. Keys scroll; clicks and drags stay.
+- **Changing an event's calendar** (§4): the edit form's Calendar picker is unlocked when the move is allowed and lists
+  writable calendars only; otherwise it's locked with the reason. On an occurrence, saving a new calendar offers only
+  "all" and says why. The CLI: `clindar edit ID -c NAME`. Dragging never changes the calendar.
 
 ## 7. Security & config
 
