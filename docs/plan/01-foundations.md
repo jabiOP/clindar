@@ -693,6 +693,8 @@ our own.
 
 ## Task 1.7: Date/time parsing
 
+> ⚠ **Extended in Tasks 14.9–14.10:** day/month dates (`20/11`, `20/11/2027`), a `date_order` setting, and a go-to parser (`ParseDay`) that takes day numbers and month names. The table below lists the original formats.
+
 **Goal:** `--at "tomorrow 2pm"`, `--from fri`, the TUI's "Start" field. These are the formats we support, and
 they are the documentation for users too:
 

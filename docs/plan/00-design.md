@@ -165,8 +165,7 @@ clindar daemon [--interval D] | daemon install | daemon uninstall
 
 ## 6b. Mouse (Phase 12)
 
-Off by default (`mouse = true` in `config.toml`). While on, clindar captures the mouse; hold Shift (Option on
-some Macs) to select text.
+Off by default (`mouse = true` in `config.toml`). While on, clindar captures the mouse; select text with Option-drag on macOS, Shift-drag elsewhere.
 
 - **Clicks:** click a day to select it, and click the selected day again to open the list there. Click an event to open
   its details, with [Edit] [Delete] [RSVP] [Close]. In the list, click to select and click again to open. Click
@@ -191,6 +190,32 @@ some Macs) to select text.
   writable calendar; [RSVP] an invitation. The keys `e`/`d`/`r` follow the same rules and explain refusals.
 - **No double-click, right-click or undo** (see Out of scope).
 
+## 6c. UX round 1 (Phase 14)
+
+Decisions from real use (brief "UX round 1"):
+
+- **Keys:** vim-like everywhere new; arrows keep working. `J`/`K` move 4 weeks in the grid and page in the list.
+  `Ctrl-J`/`Ctrl-K` move between form fields.
+- **Event mode:** `Enter` on a grid day makes its events selectable (`j`/`k`, `Enter` details, `e`/`d`/`r` with the
+  details box's permission rules, `Esc` back). The list stays on `Tab`; `Esc` in the list returns to the grid.
+- **List:** endless in both directions; loads ahead so a screen and a page are always ready.
+- **Past days** are dimmed with color only (no change with colors off).
+- **Mouse wheel:** one day (grid) or one event (list) per step, at most one step per 100 ms. Grabbing an edge never opens
+  details. Click empty space to add; drag across empty days to add an all-day span.
+- **Dates:** slashes are day/month (`date_order = "mdy"` flips it); English names only. Go-to takes days only: a bare
+  number is the next such day of the month, a month name is its 1st (this month included); times are refused.
+- **Adding:** quick add is the default, a Google-style line whose date/time/range/duration/repeat tokens come at the
+  end (`internal/quickadd`, shared by CLI and TUI), with a live preview. The full form has Date + All-day + Start +
+  End/Duration, pickers for Calendar (writable only), Repeat and Color, and errors under their field. New events default
+  to all-day on the selected day.
+- **Calendars:** which calendars show is a local setting (`c` menu), overriding Google's `selected`, never written to
+  Google; the CLI's default agenda follows it.
+- **One picker component** for every choice (calendar menu, form pickers).
+- **Per-event colors:** Google's `colorId` and palette (cached); drawn in grid and list; settable in the form; JSON field
+  `color` (effective color).
+- **Details:** no ID or raw link in the TUI; [Open in Google] (`o`); Meet links shown, with [Join] (`m`) and [Copy] (`y`,
+  OSC 52; not in macOS Terminal.app). JSON field `meet_link`.
+
 ## 7. Security & config
 
 - OAuth: desktop loopback flow with PKCE, scope `https://www.googleapis.com/auth/calendar`.
@@ -198,11 +223,14 @@ some Macs) to select text.
 - The TUI add form and `clindar add` both default to `default_calendar`.
 - Client JSON goes in `$XDG_CONFIG_HOME/clindar/client.json`. `auth.BuiltinClientID`/`BuiltinClientSecret` can be set via `-ldflags`.
 - Config (`config.toml`): `sync_interval`, `stale_after`, `sync_timeout`, `default_calendar`,
-  `week_start`, `send_updates`, `mouse`. Every key is optional.
+  `week_start`, `send_updates`, `mouse`, `date_order`. Every key is optional.
 - Env overrides: `CLINDAR_CONFIG_DIR`, `CLINDAR_DATA_DIR` (used heavily by tests).
 
 ## Out of scope for v1 (YAGNI)
 
 Undo (even for drags; a single-step undo of the last drag is the natural first version later),
-desktop notifications, day/week/month views, multi-account UI, search, attachments, Meet links,
-event colors (calendar colors only), free/busy lookups, Windows, push webhooks.
+desktop notifications, day/week/month views, multi-account UI, search, attachments, **creating** Meet links
+(clindar shows existing ones), free/busy lookups, Windows, push webhooks, Spanish (or any non-English) date words,
+a CLI command to change calendar visibility.
+
+*Moved into scope in UX round 1 (§6c): per-event colors, and reading Meet links.*
