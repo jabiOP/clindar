@@ -59,3 +59,20 @@ func TestAddFormUsesDefaultCalendar(t *testing.T) {
 		t.Errorf("calendar field = %q, want the configured default", got)
 	}
 }
+
+func TestFormCtrlJKMoveBetweenFields(t *testing.T) {
+	f := newFixture(t)
+	f.keys("a") // the form, until Task 14.16 (which updates this line to f.openFullForm())
+
+	f.send(tea.KeyMsg{Type: tea.KeyCtrlJ})
+	if got := f.model().form.focus; got != 1 {
+		t.Fatalf("after ctrl+j focus = %d, want 1", got)
+	}
+	f.send(tea.KeyMsg{Type: tea.KeyCtrlK})
+	if got := f.model().form.focus; got != 0 {
+		t.Errorf("after ctrl+k focus = %d, want 0", got)
+	}
+	if !strings.Contains(f.m.View(), "ctrl+j") {
+		t.Error("the hint line should mention ctrl+j/ctrl+k")
+	}
+}

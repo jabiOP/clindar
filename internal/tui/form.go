@@ -98,9 +98,9 @@ func editEventForm(e model.Event, loc *time.Location) form {
 func (f form) Update(msg tea.Msg) (form, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok {
 		switch k.String() {
-		case "tab", "down":
+		case "tab", "down", "ctrl+j":
 			return f.move(1), nil
-		case "shift+tab", "up":
+		case "shift+tab", "up", "ctrl+k":
 			return f.move(-1), nil
 		}
 	}
@@ -203,7 +203,7 @@ func (f form) view(width int, mouse bool) modal {
 	if mouse {
 		md.buttons(button{"Save", "enter"}, button{"Cancel", "esc"})
 	}
-	md.text(dimStyle.Render("tab/↑↓ move · enter save · esc cancel"))
+	md.text(dimStyle.Render("ctrl+j/tab next · ctrl+k/shift+tab previous · enter save · esc cancel"))
 	return md
 }
 
