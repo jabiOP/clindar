@@ -78,6 +78,12 @@ func (s *Service) Status(ctx context.Context, since time.Time) (Status, error) {
 	return st, err
 }
 
+// SetCalendarShown shows or hides a calendar in clindar. It is a local choice:
+// it overrides Google's "selected" flag and is never sent to Google.
+func (s *Service) SetCalendarShown(ctx context.Context, calendarID string, shown bool) error {
+	return s.store.SetCalendarShown(ctx, s.account, calendarID, shown)
+}
+
 func (s *Service) Logs(ctx context.Context, limit int) ([]store.LogEntry, error) {
 	return s.store.Logs(ctx, s.account, limit)
 }

@@ -30,7 +30,7 @@ func (s *Store) Accounts(ctx context.Context) ([]string, error) {
 // DeleteAccount removes an account and everything belonging to it.
 func (s *Store) DeleteAccount(ctx context.Context, id string) error {
 	return s.InTx(ctx, func(tx *Store) error {
-		for _, table := range []string{"events", "calendars", "outbox", "sync_state", "log"} {
+		for _, table := range []string{"events", "calendars", "calendar_prefs", "outbox", "sync_state", "log"} {
 			if _, err := tx.q.ExecContext(ctx, `DELETE FROM `+table+` WHERE account_id = ?`, id); err != nil {
 				return err
 			}

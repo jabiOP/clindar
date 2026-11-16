@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/store"
 	"github.com/jabiOP/clindar/internal/testutil"
@@ -47,5 +49,30 @@ func TestCalendarSyncTokenUnknownCalendar(t *testing.T) {
 	_, err := s.CalendarSyncToken(context.Background(), "a", "nope")
 	if !errors.Is(err, store.ErrNotFound) {
 		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestLocalVisibilityOverridesGoogle(t *testing.T) {
+	s := testutil.NewStore(t)
+	ctx := context.Background()
+	for _, c := range []model.Calendar{
+		{AccountID: "a", ID: "on", Name: "On", Selected: true},
+		{AccountID: "a", ID: "off", Name: "Off", Selected: false},
+		{AccountID: "a", ID: "plain", Name: "Plain", Selected: true},
+	} {
+		s.UpsertCalendar(ctx, c)
+	}
+	s.SetCalendarShown(ctx, "a", "on", false)
+	s.SetCalendarShown(ctx, "a", "off", true)
+	s.UpsertCalendar(ctx, model.Calendar{AccountID: "a", ID: "on", Name: "On", Selected: true}) // a sync must not reset it
+
+	cals, _ := s.Calendars(ctx, "a")
+	got := map[string]bool{}
+	for _, c := range cals {
+		got[c.ID] = c.Visible
+	}
+	want := map[string]bool{"on": false, "off": true, "plain": true}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("visible (-want +got):\n%s", diff)
 	}
 }

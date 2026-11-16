@@ -12,7 +12,8 @@ import (
 	"github.com/jabiOP/clindar/internal/store"
 )
 
-// Filter narrows Agenda. Empty CalendarIDs means "calendars marked selected".
+// Filter narrows Agenda. Empty CalendarIDs means the visible calendars (the local
+// choice if any, else Google's "selected").
 type Filter struct {
 	CalendarIDs []string
 }
@@ -76,7 +77,7 @@ func (s *Service) visibleCalendars(ctx context.Context, f Filter) (map[string]bo
 	}
 	visible := map[string]bool{}
 	for _, c := range cals {
-		if (len(f.CalendarIDs) == 0 && c.Selected) || slices.Contains(f.CalendarIDs, c.ID) {
+		if (len(f.CalendarIDs) == 0 && c.Visible) || slices.Contains(f.CalendarIDs, c.ID) {
 			visible[c.ID] = true
 		}
 	}

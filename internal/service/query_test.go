@@ -90,3 +90,26 @@ func TestOrphanInstanceIsShownAndEditableAsOneOff(t *testing.T) {
 		t.Fatalf("Get = %+v, %v; want a one-off", got, err)
 	}
 }
+
+// Which calendars show is a local choice that overrides Google's "selected".
+func TestAgendaFollowsLocalVisibility(t *testing.T) {
+	e := newEnv(t)
+	e.put(testutil.Timed("lunch", "Lunch", e.at(16, 12, 0), time.Hour))
+	hol := testutil.AllDay("thx", "Thanksgiving", 2026, time.November, 26, 1)
+	hol.CalendarID = "holidays" // not selected in Google
+	e.put(hol)
+
+	if err := e.store.SetCalendarShown(e.ctx, testutil.Account, testutil.Calendar, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.store.SetCalendarShown(e.ctx, testutil.Account, "holidays", true); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := e.titlesOn(16); len(got) != 0 {
+		t.Errorf("Nov 16 = %v: the primary calendar is hidden locally", got)
+	}
+	if got := e.titlesOn(26); len(got) != 1 {
+		t.Errorf("Nov 26 = %v: Holidays is shown locally, without a -c filter", got)
+	}
+}

@@ -9,6 +9,7 @@ type Calendar struct {
 	AccessRole string `json:"access_role,omitempty"` // owner | writer | reader | freeBusyReader
 	Primary    bool   `json:"primary,omitempty"`
 	Selected   bool   `json:"selected"` // shown by default (Google's "selected" flag)
+	Visible    bool   `json:"visible"`  // shown in clindar: the local choice if any, else Selected
 	TimeZone   string `json:"time_zone,omitempty"`
 }
 

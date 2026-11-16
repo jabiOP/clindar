@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -28,6 +29,10 @@ func (s *Store) DeleteCalendar(ctx context.Context, accountID, calendarID string
 			`DELETE FROM events WHERE account_id = ? AND calendar_id = ?`, accountID, calendarID); err != nil {
 			return err
 		}
+		if _, err := tx.q.ExecContext(ctx,
+			`DELETE FROM calendar_prefs WHERE account_id = ? AND calendar_id = ?`, accountID, calendarID); err != nil {
+			return err
+		}
 		_, err := tx.q.ExecContext(ctx,
 			`DELETE FROM calendars WHERE account_id = ? AND id = ?`, accountID, calendarID)
 		return err
@@ -36,7 +41,9 @@ func (s *Store) DeleteCalendar(ctx context.Context, accountID, calendarID string
 
 // Calendars returns the account's calendars, primary first, then by name.
 func (s *Store) Calendars(ctx context.Context, accountID string) ([]model.Calendar, error) {
-	rows, err := s.q.QueryContext(ctx, `SELECT data FROM calendars WHERE account_id = ?`, accountID)
+	rows, err := s.q.QueryContext(ctx, `SELECT c.data, p.shown FROM calendars AS c
+		LEFT JOIN calendar_prefs AS p ON p.account_id = c.account_id AND p.calendar_id = c.id
+		WHERE c.account_id = ?`, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -44,12 +51,17 @@ func (s *Store) Calendars(ctx context.Context, accountID string) ([]model.Calend
 	var cals []model.Calendar
 	for rows.Next() {
 		var data string
-		if err := rows.Scan(&data); err != nil {
+		var shown sql.NullInt64
+		if err := rows.Scan(&data, &shown); err != nil {
 			return nil, err
 		}
 		var c model.Calendar
 		if err := json.Unmarshal([]byte(data), &c); err != nil {
 			return nil, fmt.Errorf("decode calendar: %w", err)
+		}
+		c.Visible = c.Selected
+		if shown.Valid {
+			c.Visible = shown.Int64 == 1
 		}
 		cals = append(cals, c)
 	}
@@ -70,5 +82,13 @@ func (s *Store) CalendarSyncToken(ctx context.Context, accountID, calendarID str
 func (s *Store) SetCalendarSyncToken(ctx context.Context, accountID, calendarID, token string) error {
 	_, err := s.q.ExecContext(ctx,
 		`UPDATE calendars SET sync_token = ? WHERE account_id = ? AND id = ?`, token, accountID, calendarID)
+	return err
+}
+
+// SetCalendarShown records the local choice to show or hide a calendar. It is
+// never sent to Google, and a sync doesn't reset it.
+func (s *Store) SetCalendarShown(ctx context.Context, accountID, calendarID string, shown bool) error {
+	_, err := s.q.ExecContext(ctx, `INSERT INTO calendar_prefs (account_id, calendar_id, shown) VALUES (?, ?, ?)
+		ON CONFLICT (account_id, calendar_id) DO UPDATE SET shown = excluded.shown`, accountID, calendarID, shown)
 	return err
 }

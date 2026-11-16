@@ -141,4 +141,5 @@ One line per deviation: what changed, and why.
   numbers are preferred, it's a one-character change (`%2d` → `%d`) plus regenerating the grid golden files.
 - The details box now wraps long lines, but a wrapped Guests or Link line continues at the box's left edge instead
   of under its value (tester). Wrapping each `Label: value` row's value separately, indented 11 columns, would fix it.
-
+- `clindar calendars show|hide NAME`: there's no CLI command to change calendar visibility yet (Task 14.12 adds it to
+  the store, service and TUI only); a small follow-up.

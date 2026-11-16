@@ -152,4 +152,13 @@ CREATE TABLE log (
 	message     TEXT NOT NULL,
 	detail      TEXT NOT NULL DEFAULT ''
 );
+`,
+	// 2: local calendar visibility (Task 14.12)
+	`
+CREATE TABLE calendar_prefs (
+	account_id  TEXT NOT NULL,
+	calendar_id TEXT NOT NULL,
+	shown       INTEGER NOT NULL, -- local choice; overrides Google's "selected"
+	PRIMARY KEY (account_id, calendar_id)
+);
 `}

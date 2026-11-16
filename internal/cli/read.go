@@ -153,7 +153,7 @@ func newCalendarsCmd(app *App) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "calendars",
-		Short: "List calendars (* = shown by default)",
+		Short: "List calendars (* = shown; change in the TUI with c)",
 		Args:  exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := app.Service(cmd.Context())
@@ -171,7 +171,7 @@ func newCalendarsCmd(app *App) *cobra.Command {
 					continue
 				}
 				mark := " "
-				if c.Selected {
+				if c.Visible {
 					mark = "*"
 				}
 				fmt.Fprintf(app.Stdout, "%s %-24s %-8s %s\n", mark, c.Name, c.AccessRole, c.ID)
