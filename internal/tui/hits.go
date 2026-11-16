@@ -22,6 +22,7 @@ const (
 	targetField             // a form field
 	targetModal             // inside a pop-up, but not on a button or field
 	targetOption            // a row in a picker; field holds the option index
+	targetEmpty             // blank space in a grid day, below its events (Task 14.18)
 )
 
 // part is the piece of a grid event line that was grabbed.

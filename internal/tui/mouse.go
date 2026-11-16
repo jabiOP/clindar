@@ -6,10 +6,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/quickadd"
 )
 
 // dragState tracks a drag in the grid: what was grabbed, where, and the day
 // currently under the pointer.
+// spanDrag is a drag across empty grid days: it creates an all-day event over them.
+type spanDrag struct {
+	active     bool
+	from, over time.Time
+}
+
 type dragState struct {
 	active bool
 	event  model.Event
@@ -34,6 +41,24 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m.wheel(1)
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
 		return m.press(t, onSomething)
+	case msg.Action == tea.MouseActionMotion && m.span.active: // before hover, which takes every other motion
+		switch {
+		case t.kind == targetDay || t.kind == targetEmpty || t.kind == targetEvent || t.kind == targetMore:
+			m.span.over = t.day
+		case msg.Y <= 1:
+			m = m.moveDays(-7, true)
+		case msg.Y >= m.height-1:
+			m = m.moveDays(7, true)
+		}
+		return m, m.reloadIfNeeded()
+	case msg.Action == tea.MouseActionRelease && m.span.active:
+		s := m.span
+		m.span = spanDrag{}
+		from, to := s.from, s.over
+		if to.Before(from) {
+			from, to = to, from
+		}
+		return m.openQuick(quickadd.Defaults{From: from, To: to})
 	case msg.Action == tea.MouseActionMotion && !m.drag.active:
 		m.hover = edgeRef{}
 		if t.kind == targetEvent && t.part != partBody {
@@ -98,6 +123,11 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		}
 		m = m.selectDay(t.day)
 		m.dayMode = false
+	case targetEmpty: // click (or start dragging) on blank space: add an event there
+		m = m.selectDay(t.day)
+		m.dayMode = false
+		m.span = spanDrag{true, t.day, t.day}
+		return m, m.reloadIfNeeded()
 	case targetMore:
 		m = m.selectDay(t.day)
 		m = m.startDayMode()

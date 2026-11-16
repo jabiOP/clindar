@@ -25,9 +25,10 @@ type gridView struct {
 	mouse           bool      // grab zones at event edges (Phase 12)
 	hover           edgeRef   // the edge under the pointer: draw its symbol
 	grabbed         edgeRef   // the handle being dragged: draw its symbol
-	drop            time.Time // while dragging: the day under the pointer (zero = none)
-	dayMode         bool      // event mode on the selected day (Task 14.8)
-	focus           int       // event mode: index of the focused event on the selected day
+	dropFrom        time.Time // while dragging: the days marked » (an event drag marks one day; zero = none)
+	dropTo          time.Time
+	dayMode         bool // event mode on the selected day (Task 14.8)
+	focus           int  // event mode: index of the focused event on the selected day
 }
 
 func renderGrid(g gridView) (string, hitMap) {
@@ -64,7 +65,7 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 	}
 	past := day.Date.Before(g.today) // dimmed like Google; color only, so golden files don't change
 	switch {
-	case day.Date.Equal(g.drop):
+	case !g.dropFrom.IsZero() && !day.Date.Before(g.dropFrom) && !day.Date.After(g.dropTo):
 		label = selectedStyle.Render(fit("»"+label, w-1)) // drop target while dragging
 	case day.Date.Equal(g.selected):
 		label = selectedStyle.Render(fit("▶"+label, w-1))
@@ -111,6 +112,7 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 		}
 	}
 	for len(lines) < h {
+		hits.add(0, len(lines), w, 1, target{kind: targetEmpty, day: day.Date}) // click or drag to add
 		lines = append(lines, fit("", w-1))
 	}
 	// One space of gutter on the right of every cell.

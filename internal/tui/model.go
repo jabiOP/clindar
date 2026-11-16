@@ -77,6 +77,7 @@ type Model struct {
 	detail    model.Event // the event shown in modeDetail
 	target    model.Event // the event an RSVP (modeRSVP) applies to
 	drag      dragState   // mouse drag in the grid (Phase 12)
+	span      spanDrag    // mouse drag across empty days (Task 14.18)
 	hover     edgeRef     // the handle under the pointer (Phase 12.7)
 	lastWheel time.Time   // last wheel step taken (throttle, Task 14.4)
 

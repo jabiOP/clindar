@@ -38,8 +38,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case modeQuick:
 		return m.quickKey(k)
 	}
-	if m.drag.active && key.Matches(k, keys.Back) {
-		m.drag, m.message = dragState{}, "drag cancelled"
+	if (m.drag.active || m.span.active) && key.Matches(k, keys.Back) {
+		m.drag, m.span, m.message = dragState{}, spanDrag{}, "drag cancelled"
 		return m, nil
 	}
 	if m.view == viewGrid && m.dayMode {

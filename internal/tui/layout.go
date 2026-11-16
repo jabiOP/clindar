@@ -23,11 +23,18 @@ func (m Model) layout() (string, hitMap) {
 	var hits hitMap
 	switch m.view {
 	case viewGrid:
+		dropFrom, dropTo := m.drag.over, m.drag.over // an event drag marks one day
+		if m.span.active {                           // a drag across empty days marks the span
+			dropFrom, dropTo = m.span.from, m.span.over
+			if dropTo.Before(dropFrom) {
+				dropFrom, dropTo = dropTo, dropFrom
+			}
+		}
 		body, hits = renderGrid(gridView{
 			start: m.gridStart, today: m.today, selected: m.selected,
 			days:      model.GroupByDay(m.events, m.gridStart, gridDays),
 			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(),
-			mouse: m.deps.Mouse, hover: m.hover, grabbed: m.grabbedEdge(), drop: m.drag.over,
+			mouse: m.deps.Mouse, hover: m.hover, grabbed: m.grabbedEdge(), dropFrom: dropFrom, dropTo: dropTo,
 			dayMode: m.dayMode, focus: m.dayCursor,
 		})
 	case viewList:

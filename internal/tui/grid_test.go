@@ -54,7 +54,7 @@ func gridWithTrip(t *testing.T, hover edgeRef, drop time.Time) (string, hitMap) 
 	return renderGrid(gridView{
 		start: start, today: time.Date(2026, 11, 9, 0, 0, 0, 0, ny), selected: time.Date(2026, 11, 9, 0, 0, 0, 0, ny),
 		days: model.GroupByDay(events, start, gridDays), width: 112, height: 18, loc: ny,
-		mouse: true, hover: hover, drop: drop,
+		mouse: true, hover: hover, dropFrom: drop, dropTo: drop,
 	})
 }
 
@@ -88,10 +88,15 @@ func TestGridHitMap(t *testing.T) {
 	if got, _ := hits.at(thuX+14, y); got.part != partBody {
 		t.Errorf("Thu right edge = %+v: not the last day, so no end handle there", got)
 	}
-	// The blank line under Gym (cells are 4 lines tall here) is Tuesday itself.
+	// The blank line under Gym (cells are 4 lines tall here) is Tuesday's empty
+	// space (click to add, Task 14.18); its day number is Tuesday itself.
 	x, y := find(t, screen, "09:00 Den")
-	if got, _ := hits.at(x+1, y+2); got.kind != targetDay || !got.day.Equal(time.Date(2026, 11, 10, 0, 0, 0, 0, ny)) {
+	tue := time.Date(2026, 11, 10, 0, 0, 0, 0, ny)
+	if got, _ := hits.at(x+1, y+2); got.kind != targetEmpty || !got.day.Equal(tue) {
 		t.Errorf("empty part of Tue = %+v", got)
+	}
+	if got, _ := hits.at(x, y-1); got.kind != targetDay || !got.day.Equal(tue) {
+		t.Errorf("Tue's day number = %+v", got)
 	}
 }
 

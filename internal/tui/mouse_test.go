@@ -320,3 +320,31 @@ func TestCalendarsButtonOpensMenuAndRowClickToggles(t *testing.T) {
 		t.Errorf("the row should show unticked:\n%s", f.m.View())
 	}
 }
+
+func (f *fixture) emptyAt(d int) (int, int) {
+	day := time.Date(2026, 11, d, 0, 0, 0, 0, f.ny)
+	return f.where(func(t target) bool { return t.kind == targetEmpty && t.day.Equal(day) })
+}
+
+func TestClickEmptySpaceOpensQuickAdd(t *testing.T) {
+	f := newMouseFixture(t)
+	f.click(f.emptyAt(17))
+
+	if m := f.model(); m.mode != modeQuick || !strings.Contains(f.m.View(), "Tue 17 Nov, all day") {
+		t.Errorf("mode = %v:\n%s", m.mode, f.m.View())
+	}
+}
+
+func TestDragAcrossEmptyDaysAddsASpan(t *testing.T) {
+	f := newMouseFixture(t)
+	x1, y1 := f.emptyAt(17)
+	x2, y2 := f.emptyAt(19)
+	f.dragTo(x1, y1, x2, y2)
+	f.keys("Conference", "enter")
+
+	for d, want := range map[int]bool{16: false, 17: true, 18: true, 19: true, 20: false} {
+		if got := slices.Contains(f.titlesOn(d), "Conference"); got != want {
+			t.Errorf("Nov %d has Conference = %v, want %v", d, got, want)
+		}
+	}
+}

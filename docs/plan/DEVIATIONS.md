@@ -158,6 +158,11 @@ One line per deviation: what changed, and why.
   new `newEventForm` signature. Step 9 checked in tmux at 80 columns: quick add → tab → walk the fields → open
   Repeat → choose weekly → save, and `agenda` shows the weekly series. `Ctrl-J`/`Ctrl-K` worked there (a Task 14.23
   item).
+- **Task 14.18:** compiled as written after adding `spanDrag` (in `mouse.go`, next to `dragState`) and the imports.
+  To get a behavioral red step, the `targetEmpty` constant was added before the tests ran. One older test changed by
+  design: `TestGridHitMap` (Task 12.3) asserted that a blank line under a day's events is `targetDay`; it is now
+  `targetEmpty`, and the test also checks that the day number is still `targetDay`. Checked in tmux: dragging blank
+  space from Tue 17 to Thu 19 opens quick add with "Tue 17 Nov – Thu 19 Nov, all day".
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
