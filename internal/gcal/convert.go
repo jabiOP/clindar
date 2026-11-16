@@ -88,12 +88,16 @@ func ToAPI(e model.Event) *calendar.Event {
 		// description would silently do nothing.
 		ForceSendFields: []string{"Summary", "Description", "Location"},
 	}
+	// PATCH merges nested objects field by field: sending start {dateTime}
+	// onto a stored start {date} keeps the date, and the event silently stays
+	// all-day (likewise the other way). So always send the other kind's fields
+	// as explicit nulls; on insert they're harmless.
 	if e.AllDay {
-		ev.Start = &calendar.EventDateTime{Date: e.Start.UTC().Format(time.DateOnly)}
-		ev.End = &calendar.EventDateTime{Date: e.End.UTC().Format(time.DateOnly)}
+		ev.Start = &calendar.EventDateTime{Date: e.Start.UTC().Format(time.DateOnly), NullFields: []string{"DateTime", "TimeZone"}}
+		ev.End = &calendar.EventDateTime{Date: e.End.UTC().Format(time.DateOnly), NullFields: []string{"DateTime", "TimeZone"}}
 	} else {
-		ev.Start = &calendar.EventDateTime{DateTime: e.Start.Format(time.RFC3339), TimeZone: e.TimeZone}
-		ev.End = &calendar.EventDateTime{DateTime: e.End.Format(time.RFC3339), TimeZone: e.TimeZone}
+		ev.Start = &calendar.EventDateTime{DateTime: e.Start.Format(time.RFC3339), TimeZone: e.TimeZone, NullFields: []string{"Date"}}
+		ev.End = &calendar.EventDateTime{DateTime: e.End.Format(time.RFC3339), TimeZone: e.TimeZone, NullFields: []string{"Date"}}
 	}
 	ev.Attendees = AttendeesToAPI(e).Attendees
 	return ev

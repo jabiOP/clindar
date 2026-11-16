@@ -97,3 +97,38 @@ func TestToAPIAllDayUsesDates(t *testing.T) {
 		t.Errorf("start=%+v end=%+v", ev.Start, ev.End)
 	}
 }
+
+// PATCH merges nested objects: sending start {dateTime} onto a stored start
+// {date} keeps the date, so the event stays all-day (and the other way round).
+// Switching kinds therefore sends the other kind's fields as explicit nulls.
+func TestToAPIClearsTheOtherKindOfStartAndEnd(t *testing.T) {
+	timed := model.Event{ID: "e", Title: "x", TimeZone: "America/New_York",
+		Start: time.Date(2026, 11, 16, 14, 0, 0, 0, time.UTC), End: time.Date(2026, 11, 16, 15, 0, 0, 0, time.UTC)}
+	allDay := model.Event{ID: "e", Title: "x", AllDay: true,
+		Start: time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC), End: time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)}
+
+	for _, tt := range []struct {
+		name  string
+		e     model.Event
+		nulls []string
+	}{
+		{"timed clears date", timed, []string{`"date":null`}},
+		{"all-day clears dateTime and timeZone", allDay, []string{`"dateTime":null`, `"timeZone":null`}},
+	} {
+		ev := gcal.ToAPI(tt.e)
+		for _, part := range []struct {
+			name string
+			dt   *calendar.EventDateTime
+		}{{"start", ev.Start}, {"end", ev.End}} {
+			body, err := part.dt.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range tt.nulls {
+				if !strings.Contains(string(body), want) {
+					t.Errorf("%s: %s = %s, want it to contain %s", tt.name, part.name, body, want)
+				}
+			}
+		}
+	}
+}

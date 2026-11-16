@@ -96,6 +96,14 @@ One line per deviation: what changed, and why.
   7 days now carries its own occurrence ID in its link (e.g. `…_20261117` for a yearly birthday that used to name
   2024, `…_20261118T110000Z` for a weekly meeting that used to name Nov 4), and these are the IDs Google itself
   uses (section C matched them exactly). Checked by decoding the links; opening one in a browser is the last step.
+- **User bug (Task 5.1): switching an event between all-day and timed reverted.** Google's PATCH merges nested
+  objects field by field, so sending `start: {dateTime, timeZone}` onto a stored `start: {date}` kept the date, and
+  the event stayed all-day (and the reverse kept a stale `dateTime`); clindar then stored Google's copy, so the edit
+  looked undone. Moving the day or hour worked because it doesn't change which fields exist. `ToAPI` now sends the
+  other kind's fields as explicit nulls (`NullFields`: `Date` for timed, `DateTime`/`TimeZone` for all-day),
+  harmless on insert. The fake replaces start/end wholesale, so it can't model this; the test checks the request
+  body instead: `TestToAPIClearsTheOtherKindOfStartAndEnd`. **Needs a real-Google check (add to Task 8.7):** turn an
+  all-day event into a timed one and back, `clindar sync` after each, and the web UI keeps the change.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
