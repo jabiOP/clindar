@@ -4,6 +4,7 @@ package syncer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -24,6 +25,13 @@ type Remote interface {
 	EventColors(ctx context.Context) (map[string]string, error)
 }
 
+// ErrPush and ErrPull tell which half of Sync failed: after a pull error,
+// local changes have already reached Google.
+var (
+	ErrPush = errors.New("push")
+	ErrPull = errors.New("pull")
+)
+
 type Engine struct {
 	Store     *store.Store
 	Remote    Remote
@@ -35,10 +43,10 @@ type Engine struct {
 // transient error (offline), it stops and returns it; queued ops stay queued.
 func (e *Engine) Sync(ctx context.Context) error {
 	if err := e.Push(ctx); err != nil {
-		return fmt.Errorf("push: %w", err)
+		return fmt.Errorf("%w: %w", ErrPush, err)
 	}
 	if err := e.Pull(ctx); err != nil {
-		return fmt.Errorf("pull: %w", err)
+		return fmt.Errorf("%w: %w", ErrPull, err)
 	}
 	return e.Store.SetLastSync(ctx, e.AccountID, e.Now())
 }

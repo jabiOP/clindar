@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	_ "time/tzdata"
@@ -145,5 +146,19 @@ func TestStdinTitleNeedsAt(t *testing.T) {
 	id := strings.TrimSpace(h.mustRun("add", "-", "--at", "tomorrow 9am", "--offline"))
 	if out := h.mustRun("show", id, "--format", "{{.Title}}"); out != "Review report daily\n" {
 		t.Errorf("title = %q, want it literal", out)
+	}
+}
+
+func TestWriteWarningSaysWhetherItReachedGoogle(t *testing.T) {
+	h := newHarness(t)
+	h.google.FailPull = errors.New("boom")
+	id := strings.TrimSpace(h.mustRun("add", "Lunch", "--at", "12:00"))
+	if _, stderr, _ := h.run("edit", id, "--title", "Brunch"); !strings.Contains(stderr, "sent to Google; refreshing from Google failed") {
+		t.Errorf("pull failed after push: stderr %q", stderr)
+	}
+
+	h.google.FailPull, h.google.Fail = nil, errors.New("offline")
+	if _, stderr, _ := h.run("edit", id, "--title", "Dinner"); !strings.Contains(stderr, "not sent to Google yet") {
+		t.Errorf("push failed: stderr %q", stderr)
 	}
 }

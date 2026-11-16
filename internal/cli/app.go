@@ -132,9 +132,22 @@ func (a *App) RefreshIfStale(ctx context.Context, offline bool) {
 }
 
 // PushAfterWrite is called by write commands so edits reach Google promptly.
+// If that fails, the warning says whether the change reached Google.
 func (a *App) PushAfterWrite(ctx context.Context, offline bool) {
-	if !offline {
-		a.syncQuietly(ctx)
+	if offline {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, a.Config.SyncTimeout.Duration)
+	defer cancel()
+	_, err := a.SyncNow(ctx)
+	switch {
+	case err == nil:
+	case errors.Is(err, syncer.ErrPull) && errors.Is(err, context.DeadlineExceeded):
+		fmt.Fprintln(a.Stderr, "clindar: warning: sent to Google; refreshing from Google timed out")
+	case errors.Is(err, syncer.ErrPull):
+		fmt.Fprintf(a.Stderr, "clindar: warning: sent to Google; refreshing from Google failed: %v\n", err)
+	default:
+		fmt.Fprintf(a.Stderr, "clindar: warning: saved here; not sent to Google yet (it goes with the next sync): %v\n", err)
 	}
 }
 

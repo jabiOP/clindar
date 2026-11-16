@@ -24,6 +24,8 @@ type Fake struct {
 
 	// Fail, if set, is returned by every call (simulates being offline).
 	Fail error
+	// FailPull, if set, is returned by ListCalendars only: a pull that fails after a push.
+	FailPull error
 	// FailGet, if set, is returned by GetEvent only (e.g. lost access to a calendar).
 	FailGet error
 	// ExpireTokens makes the next list call with a token fail with ErrSyncTokenExpired.
@@ -88,6 +90,9 @@ func (f *Fake) ListCalendars(ctx context.Context, token string) ([]model.Calenda
 	defer f.mu.Unlock()
 	if f.Fail != nil {
 		return nil, nil, "", f.Fail
+	}
+	if f.FailPull != nil {
+		return nil, nil, "", f.FailPull
 	}
 	return append([]model.Calendar(nil), f.calendars...), nil, "cal-token", nil
 }
