@@ -59,3 +59,9 @@ func overlay(width, height int, box string) (s string, x, y int) {
 	}
 	return strings.Repeat("\n", y) + strings.Join(lines, "\n"), x, y
 }
+
+// option adds a clickable picker row for option index i.
+func (m *modal) option(line string, i int) {
+	m.hits.add(0, len(m.lines), width(line), 1, target{kind: targetOption, field: i})
+	m.lines = append(m.lines, line)
+}

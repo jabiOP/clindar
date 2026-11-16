@@ -13,14 +13,15 @@ import (
 type targetKind int
 
 const (
-	targetNone  targetKind = iota
-	targetDay              // a grid cell
-	targetEvent            // an event line in a grid cell
-	targetMore             // "+N more" in a grid cell
-	targetEntry            // a list row
-	targetKey              // a button: clicking it acts like pressing key
-	targetField            // a form field
-	targetModal            // inside a pop-up, but not on a button or field
+	targetNone   targetKind = iota
+	targetDay               // a grid cell
+	targetEvent             // an event line in a grid cell
+	targetMore              // "+N more" in a grid cell
+	targetEntry             // a list row
+	targetKey               // a button: clicking it acts like pressing key
+	targetField             // a form field
+	targetModal             // inside a pop-up, but not on a button or field
+	targetOption            // a row in a picker; field holds the option index
 )
 
 // part is the piece of a grid event line that was grabbed.

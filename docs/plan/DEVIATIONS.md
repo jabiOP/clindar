@@ -127,6 +127,10 @@ One line per deviation: what changed, and why.
 - **Task 14.10:** compiled and passed as written. The TUI check described in step 1 is
   `TestGotoDayNumberAndRefusedTime`. Like 14.9, the go-to description belongs in `docs/cli.md` (TUI section) when
   Task 11.2 writes it.
+- **Task 14.11:** compiled and passed as written. One rendering fix, as the plan anticipated: widths were right, but
+  on the cursor row the colored swatch's own reset code (`\x1b[0m` after the `●`) also ended the row's reverse
+  video, so the highlight stopped after the dot. The cursor row is now built from plain text (an uncolored `● `) and
+  styled once with `selectedStyle`; other rows keep the colored swatch.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
