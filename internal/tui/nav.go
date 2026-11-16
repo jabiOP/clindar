@@ -143,7 +143,7 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Open):
 		m.detail, m.mode = *current, modeDetail
 	case key.Matches(k, keys.Edit):
-		m.form = editEventForm(*current, m.loc(), m.calList, m.deps.Dates)
+		m.form = editEventForm(*current, m.loc(), m.calList, m.deps.Dates).withPalette(m.palette)
 		m.mode = modeForm
 		return m, nil
 	case key.Matches(k, keys.Delete):

@@ -128,3 +128,49 @@ func (f *fixture) focus(i int) {
 		f.send(tea.KeyMsg{Type: tea.KeyCtrlJ})
 	}
 }
+
+func TestColorPickerSetsAndClearsTheColor(t *testing.T) {
+	f := newFixture(t)
+	f.openFullForm()
+	f.keys("Dinner")
+	f.focus(fColor)
+	f.keys("l") // Calendar default → Tomato
+	f.focus(fTitle)
+	f.keys("enter")
+
+	dinner := func() model.Event {
+		t.Helper()
+		events, _ := f.svc.Agenda(context.Background(), time.Date(2026, 11, 12, 0, 0, 0, 0, f.ny),
+			time.Date(2026, 11, 13, 0, 0, 0, 0, f.ny), service.Filter{})
+		for _, e := range events {
+			if e.Title == "Dinner" {
+				return e
+			}
+		}
+		t.Fatal("no Dinner on Nov 12")
+		return model.Event{}
+	}
+	if got := dinner().ColorID; got != "11" {
+		t.Fatalf("ColorID = %q, want 11 (Tomato)", got)
+	}
+
+	f.keys("enter")
+	for f.model().dayEvents()[f.model().dayCursor].Title != "Dinner" {
+		f.keys("j")
+	}
+	f.keys("e")
+	f.focus(fColor)
+	f.keys("h") // → Calendar default
+	f.focus(fTitle)
+	f.keys("enter")
+
+	if got := dinner().ColorID; got != "" {
+		t.Errorf("ColorID = %q, want \"\" (calendar default)", got)
+	}
+	ops, _ := f.st.PendingOps(context.Background(), testutil.Account)
+	for _, op := range ops {
+		if op.Payload.Title == "Dinner" && op.Payload.ColorID != "" {
+			t.Errorf("queued op payload ColorID = %q, want \"\"", op.Payload.ColorID)
+		}
+	}
+}

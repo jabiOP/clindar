@@ -88,6 +88,7 @@ type Model struct {
 	quickDef quickadd.Defaults // quick add: the day(s) used when the line names none
 	calMenu  picker            // the calendar menu (Task 14.13)
 	calList  []model.Calendar  // calendars in the store's order (primary first)
+	palette  map[string]string // Google's event colors (Task 14.20)
 
 	listFrom   time.Time // first day of the list
 	listSpan   int       // days loaded in the list
@@ -103,6 +104,7 @@ type loadedMsg struct {
 	from, to  time.Time
 	events    []model.Event
 	calendars []model.Calendar
+	palette   map[string]string // event colorId → "#rrggbb"
 	status    service.Status
 	err       error
 }
@@ -162,6 +164,9 @@ func (m Model) load() tea.Cmd {
 		if msg.calendars, msg.err = svc.Calendars(ctx); msg.err != nil {
 			return msg
 		}
+		if msg.palette, msg.err = svc.EventColors(ctx); msg.err != nil {
+			return msg
+		}
 		msg.status, msg.err = svc.Status(ctx, started)
 		return msg
 	}
@@ -201,6 +206,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.loadedFrom, m.loadedTo, m.events, m.status = msg.from, msg.to, msg.events, msg.status
+		m.palette = msg.palette
 		m.calendars, m.calList = map[string]model.Calendar{}, msg.calendars
 		for _, c := range msg.calendars {
 			m.calendars[c.ID] = c

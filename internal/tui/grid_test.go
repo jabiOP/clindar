@@ -156,3 +156,33 @@ func TestPastDaysAreFaint(t *testing.T) {
 		t.Error("Fri 13 (future) must not be faint")
 	}
 }
+
+func TestEventsDrawInTheirOwnColor(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	defer lipgloss.SetColorProfile(termenv.Ascii)
+	ny := testutil.NY(t)
+	start := time.Date(2026, 11, 9, 0, 0, 0, 0, ny)
+	cals := map[string]model.Calendar{testutil.Calendar: {ID: testutil.Calendar, Name: "Me", Color: "#4285f4"}}
+	render := func(e model.Event) string {
+		got, _ := renderGrid(gridView{start: start, today: start, selected: start, calendars: cals,
+			palette: map[string]string{"11": "#dc2127"},
+			days:    model.GroupByDay([]model.Event{e}, start, gridDays), width: 70, height: 18, loc: ny})
+		return got
+	}
+	own := testutil.Timed("e", "Dinner", time.Date(2026, 11, 11, 19, 0, 0, 0, ny), time.Hour)
+	own.ColorID = "11"
+	plain := testutil.Timed("e", "Dinner", time.Date(2026, 11, 11, 19, 0, 0, 0, ny), time.Hour)
+
+	// The exact SGR numbers are lipgloss's conversion of the hex color (it rounds:
+	// #4285f4 comes out as 38;2;65;133;243), so ask lipgloss what it emits.
+	sgr := func(hex string) string {
+		r := calendarStyle(hex).Render("x")
+		return r[:strings.Index(r, "x")]
+	}
+	if got := render(own); !strings.Contains(got, sgr("#dc2127")) {
+		t.Errorf("an event with its own color should draw in #dc2127: %q", got)
+	}
+	if got := render(plain); !strings.Contains(got, sgr("#4285f4")) || strings.Contains(got, sgr("#dc2127")) {
+		t.Errorf("an event without one should draw in the calendar's #4285f4: %q", got)
+	}
+}

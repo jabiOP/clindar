@@ -39,6 +39,7 @@ type Draft struct {
 	AllDay      bool
 	Recurrence  []string // from recur.ParseRepeat
 	Invite      []string // attendee emails
+	ColorID     string   // Google's event colorId; "" = the calendar's color
 }
 
 // Create adds a new event (or series) locally and queues it for Google.
@@ -52,7 +53,7 @@ func (s *Service) Create(ctx context.Context, d Draft) (model.Event, error) {
 		Status: model.StatusConfirmed, Title: strings.TrimSpace(d.Title),
 		Description: d.Description, Location: d.Location,
 		Start: d.Start, End: d.End, AllDay: d.AllDay,
-		Recurrence: d.Recurrence, Organizer: s.account,
+		Recurrence: d.Recurrence, Organizer: s.account, ColorID: d.ColorID,
 	}
 	if e.AllDay {
 		e.Start, e.End = dateOnly(e.Start), dateOnly(e.End)

@@ -35,11 +35,11 @@ func (m Model) layout() (string, hitMap) {
 			days:      model.GroupByDay(m.events, m.gridStart, gridDays),
 			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(),
 			mouse: m.deps.Mouse, hover: m.hover, grabbed: m.grabbedEdge(), dropFrom: dropFrom, dropTo: dropTo,
-			dayMode: m.dayMode, focus: m.dayCursor,
+			dayMode: m.dayMode, focus: m.dayCursor, palette: m.palette,
 		})
 	case viewList:
 		body, hits = renderList(listView{days: m.listDays(), cursor: m.cursor,
-			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(), today: m.today})
+			calendars: m.calendars, width: m.width, height: bodyH, loc: m.loc(), today: m.today, palette: m.palette})
 	}
 	if md, ok := m.popup(); ok {
 		box, boxHits := md.render()
@@ -88,6 +88,7 @@ func (m Model) popup() (modal, bool) {
 		}
 		p, _ := output.NewPrinter(&b, output.Pretty, "", m.loc(), cals)
 		p.SetWidth(max(m.width-4, 20)) // the box adds a border and 1 cell of padding per side
+		p.SetPalette(m.palette)
 		p.Event(m.detail)
 		text := strings.TrimRight(b.String(), "\n")
 		md.text(text)

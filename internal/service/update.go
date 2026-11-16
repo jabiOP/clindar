@@ -19,6 +19,7 @@ type Changes struct {
 	Start, End                   *time.Time
 	AllDay                       *bool
 	Invite                       *[]string // replaces the attendee list
+	ColorID                      *string   // "" = back to the calendar's color
 }
 
 func (c Changes) withoutTiming() Changes {
@@ -35,6 +36,9 @@ func (c Changes) apply(e *model.Event) error {
 	}
 	if c.Location != nil {
 		e.Location = *c.Location
+	}
+	if c.ColorID != nil {
+		e.ColorID = *c.ColorID
 	}
 	if c.Invite != nil {
 		setInvites(e, *c.Invite)

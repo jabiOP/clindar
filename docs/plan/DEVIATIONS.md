@@ -169,6 +169,12 @@ One line per deviation: what changed, and why.
   `TestJSONHasTheEffectiveColor` (output). `pullPalette` runs first in `Pull`, so offline the pull fails at
   "colors:" rather than "calendars:"; it is the same transient error either way. **Needs a real-Google check (Task
   14.23):** setting a color, then "Calendar default", clears `colorId`.
+- **Task 14.20:** two adjustments. (1) The grid color test can't hard-code `38;2;220;33;39` / `38;2;66;133;244`:
+  lipgloss rounds when converting hex (#4285f4 → `38;2;65;133;243`), so `TestEventsDrawInTheirOwnColor` compares
+  against the escape code lipgloss itself emits for each hex; drawing in the calendar color makes it fail, as
+  required. (2) The form gets the palette through a `withPalette` method at its three call sites, rather than
+  through yet another constructor parameter. The form and service tests described in the plan are
+  `TestColorPickerSetsAndClearsTheColor` and `TestUpdateColor`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

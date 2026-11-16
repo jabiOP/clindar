@@ -26,13 +26,20 @@ const (
 	fDuration
 	fCalendar
 	fRepeat
+	fColor
 	fWhere
 	fNotes
 	fInvite
 	fieldCount
 )
 
-var fieldLabels = [fieldCount]string{"Title", "Date", "All-day", "Start", "End", "Duration", "Calendar", "Repeat", "Where", "Notes", "Invite"}
+var fieldLabels = [fieldCount]string{"Title", "Date", "All-day", "Start", "End", "Duration", "Calendar", "Repeat", "Color", "Where", "Notes", "Invite"}
+
+// colorNames are Google's event colors, in Google's menu order.
+var colorNames = []struct{ id, name string }{
+	{"11", "Tomato"}, {"4", "Flamingo"}, {"6", "Tangerine"}, {"5", "Banana"}, {"2", "Sage"}, {"10", "Basil"},
+	{"7", "Peacock"}, {"9", "Blueberry"}, {"1", "Lavender"}, {"3", "Grape"}, {"8", "Graphite"},
+}
 
 // repeatWords are the Repeat picker's choices, the same words as --repeat.
 var repeatWords = []string{"none", "daily", "weekdays", "weekly", "monthly", "yearly"}
@@ -79,6 +86,11 @@ func newForm(editing *model.Event, dates timeparse.Parser) form {
 		rep = append(rep, option{label: w, value: w})
 	}
 	f.pickers[fRepeat] = picker{title: "Repeat", options: rep}
+	colors := []option{{label: "Calendar default", value: ""}}
+	for _, c := range colorNames {
+		colors = append(colors, option{label: c.name, value: c.id})
+	}
+	f.pickers[fColor] = picker{title: "Color", options: colors}
 	f.inputs[fTitle].Focus()
 	return f
 }
@@ -151,7 +163,7 @@ func editEventForm(e model.Event, loc *time.Location, cals []model.Calendar, dat
 
 	start, end := e.Span(loc)
 	layout := f.dateLayout()
-	f = f.setText(fTitle, e.Title).setText(fWhere, e.Location).setText(fNotes, e.Description)
+	f = f.setText(fTitle, e.Title).setText(fWhere, e.Location).setText(fNotes, e.Description).setChoice(fColor, e.ColorID)
 	if e.AllDay {
 		f = f.setChoice(fAllDay, "yes")
 		date := start.Format(layout)
@@ -349,7 +361,7 @@ func (f form) draft(now time.Time) (service.Draft, error) {
 	return service.Draft{
 		CalendarID: f.value(fCalendar), Title: f.value(fTitle), Location: f.value(fWhere),
 		Description: f.value(fNotes), Start: span.Start, End: span.End, AllDay: span.AllDay,
-		Recurrence: rec, Invite: splitEmails(f.value(fInvite)),
+		Recurrence: rec, Invite: splitEmails(f.value(fInvite)), ColorID: f.value(fColor),
 	}, nil
 }
 
@@ -369,6 +381,9 @@ func (f form) changes(now time.Time) (service.Changes, error) {
 	if f.changed(fInvite) {
 		emails := splitEmails(f.value(fInvite))
 		ch.Invite = &emails
+	}
+	if f.changed(fColor) {
+		ch.ColorID = str(fColor)
 	}
 	if f.changed(fDate) || f.changed(fAllDay) || f.changed(fStart) || f.changed(fEnd) || f.changed(fDuration) {
 		g := f
@@ -461,4 +476,14 @@ func (f form) showError(err error) form {
 	}
 	f.err = err.Error()
 	return f
+}
+
+// withPalette gives the Color picker its swatches (Google's event palette).
+func (f form) withPalette(palette map[string]string) form {
+	p := f.pickers[fColor]
+	p.options = append([]option(nil), p.options...)
+	for i := range p.options {
+		p.options[i].swatch = palette[p.options[i].value]
+	}
+	return f.withPicker(fColor, p)
 }

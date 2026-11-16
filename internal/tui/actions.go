@@ -139,7 +139,7 @@ func (m Model) eventAction(k tea.KeyMsg, e model.Event) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.RSVP) && !can.rsvp:
 		m.message = can.whyNoRSVP
 	case key.Matches(k, keys.Edit):
-		m.form, m.mode = editEventForm(e, m.loc(), m.calList, m.deps.Dates), modeForm
+		m.form, m.mode = editEventForm(e, m.loc(), m.calList, m.deps.Dates).withPalette(m.palette), modeForm
 	case key.Matches(k, keys.Delete):
 		m = m.startDelete(e)
 	case key.Matches(k, keys.RSVP):

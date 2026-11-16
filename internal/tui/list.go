@@ -15,7 +15,8 @@ type listView struct {
 	calendars     map[string]model.Calendar
 	width, height int
 	loc           *time.Location
-	today         time.Time // local midnight: earlier day headers are dimmed
+	today         time.Time         // local midnight: earlier day headers are dimmed
+	palette       map[string]string // event colorId → "#rrggbb" (Task 14.20)
 }
 
 func listEntries(days []model.Day) []model.Event {
@@ -94,5 +95,5 @@ func (v listView) line(e model.Event, selected bool) string {
 	if selected {
 		return selectedStyle.Render(text + "  " + label)
 	}
-	return text + "  " + calendarStyle(cal.Color).Render(label)
+	return text + "  " + calendarStyle(model.EffectiveColor(e, cal, v.palette)).Render(label)
 }

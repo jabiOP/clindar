@@ -119,3 +119,17 @@ func TestUpdateFollowingAtFirstInstanceUpdatesAll(t *testing.T) {
 		t.Errorf("ops = %+v, want a single patch of the master", ops)
 	}
 }
+
+func TestUpdateColor(t *testing.T) {
+	e := newEnv(t)
+	e.put(testutil.Timed("e1", "Dinner", e.at(16, 19, 0), time.Hour))
+
+	got, err := e.svc.Update(e.ctx, "e1", service.Changes{ColorID: ptr("4")}, service.ScopeNone)
+
+	if err != nil || got.ColorID != "4" {
+		t.Fatalf("Update = %+v, %v", got.ColorID, err)
+	}
+	if ops := e.ops(); len(ops) != 1 || ops[0].Kind != store.OpPatch || ops[0].Payload.ColorID != "4" {
+		t.Errorf("ops = %+v, want one patch carrying ColorID 4", ops)
+	}
+}

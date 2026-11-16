@@ -82,7 +82,7 @@ func (m Model) quickPopup() modal {
 
 // formFromQuick opens the full add form pre-filled from a quick-add line.
 func (m Model) formFromQuick(r quickadd.Result) form {
-	f := newEventForm(r.Span.Start, m.calList, m.deps.DefaultCalendar, m.deps.Dates)
+	f := newEventForm(r.Span.Start, m.calList, m.deps.DefaultCalendar, m.deps.Dates).withPalette(m.palette)
 	layout := f.dateLayout()
 	f = f.setText(fTitle, r.Title)
 	if r.Span.AllDay {

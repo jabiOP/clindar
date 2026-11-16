@@ -27,8 +27,9 @@ type gridView struct {
 	grabbed         edgeRef   // the handle being dragged: draw its symbol
 	dropFrom        time.Time // while dragging: the days marked » (an event drag marks one day; zero = none)
 	dropTo          time.Time
-	dayMode         bool // event mode on the selected day (Task 14.8)
-	focus           int  // event mode: index of the focused event on the selected day
+	dayMode         bool              // event mode on the selected day (Task 14.8)
+	palette         map[string]string // event colorId → "#rrggbb" (Task 14.20)
+	focus           int               // event mode: index of the focused event on the selected day
 }
 
 func renderGrid(g gridView) (string, hitMap) {
@@ -158,7 +159,8 @@ func (g gridView) eventLine(e model.Event, day time.Time, w int, past, focused b
 		return selectedStyle.Render(text), hits
 	}
 	text := start + fit(eventLabel(e, g.loc), w-width(start+end)) + end
-	return calendarStyle(g.calendars[e.CalendarID].Color).Faint(past).Render(text), hits
+	color := model.EffectiveColor(e, g.calendars[e.CalendarID], g.palette) // its own color, else its calendar's
+	return calendarStyle(color).Faint(past).Render(text), hits
 }
 
 func (g gridView) showing(e model.Event, p part) bool {
