@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/testutil"
 )
 
@@ -259,5 +261,29 @@ func TestDeleteConfirmShowsKeysAndSaysWhenCancelled(t *testing.T) {
 	}
 	if got := f.titlesOn(12); !slices.Contains(got, "Lunch with Sam") {
 		t.Errorf("Nov 12 = %v: lunch must still be there", got)
+	}
+}
+
+func TestEdgeReleasedOnSameDayDoesNothing(t *testing.T) {
+	f := newMouseFixture(t)
+	f.click(f.eventAt("Trip to Lisbon", 21, partEnd))
+
+	if m := f.model(); m.mode != modeNormal {
+		t.Errorf("mode = %v, want normal (no details box)", m.mode)
+	}
+}
+
+func TestEdgeOfReadOnlyEventShowsReasonOnly(t *testing.T) {
+	f := newMouseFixture(t)
+	f.st.UpsertCalendar(context.Background(), model.Calendar{AccountID: testutil.Account, ID: "hol",
+		Name: "Holidays", Selected: true, AccessRole: "reader"})
+	hol := testutil.AllDay("thx", "Thanksgiving", 2026, time.November, 26, 1)
+	hol.CalendarID = "hol"
+	f.put(hol)
+
+	f.click(f.eventAt("Thanksgiving", 26, partEnd))
+
+	if m := f.model(); m.mode != modeNormal || !strings.Contains(m.message, "read-only") {
+		t.Errorf("mode = %v, message = %q", m.mode, m.message)
 	}
 }

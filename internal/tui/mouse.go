@@ -97,6 +97,10 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 	case targetEvent:
 		m = m.selectDay(t.day)
 		if ok, why := canDrag(t.event, m.calendars[t.event.CalendarID]); !ok {
+			if t.part != partBody { // a resize attempt: just say why
+				m.message = why
+				return m, nil
+			}
 			m.detail, m.mode, m.message = t.event, modeDetail, why
 			return m, nil
 		}
@@ -132,8 +136,10 @@ func (m Model) dragOver(t target, y int) (tea.Model, tea.Cmd) {
 func (m Model) drop() (tea.Model, tea.Cmd) {
 	d := m.drag
 	m.drag = dragState{}
-	if d.over.Equal(d.from) { // no movement: it was a click
-		m.detail, m.mode, m.message = d.event, modeDetail, ""
+	if d.over.Equal(d.from) { // no movement
+		if d.part == partBody { // a click on the event
+			m.detail, m.mode, m.message = d.event, modeDetail, ""
+		}
 		return m, nil
 	}
 	ch, err := dragChanges(d.event, d.part, d.from, d.over, m.loc())
