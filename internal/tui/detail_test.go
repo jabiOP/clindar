@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jabiOP/clindar/internal/model"
@@ -122,7 +123,7 @@ func TestMeetJoinAndCopy(t *testing.T) {
 	var opened, copied string
 	f := newFixtureWith(t, Deps{
 		OpenURL: func(u string) error { opened = u; return nil },
-		Copy:    func(s string) error { copied = s; return nil },
+		Copy:    func(s string) string { copied = s; return "<copy " + s + ">" },
 	})
 	e := testutil.Timed("m", "Sync call", time.Date(2026, 11, 12, 16, 0, 0, 0, f.ny), 30*time.Minute)
 	e.MeetLink = "https://meet.google.com/abc-defg-hij"
@@ -134,6 +135,24 @@ func TestMeetJoinAndCopy(t *testing.T) {
 
 	if copied != e.MeetLink || opened != e.MeetLink {
 		t.Errorf("copied %q, opened %q", copied, opened)
+	}
+}
+
+// The copy sequence goes out inside a frame, so it can't interleave with one.
+func TestCopyGoesOutWithTheFrame(t *testing.T) {
+	f := newFixtureWith(t, Deps{Copy: func(s string) string { return "<copy " + s + ">" }})
+	e := testutil.Timed("m", "Sync call", time.Date(2026, 11, 12, 16, 0, 0, 0, f.ny), 30*time.Minute)
+	e.MeetLink = "https://meet.google.com/abc-defg-hij"
+	f.put(e)
+	f.openDetail(e)
+
+	m, cmd := f.m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	if got := m.View(); strings.Count(got, "<copy "+e.MeetLink+">") != 1 {
+		t.Fatalf("the frame should carry the copy once:\n%s", got)
+	}
+	m, _ = m.Update(cmd())
+	if strings.Contains(m.View(), "<copy") || m.(Model).message != "Meet link copied" {
+		t.Errorf("after the frame: message %q, view still copying: %v", m.(Model).message, strings.Contains(m.View(), "<copy"))
 	}
 }
 

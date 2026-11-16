@@ -12,7 +12,7 @@ import (
 
 func (m Model) View() string {
 	s, _ := m.layout()
-	return s
+	return m.copySeq + s // zero width: the renderer passes escape sequences through
 }
 
 // layout draws the screen and returns what is clickable where. View and the

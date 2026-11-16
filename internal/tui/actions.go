@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -143,13 +144,8 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case k.String() == "m" && link != "" && m.deps.OpenURL != nil: // join the Meet call
 		return m, m.openURL(link)
 	case k.String() == "y" && link != "" && m.deps.Copy != nil: // yank the Meet link
-		cp := m.deps.Copy
-		return m, func() tea.Msg {
-			if err := cp(link); err != nil {
-				return infoMsg{"couldn't copy: " + err.Error()}
-			}
-			return infoMsg{"Meet link copied"}
-		}
+		m.copySeq = m.deps.Copy(link) // drawn with the frame, not written beside it (they'd interleave)
+		return m, tea.Tick(copyFrameTime, func(time.Time) tea.Msg { return copiedMsg{} })
 	}
 	m.mode = modeNormal
 	return m, nil

@@ -1,5 +1,5 @@
-// Package clipboard copies text through the terminal (OSC 52): it works over
-// SSH and in most terminals, but not in macOS Terminal.app.
+// Package clipboard builds the terminal sequence (OSC 52) that copies text:
+// it works over SSH and in most terminals, but not in macOS Terminal.app.
 package clipboard
 
 import (
@@ -9,9 +9,10 @@ import (
 	"github.com/aymanbagabas/go-osc52/v2"
 )
 
-// Copy asks the terminal to put text on the clipboard. Inside tmux or screen
-// the sequence is wrapped so it reaches the outer terminal.
-func Copy(text string) error {
+// Sequence returns the escape sequence that asks the terminal to put text on
+// the clipboard; inside tmux or screen it is wrapped to reach the outer
+// terminal. The TUI sends it with a frame, so it can't interleave with one.
+func Sequence(text string) string {
 	seq := osc52.New(text)
 	switch {
 	case os.Getenv("TMUX") != "":
@@ -19,6 +20,5 @@ func Copy(text string) error {
 	case strings.HasPrefix(os.Getenv("TERM"), "screen"):
 		seq = seq.Screen()
 	}
-	_, err := seq.WriteTo(os.Stderr) // the TUI owns stdout; stderr reaches the same terminal
-	return err
+	return seq.String()
 }
