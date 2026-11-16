@@ -7,6 +7,7 @@ import (
 	"testing"
 	_ "time/tzdata"
 
+	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/output"
 	"github.com/jabiOP/clindar/internal/testutil"
 )
@@ -161,4 +162,34 @@ func TestWriteWarningSaysWhetherItReachedGoogle(t *testing.T) {
 	if _, stderr, _ := h.run("edit", id, "--title", "Dinner"); !strings.Contains(stderr, "not sent to Google yet") {
 		t.Errorf("push failed: stderr %q", stderr)
 	}
+}
+
+func TestEditMovesToAnotherCalendar(t *testing.T) {
+	h := newHarness(t)
+	h.google.AddCalendar(model.Calendar{AccountID: testutil.Account, ID: "work", Name: "Work", AccessRole: "owner", Selected: true})
+	h.mustRun("sync")
+	id := strings.TrimSpace(h.mustRun("add", "Lunch", "--at", "fri 12:00"))
+
+	h.mustRun("edit", id, "-c", "Work")
+
+	if out := h.mustRun("show", id, "--json", "--offline"); !strings.Contains(out, `"calendar_id":"work"`) {
+		t.Errorf("show = %s", out)
+	}
+	if _, ok := h.google.Event("work", id); !ok {
+		t.Error("not moved on Google")
+	}
+}
+
+func TestEditMovingOneOccurrenceSaysWhy(t *testing.T) {
+	h := newHarness(t)
+	h.google.AddCalendar(model.Calendar{AccountID: testutil.Account, ID: "work", Name: "Work", AccessRole: "owner", Selected: true})
+	h.mustRun("sync")
+	h.mustRun("add", "Standup", "--at", "mon 9:00", "--dur", "15m", "--repeat", "weekly", "--offline")
+	instance := strings.Fields(h.mustRun("agenda", "--from", "2026-11-23", "--days", "1", "--tsv", "--offline"))[0]
+
+	_, stderr, code := h.run("edit", instance, "-c", "Work", "--scope", "this", "--offline")
+	if code != 1 || !strings.Contains(stderr, "move the whole series (scope all)") {
+		t.Errorf("exit %d, stderr %q", code, stderr)
+	}
+	h.mustRun("edit", instance, "-c", "Work", "--scope", "all", "--offline")
 }

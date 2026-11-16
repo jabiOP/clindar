@@ -146,6 +146,7 @@ func newEditCmd(app *App) *cobra.Command {
 		Use:   "edit ID",
 		Short: "Change an event; only the flags you give are changed",
 		Example: `  clindar edit abc123 --at "thu 16:00"            # move, keeping duration
+  clindar edit abc123 -c Work                      # move to another calendar
   clindar edit abc123_20261116T140000Z --title Retro --scope this`,
 		Args: exactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -177,6 +178,8 @@ func newEditCmd(app *App) *cobra.Command {
 	}
 	addEventFlags(cmd, &f)
 	cmd.Flags().StringVar(&f.titleFlag, "title", "", "new title")
+	cmd.Flags().StringVarP(&f.calendar, "calendar", "c", "",
+		"move to this calendar (name or ID); a recurring event moves as a whole series (--scope all)")
 	addScopeFlag(cmd, &f.scope, "this | following | all")
 	return cmd
 }
@@ -193,6 +196,9 @@ func changesFrom(cmd *cobra.Command, f eventFlags, e model.Event, now time.Time,
 	}
 	if set("desc") {
 		ch.Description = &f.desc
+	}
+	if set("calendar") {
+		ch.CalendarID = &f.calendar
 	}
 	if set("invite") {
 		ch.Invite = &f.invite
