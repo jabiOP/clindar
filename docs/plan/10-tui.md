@@ -33,6 +33,8 @@ A golden test only proves the output didn't *change*. You are the one who decide
 
 ## Task 10.1: Golden helper, styles, and the grid
 
+> ⚠ **Changed in Task 13.11:** day numbers are left-aligned (`strconv.Itoa`, not `%2d`).
+
 > ⚠ **Superseded by Task 13.9 (one width measure):** this task's `fit()` in `styles.go` is rewritten on a `width()` helper (= `lipgloss.Width`); don't use `go-runewidth` for any width. They disagree on emoji like ❤️, which shifts grid columns.
 
 **Goal:** `renderGrid` draws 4 rows × 7 days. Each cell has a day label, then `HH:MM title` lines in the calendar's color,
