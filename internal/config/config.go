@@ -28,6 +28,7 @@ type Config struct {
 	DefaultCalendar string   `toml:"default_calendar"` // name or ID; "" = primary
 	WeekStart       string   `toml:"week_start"`       // "monday" | "sunday"
 	SendUpdates     string   `toml:"send_updates"`     // "all" | "none": email attendees on changes
+	DateOrder       string   `toml:"date_order"`       // "dmy" (20/11) | "mdy" (11/20)
 	Mouse           bool     `toml:"mouse"`            // TUI mouse support (hold Shift to select text)
 }
 
@@ -38,6 +39,7 @@ func Default() Config {
 		SyncTimeout:  Duration{5 * time.Second},
 		WeekStart:    "monday",
 		SendUpdates:  "all",
+		DateOrder:    "dmy",
 	}
 }
 
@@ -61,6 +63,9 @@ func Load(path string) (Config, error) {
 }
 
 func (c Config) validate() error {
+	if c.DateOrder != "dmy" && c.DateOrder != "mdy" {
+		return fmt.Errorf("date_order must be \"dmy\" (20/11) or \"mdy\" (11/20), got %q", c.DateOrder)
+	}
 	if c.WeekStart != "monday" && c.WeekStart != "sunday" {
 		return fmt.Errorf("week_start must be \"monday\" or \"sunday\", got %q", c.WeekStart)
 	}

@@ -55,6 +55,7 @@ func TestLoadRejectsBadInput(t *testing.T) {
 		"bad week_start":     "week_start = \"wednesday\"\n",
 		"bad send_updates":   "send_updates = \"some\"\n",
 		"interval too short": "sync_interval = \"1s\"\n",
+		"bad date_order":     "date_order = \"ymd\"\n",
 	}
 	for name, content := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -66,5 +67,15 @@ func TestLoadRejectsBadInput(t *testing.T) {
 				t.Errorf("error %q should mention the file", err)
 			}
 		})
+	}
+}
+
+func TestDateOrder(t *testing.T) {
+	if got := config.Default().DateOrder; got != "dmy" {
+		t.Errorf("default date_order = %q, want dmy", got)
+	}
+	c, err := config.Load(writeFile(t, "date_order = \"mdy\"\n"))
+	if err != nil || c.DateOrder != "mdy" {
+		t.Errorf("Load = %+v, %v; want date_order mdy", c, err)
 	}
 }

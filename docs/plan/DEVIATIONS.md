@@ -121,6 +121,9 @@ One line per deviation: what changed, and why.
   `TestClickSelectedEmptyDaySaysSo` covers Tue 17. (3) `TestEventModeMovesAndOpens` and
   `TestEventModeActsLikeTheDetailsBox` already passed before the change, because Enter used to open the list and the
   same keys there reached the same result; the other tests gave the red step.
+- **Task 14.9:** compiled as specified apart from imports. Go-to already parses through `m.deps.Dates`, ahead of
+  Task 14.10. Step 4's `docs/cli.md` doesn't exist yet (Phase 11, Task 11.2), so `20/11`, `20/11/2027`, `20/11
+  15:30` and the `date_order` key must go into its time-format and config tables when it is written.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

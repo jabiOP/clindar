@@ -24,7 +24,7 @@ func newAgendaCmd(app *App) *cobra.Command {
 		Args: exactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			w, err := agendaWindow(app.Now(), wf)
+			w, err := agendaWindow(app.Now(), wf, app.Dates())
 			if err != nil {
 				return usageError{err}
 			}

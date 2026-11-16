@@ -31,7 +31,7 @@ type windowFlags struct {
 
 // agendaWindow turns agenda flags into a window. Default: today + 6 days.
 // --to with a date (no time) includes that whole day.
-func agendaWindow(now time.Time, f windowFlags) (window, error) {
+func agendaWindow(now time.Time, f windowFlags, dates timeparse.Parser) (window, error) {
 	today := model.StartOfDay(now)
 	switch {
 	case f.within != "":
@@ -54,14 +54,14 @@ func agendaWindow(now time.Time, f windowFlags) (window, error) {
 	}
 	from := today
 	if f.from != "" {
-		t, _, err := timeparse.ParseTime(f.from, now)
+		t, _, err := dates.ParseTime(f.from, now)
 		if err != nil {
 			return window{}, fmt.Errorf("--from: %w", err)
 		}
 		from = t
 	}
 	if f.to != "" {
-		t, dateOnly, err := timeparse.ParseTime(f.to, now)
+		t, dateOnly, err := dates.ParseTime(f.to, now)
 		if err != nil {
 			return window{}, fmt.Errorf("--to: %w", err)
 		}

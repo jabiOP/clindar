@@ -74,7 +74,7 @@ func (m Model) formKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) submitForm() (tea.Model, tea.Cmd) {
 	now := m.deps.Now()
 	if m.form.editing == nil {
-		d, err := m.form.draft(now)
+		d, err := m.form.draft(now, m.deps.Dates)
 		if err != nil {
 			m.form.err = err.Error()
 			return m, nil
@@ -84,7 +84,7 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 			return err
 		})
 	}
-	ch, err := m.form.changes(now)
+	ch, err := m.form.changes(now, m.deps.Dates)
 	if err != nil {
 		m.form.err = err.Error()
 		return m, nil

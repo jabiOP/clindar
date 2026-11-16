@@ -16,6 +16,7 @@ import (
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 // Deps are the TUI's connections to the rest of the app.
@@ -24,9 +25,10 @@ type Deps struct {
 	Sync            func(context.Context) error // nil disables syncing (tests)
 	Now             func() time.Time
 	WeekStart       time.Weekday
-	DefaultCalendar string        // config default_calendar: pre-fills the add form
-	Mouse           bool          // config mouse: clicks, wheel, drag-and-drop (Phase 12)
-	SyncInterval    time.Duration // 0 disables periodic sync (tests)
+	DefaultCalendar string           // config default_calendar: pre-fills the add form
+	Dates           timeparse.Parser // config date_order: how typed dates are read
+	Mouse           bool             // config mouse: clicks, wheel, drag-and-drop (Phase 12)
+	SyncInterval    time.Duration    // 0 disables periodic sync (tests)
 }
 
 type view int

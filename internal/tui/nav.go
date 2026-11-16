@@ -8,7 +8,6 @@ import (
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/service"
-	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -176,7 +175,7 @@ func (m Model) gotoKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyEnter:
 		m.mode = modeNormal
-		t, _, err := timeparse.ParseTime(m.gotoInput.Value(), m.deps.Now())
+		t, _, err := m.deps.Dates.ParseTime(m.gotoInput.Value(), m.deps.Now())
 		if err != nil {
 			m.message = err.Error()
 			return m, nil

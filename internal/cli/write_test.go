@@ -90,3 +90,17 @@ func TestUsageErrorsExit2(t *testing.T) {
 		}
 	}
 }
+
+func TestAddUnderstandsSlashDatesInTheConfiguredOrder(t *testing.T) {
+	h := newHarness(t)
+	id := strings.TrimSpace(h.mustRun("add", "Dentist", "--at", "20/11 15:30", "--offline"))
+	if out := h.mustRun("show", id, "--offline", "--format", "{{.Start}}"); out != "2026-11-20T15:30:00-05:00\n" {
+		t.Errorf("day/month: start = %q", out)
+	}
+
+	h.app.Config.DateOrder = "mdy"
+	id = strings.TrimSpace(h.mustRun("add", "Dentist", "--at", "11/20 15:30", "--offline"))
+	if out := h.mustRun("show", id, "--offline", "--format", "{{.Start}}"); out != "2026-11-20T15:30:00-05:00\n" {
+		t.Errorf("month/day: start = %q", out)
+	}
+}

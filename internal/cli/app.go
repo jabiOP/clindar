@@ -14,6 +14,7 @@ import (
 	"github.com/jabiOP/clindar/internal/service"
 	"github.com/jabiOP/clindar/internal/store"
 	"github.com/jabiOP/clindar/internal/syncer"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 var ErrNotLoggedIn = errors.New("not logged in: run `clindar auth login` (first time? see `clindar auth setup --help`)")
@@ -135,6 +136,14 @@ func (a *App) PushAfterWrite(ctx context.Context, offline bool) {
 	if !offline {
 		a.syncQuietly(ctx)
 	}
+}
+
+// Dates is the date parser the user configured.
+func (a *App) Dates() timeparse.Parser {
+	if a.Config.DateOrder == "mdy" {
+		return timeparse.Parser{Order: timeparse.MDY}
+	}
+	return timeparse.Parser{}
 }
 
 // outputFlags are shared by every command that prints events.

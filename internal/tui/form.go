@@ -120,8 +120,8 @@ func (f form) value(i int) string { return strings.TrimSpace(f.inputs[i].Value()
 func (f form) changed(i int) bool { return f.value(i) != strings.TrimSpace(f.initial[i]) }
 
 // draft validates the form as a new event.
-func (f form) draft(now time.Time) (service.Draft, error) {
-	span, err := timeparse.ParseSpan(now, f.value(fStart), f.value(fEnd), f.value(fDuration), false)
+func (f form) draft(now time.Time, dates timeparse.Parser) (service.Draft, error) {
+	span, err := dates.ParseSpan(now, f.value(fStart), f.value(fEnd), f.value(fDuration), false)
 	if err != nil {
 		return service.Draft{}, err
 	}
@@ -137,7 +137,7 @@ func (f form) draft(now time.Time) (service.Draft, error) {
 }
 
 // changes returns only what the user changed in an edit form.
-func (f form) changes(now time.Time) (service.Changes, error) {
+func (f form) changes(now time.Time, dates timeparse.Parser) (service.Changes, error) {
 	var ch service.Changes
 	str := func(i int) *string { v := f.value(i); return &v }
 	if f.changed(fTitle) {
@@ -158,7 +158,7 @@ func (f form) changes(now time.Time) (service.Changes, error) {
 		if f.changed(fDuration) && !f.changed(fEnd) {
 			end = "" // a new duration replaces the pre-filled end
 		}
-		span, err := timeparse.ParseSpan(now, f.value(fStart), end, f.value(fDuration), false)
+		span, err := dates.ParseSpan(now, f.value(fStart), end, f.value(fDuration), false)
 		if err != nil {
 			return ch, err
 		}

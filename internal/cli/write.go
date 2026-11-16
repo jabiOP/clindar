@@ -54,13 +54,13 @@ func newAddCmd(app *App) *cobra.Command {
 				return usageError{err}
 			}
 			now := app.Now()
-			t, err := timeparse.ParseSpan(now, f.at, f.end, f.dur, f.allDay)
+			t, err := app.Dates().ParseSpan(now, f.at, f.end, f.dur, f.allDay)
 			if err != nil {
 				return usageError{err}
 			}
 			var until time.Time
 			if f.until != "" {
-				if until, _, err = timeparse.ParseTime(f.until, now); err != nil {
+				if until, _, err = app.Dates().ParseTime(f.until, now); err != nil {
 					return usageError{fmt.Errorf("--until: %w", err)}
 				}
 			}
@@ -139,7 +139,7 @@ func newEditCmd(app *App) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ch, err := changesFrom(cmd, f, e, app.Now())
+			ch, err := changesFrom(cmd, f, e, app.Now(), app.Dates())
 			if err != nil {
 				return usageError{err}
 			}
@@ -159,7 +159,7 @@ func newEditCmd(app *App) *cobra.Command {
 }
 
 // changesFrom builds service.Changes from the flags the user actually set.
-func changesFrom(cmd *cobra.Command, f eventFlags, e model.Event, now time.Time) (service.Changes, error) {
+func changesFrom(cmd *cobra.Command, f eventFlags, e model.Event, now time.Time, dates timeparse.Parser) (service.Changes, error) {
 	var ch service.Changes
 	set := cmd.Flags().Changed
 	if set("title") {
@@ -181,7 +181,7 @@ func changesFrom(cmd *cobra.Command, f eventFlags, e model.Event, now time.Time)
 	}
 	start := e.Start
 	if set("at") {
-		t, dateOnly, err := timeparse.ParseTime(f.at, now)
+		t, dateOnly, err := dates.ParseTime(f.at, now)
 		if err != nil {
 			return ch, fmt.Errorf("--at: %w", err)
 		}
@@ -196,7 +196,7 @@ func changesFrom(cmd *cobra.Command, f eventFlags, e model.Event, now time.Time)
 		return ch, fmt.Errorf("use --end or --dur, not both")
 	}
 	if set("end") {
-		end, _, err := timeparse.ParseTime(f.end, start)
+		end, _, err := dates.ParseTime(f.end, start)
 		if err != nil {
 			return ch, fmt.Errorf("--end: %w", err)
 		}

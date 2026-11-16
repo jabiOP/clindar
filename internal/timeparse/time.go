@@ -17,9 +17,26 @@ var weekdays = map[string]time.Weekday{
 	"sat": time.Saturday, "saturday": time.Saturday,
 }
 
+// DateOrder says how slash dates are read.
+type DateOrder int
+
+const (
+	DMY DateOrder = iota // 20/11 is 20 November (the default)
+	MDY                  // 11/20 is 20 November
+)
+
+// Parser reads user-typed dates. Its zero value reads day/month, so
+// Parser{} is the default everywhere a config isn't at hand.
+type Parser struct{ Order DateOrder }
+
+// ParseTime is Parser{}.ParseTime, kept for callers without a config.
+func ParseTime(input string, now time.Time) (time.Time, bool, error) {
+	return Parser{}.ParseTime(input, now)
+}
+
 // ParseTime parses input relative to now, returning a time in now's location.
 // dateOnly is true when the input named a day but no time of day.
-func ParseTime(input string, now time.Time) (t time.Time, dateOnly bool, err error) {
+func (p Parser) ParseTime(input string, now time.Time) (t time.Time, dateOnly bool, err error) {
 	raw := strings.TrimSpace(input)
 	if raw == "" {
 		return time.Time{}, false, fmt.Errorf("empty time")
@@ -45,14 +62,14 @@ func ParseTime(input string, now time.Time) (t time.Time, dateOnly bool, err err
 	fields := strings.Fields(s)
 	switch len(fields) {
 	case 1:
-		if d, ok := parseDate(fields[0], now); ok {
+		if d, ok := p.parseDate(fields[0], now); ok {
 			return d, true, nil
 		}
 		if h, m, ok := parseClock(fields[0]); ok {
 			return atClock(now, h, m), false, nil
 		}
 	case 2:
-		d, okDate := parseDate(fields[0], now)
+		d, okDate := p.parseDate(fields[0], now)
 		h, m, okClock := parseClock(fields[1])
 		if okDate && okClock {
 			return atClock(d, h, m), false, nil
@@ -69,8 +86,9 @@ func relative(s string, now time.Time, input string) (time.Time, bool, error) {
 	return now.Add(d), false, nil
 }
 
-// parseDate understands today/tomorrow/yesterday, weekday names, +Nd/+Nw, and YYYY-MM-DD.
-func parseDate(s string, now time.Time) (time.Time, bool) {
+// parseDate understands today/tomorrow/yesterday, weekday names, +Nd/+Nw,
+// YYYY-MM-DD, and slash dates (D/M, DD/MM/YYYY; month first with MDY).
+func (p Parser) parseDate(s string, now time.Time) (time.Time, bool) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	switch s {
 	case "today":
@@ -97,6 +115,46 @@ func parseDate(s string, now time.Time) (time.Time, bool) {
 	}
 	if d, err := time.ParseInLocation("2006-01-02", s, now.Location()); err == nil {
 		return d, true
+	}
+	return p.slashDate(s, today)
+}
+
+// slashDate reads D/M, DD/MM or DD/MM/YYYY (M/D/YYYY with MDY). Without a
+// year it is the next time that day comes round, today included.
+func (p Parser) slashDate(s string, today time.Time) (time.Time, bool) {
+	parts := strings.Split(s, "/")
+	if len(parts) < 2 || len(parts) > 3 {
+		return time.Time{}, false
+	}
+	var nums [3]int
+	for i, part := range parts {
+		n, err := strconv.Atoi(part)
+		if err != nil || n <= 0 {
+			return time.Time{}, false
+		}
+		nums[i] = n
+	}
+	day, month := nums[0], nums[1]
+	if p.Order == MDY {
+		day, month = month, day
+	}
+	if month > 12 || day > 31 {
+		return time.Time{}, false
+	}
+	at := func(y int) (time.Time, bool) {
+		d := time.Date(y, time.Month(month), day, 0, 0, 0, 0, today.Location())
+		return d, d.Day() == day // false for 31/11: Go rolls it over to 1 Dec
+	}
+	if len(parts) == 3 {
+		if len(parts[2]) != 4 {
+			return time.Time{}, false // 2-digit years are ambiguous
+		}
+		return at(nums[2])
+	}
+	for y := today.Year(); y <= today.Year()+8; y++ { // 8 years always reach the next 29 February
+		if d, ok := at(y); ok && !d.Before(today) {
+			return d, true
+		}
 	}
 	return time.Time{}, false
 }

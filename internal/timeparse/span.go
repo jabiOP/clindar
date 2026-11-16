@@ -16,13 +16,18 @@ type Span struct {
 // start ("--at 'fri 14:00' --end 15:30" means Friday 15:30). For all-day
 // events --end is the last day, inclusive.
 func ParseSpan(now time.Time, at, end, dur string, allDayFlag bool) (Span, error) {
+	return Parser{}.ParseSpan(now, at, end, dur, allDayFlag)
+}
+
+// ParseSpan is the package-level ParseSpan with this parser's date order.
+func (p Parser) ParseSpan(now time.Time, at, end, dur string, allDayFlag bool) (Span, error) {
 	if at == "" {
 		return Span{}, fmt.Errorf("a start time is required")
 	}
 	if end != "" && dur != "" {
 		return Span{}, fmt.Errorf("give an end or a duration, not both")
 	}
-	start, dateOnly, err := ParseTime(at, now)
+	start, dateOnly, err := p.ParseTime(at, now)
 	if err != nil {
 		return Span{}, fmt.Errorf("start: %w", err)
 	}
@@ -32,7 +37,7 @@ func ParseSpan(now time.Time, at, end, dur string, allDayFlag bool) (Span, error
 	}
 	switch {
 	case end != "":
-		e, _, err := ParseTime(end, t.Start)
+		e, _, err := p.ParseTime(end, t.Start)
 		if err != nil {
 			return Span{}, fmt.Errorf("end: %w", err)
 		}
