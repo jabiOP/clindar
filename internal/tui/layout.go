@@ -79,14 +79,9 @@ func (m Model) popup() (modal, bool) {
 			cals = append(cals, c)
 		}
 		p, _ := output.NewPrinter(&b, output.Pretty, "", m.loc(), cals)
+		p.SetWidth(max(m.width-4, 20)) // the box adds a border and 1 cell of padding per side
 		p.Event(m.detail)
 		text := strings.TrimRight(b.String(), "\n")
-		// Wrap long lines (link, guests, description) to fit the screen; the box
-		// adds a border and 1 cell of padding on each side. lipgloss measures and
-		// wraps ANSI-aware, so the bold title is safe.
-		if maxW := max(m.width-4, 20); lipgloss.Width(text) > maxW {
-			text = lipgloss.NewStyle().Width(maxW).Render(text)
-		}
 		md.text(text)
 		md.text("")
 		can := permissions(m.detail, m.calendars[m.detail.CalendarID])

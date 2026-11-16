@@ -164,3 +164,42 @@ func TestPrettyDetailShowsWholeSpanAndPlainRepeats(t *testing.T) {
 		}
 	}
 }
+
+func TestPrettyDetailWrapsValuesUnderThemselves(t *testing.T) {
+	e := sample(t)[0]
+	e.Attendees = []model.Attendee{
+		{Email: "alice@example.com", Response: model.ResponseAccepted},
+		{Email: "bob@example.com", Response: model.ResponseNeedsAction},
+		{Email: "carol@example.com", Response: model.ResponseDeclined},
+	}
+	var buf bytes.Buffer
+	p, err := output.NewPrinter(&buf, output.Pretty, "", testutil.NY(t), cals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.SetWidth(40)
+
+	if err := p.Event(e); err != nil {
+		t.Fatal(err)
+	}
+
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	inGuests := false
+	continued := 0
+	for _, l := range lines {
+		if w := lipgloss.Width(l); w > 40 {
+			t.Errorf("line wider than 40 (%d): %q", w, l)
+		}
+		switch {
+		case strings.HasPrefix(l, "Guests:"):
+			inGuests = true
+		case inGuests && strings.HasPrefix(l, strings.Repeat(" ", 11)):
+			continued++
+		default:
+			inGuests = false
+		}
+	}
+	if continued == 0 {
+		t.Errorf("Guests should wrap onto indented lines:\n%s", buf.String())
+	}
+}

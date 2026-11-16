@@ -82,6 +82,26 @@ type Printer struct {
 	tmpl      *template.Template
 	loc       *time.Location
 	calendars map[string]model.Calendar
+	width     int // pretty details wrap to this many cells; 0 = don't wrap
+}
+
+// SetWidth makes pretty details wrap to w cells: each "Label: value" row wraps its
+// value under itself. 0 (the default, used by the CLI) means don't wrap.
+func (p *Printer) SetWidth(w int) { p.width = w }
+
+const labelColumn = 11 // "%-10s ": a 10-cell label plus one space
+
+// wrap splits s into lines of at most w cells (ANSI-aware). It returns s
+// unchanged when wrapping is off or s already fits.
+func (p *Printer) wrap(s string, w int) []string {
+	if p.width <= 0 || w <= 0 || lipgloss.Width(s) <= w {
+		return []string{s}
+	}
+	lines := strings.Split(lipgloss.NewStyle().Width(w).Render(s), "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ") // Render pads every line to w
+	}
+	return lines
 }
 
 func NewPrinter(w io.Writer, mode Mode, format string, loc *time.Location, cals []model.Calendar) (*Printer, error) {
@@ -243,11 +263,18 @@ func (p *Printer) prettyAgenda(events []model.Event, from time.Time, days int) e
 
 func (p *Printer) prettyDetail(e model.Event) error {
 	row := func(label, value string) {
-		if value != "" {
-			fmt.Fprintf(p.w, "%-10s %s\n", label+":", value)
+		if value == "" {
+			return
+		}
+		lines := p.wrap(value, p.width-labelColumn)
+		fmt.Fprintf(p.w, "%-10s %s\n", label+":", lines[0])
+		for _, l := range lines[1:] {
+			fmt.Fprintf(p.w, "%s%s\n", strings.Repeat(" ", labelColumn), l)
 		}
 	}
-	fmt.Fprintln(p.w, dayStyle.Render(e.Title))
+	for _, l := range p.wrap(dayStyle.Render(e.Title), p.width) {
+		fmt.Fprintln(p.w, l)
+	}
 	row("When", p.when(e))
 	row("Calendar", p.calendars[e.CalendarID].Name)
 	row("Where", e.Location)
@@ -262,7 +289,10 @@ func (p *Printer) prettyDetail(e model.Event) error {
 	row("ID", e.ID)
 	row("Link", e.Link)
 	if e.Description != "" {
-		fmt.Fprintf(p.w, "\n%s\n", e.Description)
+		fmt.Fprintln(p.w)
+		for _, l := range p.wrap(e.Description, p.width) {
+			fmt.Fprintln(p.w, l)
+		}
 	}
 	return nil
 }
