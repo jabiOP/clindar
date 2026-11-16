@@ -61,9 +61,9 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeForm
 		return m, nil
 	case key.Matches(k, keys.ScrollDown):
-		m = m.moveDays(7, true)
+		m = m.moveDays(gridDays, true) // a whole screen, like Google's 4-week view
 	case key.Matches(k, keys.ScrollUp):
-		m = m.moveDays(-7, true)
+		m = m.moveDays(-gridDays, true)
 	default:
 		if m.view == viewGrid {
 			return m.gridKey(k)

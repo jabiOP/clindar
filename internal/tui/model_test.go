@@ -175,3 +175,17 @@ func TestGotoDateResetsListCursor(t *testing.T) {
 		t.Errorf("selected = %v, cursor = %d; want Nov 16 and the first event", m.selected, m.cursor)
 	}
 }
+
+func TestJKMoveFourWeeks(t *testing.T) {
+	f := newFixture(t)
+	start, sel := f.model().gridStart, f.model().selected
+
+	f.keys("J")
+	if m := f.model(); !m.gridStart.Equal(start.AddDate(0, 0, 28)) || !m.selected.Equal(sel.AddDate(0, 0, 28)) {
+		t.Errorf("after J: gridStart %v selected %v", m.gridStart, m.selected)
+	}
+	f.keys("K")
+	if m := f.model(); !m.gridStart.Equal(start) || !m.selected.Equal(sel) {
+		t.Errorf("after K: gridStart %v selected %v", m.gridStart, m.selected)
+	}
+}
