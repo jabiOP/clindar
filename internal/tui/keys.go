@@ -40,7 +40,7 @@ func helpText(mouse bool) string {
 			"  click a day to select it; click it again to open the list\n" +
 			"  click an event to see it; scroll to move a week\n" +
 			"  drag an event to another day; drag ◂ or ▸ to change its first or last day\n" +
-			"  hold Shift (Option on some Macs) to select text\n"
+			"  select text: Option-drag on macOS, Shift-drag elsewhere\n"
 	}
 	return s + "\nPress any key to close."
 }
