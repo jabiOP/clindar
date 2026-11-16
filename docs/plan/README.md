@@ -36,7 +36,7 @@ These files explain *how*, as small tasks.
 | 10 | `10-tui.md` | Bubble Tea UI: grid, list, detail, forms |
 | 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build |
 | 12 | `12-mouse.md` | Mouse: clicks, wheel, buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
-| 13 | `13-fixes.md` | Fixes from testing (13.1–13.10), then two product decisions: left-aligned day numbers, indented wrapped details |
+| 13 | `13-fixes.md` | Fixes from testing (13.1–13.10, 13.13), then two product decisions: left-aligned day numbers, indented wrapped details |
 
 ## Toolset primer (read once)
 

@@ -1967,5 +1967,6 @@ record the result in `DEVIATIONS.md`. If one is wrong, fix the code **and the fa
 | Single-occurrence invites show up | Have a second account invite you to **one** occurrence of their recurring meeting; `clindar sync`; it appears in `clindar agenda` as a normal event |
 | A 401 keeps edits queued | Revoke clindar at <https://myaccount.google.com/permissions>, make an edit, `clindar sync` should fail with the "log in" message, `clindar auth status` shows the pending change, `clindar auth login` then delivers it |
 | Each occurrence's link opens its own date (Task 13.2) | `clindar show <occurrence id> --json` for a non-first occurrence of a recurring event; open its `link` in a browser; Google shows that date, not the first one |
+| Switching all-day ↔ timed sticks (Task 13.13) | Make an all-day event timed with `clindar edit ID --at "fri 10:00"`, `clindar sync`, then all-day again with `--at fri --all-day`, `clindar sync`. The web UI shows each change. |
 | Keyring works | `secret-tool search service clindar` (Linux) or Keychain Access (macOS) shows the token |
 | Token refresh | Leave it for over an hour, then `clindar sync` still works without logging in |

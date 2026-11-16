@@ -14,6 +14,8 @@ go get google.golang.org/api@v0.314.0
 
 ## Task 5.1: Errors and conversion
 
+> ⚠ **Fixed in Task 13.13:** `ToAPI` must also send the *other* kind of start/end fields as nulls (`NullFields`), or switching between all-day and timed reverts.
+
 **Goal:** `FromAPI`/`ToAPI`/`CalendarFromAPI`, and error mapping.
 
 Pay attention to:
