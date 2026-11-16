@@ -205,6 +205,13 @@ One line per deviation: what changed, and why.
   such a migration. Test: `TestUpgradeForcesAFullResync` (white-box: it rewinds `user_version` to 3). A daemon still
   running an old binary keeps syncing with old code, so it must be restarted. Pending the user's confirmation after
   upgrading.
+- **User report: Enter in the form did two jobs (Task 14.17).** On a picker field, Enter opened the list instead of
+  saving, and the [Save] button sent Enter, so with a list open it chose an option instead of saving. Now: Enter
+  always saves, except inside an open list, where it chooses; Space opens a list; Ctrl-S saves from anywhere, and
+  with a list open it first takes the highlighted option; [Save] sends Ctrl-S. The hint lines change with the state
+  (list open or not). `TestRepeatPickerMakesASeries` now opens the list with Space. Tests:
+  `TestEnterOnAPickerSaves`, `TestSaveButtonWithAListOpen`. (The user's other point, that Esc discards the form,
+  which isn't vim-like, is a design question for the architect.)
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

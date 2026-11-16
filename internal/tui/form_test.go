@@ -67,8 +67,8 @@ func TestRepeatPickerMakesASeries(t *testing.T) {
 	f.keys("Yoga")
 	f.focus(fRepeat)
 	f.keys("l", "l", "l") // none → daily → weekdays → weekly
-	f.keys("enter")       // on a picker: opens the dropdown…
-	f.keys("enter")       // …and chooses "weekly" again; then save from a text field:
+	f.keys(" ")           // space opens the list…
+	f.keys("enter")       // …and enter chooses "weekly" again (inside a list, enter chooses); then save:
 	f.focus(fTitle)
 	f.keys("enter")
 
@@ -172,5 +172,43 @@ func TestColorPickerSetsAndClearsTheColor(t *testing.T) {
 		if op.Payload.Title == "Dinner" && op.Payload.ColorID != "" {
 			t.Errorf("queued op payload ColorID = %q, want \"\"", op.Payload.ColorID)
 		}
+	}
+}
+
+// Enter saves the form even when the cursor is on a (closed) picker; Space opens it.
+func TestEnterOnAPickerSaves(t *testing.T) {
+	f := newFixture(t)
+	f.openFullForm()
+	f.keys("Yoga")
+	f.focus(fRepeat)
+	f.keys("l", "enter") // none → daily, then save
+
+	if m := f.model(); m.mode != modeNormal {
+		t.Fatalf("mode = %v, want the form saved and closed", m.mode)
+	}
+	if got := f.titlesOn(13); !slices.Contains(got, "Yoga") {
+		t.Errorf("Nov 13 = %v, want a daily Yoga", got)
+	}
+}
+
+// [Save] (ctrl+s) saves even while a picker's list is open, keeping the highlighted choice.
+func TestSaveButtonWithAListOpen(t *testing.T) {
+	f := newMouseFixture(t)
+	f.click(f.button("a"))
+	f.click(f.button("tab"))
+	f.keys("Yoga")
+	f.focus(fRepeat)
+	f.keys(" ", "j") // open the list, highlight "daily"
+	if !f.model().form.pickerOpen() {
+		t.Fatal("space should open the Repeat list")
+	}
+
+	f.click(f.button("ctrl+s"))
+
+	if m := f.model(); m.mode != modeNormal {
+		t.Fatalf("mode = %v, want saved", m.mode)
+	}
+	if got := f.titlesOn(13); !slices.Contains(got, "Yoga") {
+		t.Errorf("Nov 13 = %v, want a daily Yoga", got)
 	}
 }

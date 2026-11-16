@@ -63,7 +63,10 @@ func (m Model) formKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case k.Type == tea.KeyEsc && !m.form.pickerOpen(): // an open list closes first
 		m.mode = modeNormal
 		return m, nil
-	case k.Type == tea.KeyEnter && !m.form.isPicker(m.form.focus): // on a picker, Enter opens/chooses
+	case k.Type == tea.KeyCtrlS: // save from anywhere; an open list's highlighted option is chosen first
+		m.form = m.form.chooseHighlighted()
+		return m.submitForm()
+	case k.Type == tea.KeyEnter && !m.form.pickerOpen(): // inside an open list, Enter chooses instead
 		return m.submitForm()
 	}
 	var cmd tea.Cmd

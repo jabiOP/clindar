@@ -232,7 +232,8 @@ func (f form) isPicker(i int) bool { _, ok := f.pickers[i]; return ok }
 func (f form) pickerOpen() bool { p, ok := f.pickers[f.focus]; return ok && p.open }
 
 // pickerKeys are the keys a closed, focused picker takes; the rest navigate.
-var pickerKeys = map[string]bool{"h": true, "l": true, "left": true, "right": true, "ctrl+n": true, "ctrl+p": true, " ": true, "enter": true}
+// Enter isn't one of them: in the form, Enter always saves (Space opens a list).
+var pickerKeys = map[string]bool{"h": true, "l": true, "left": true, "right": true, "ctrl+n": true, "ctrl+p": true, " ": true}
 
 func (f form) Update(msg tea.Msg) (form, tea.Cmd) {
 	k, isKey := msg.(tea.KeyMsg)
@@ -453,11 +454,16 @@ func (f form) view(width int, mouse bool) modal {
 	}
 	md.text("")
 	if mouse {
-		md.buttons(button{"Save", "enter"}, button{"Cancel", "esc"})
+		md.buttons(button{"Save", "ctrl+s"}, button{"Cancel", "esc"}) // ctrl+s saves even with a list open
 	}
 	// Two lines: one would be wider than an 80-column terminal.
-	md.text(dimStyle.Render("ctrl+j/tab next · ctrl+k previous · h/l change"))
-	md.text(dimStyle.Render("space list · enter save · esc cancel"))
+	if p, ok := f.pickers[f.focus]; ok && p.open {
+		md.text(dimStyle.Render("in the list: j/k move · enter choose · esc close the list"))
+		md.text(dimStyle.Render("ctrl+s save"))
+	} else {
+		md.text(dimStyle.Render("ctrl+j/tab next · ctrl+k previous · h/l change · space list"))
+		md.text(dimStyle.Render("enter or ctrl+s save · esc cancel"))
+	}
 	return md
 }
 
@@ -486,4 +492,14 @@ func (f form) withPalette(palette map[string]string) form {
 		p.options[i].swatch = palette[p.options[i].value]
 	}
 	return f.withPicker(fColor, p)
+}
+
+// chooseHighlighted closes an open list on its highlighted option, as Enter in
+// the list would: saving with a list open keeps what the user was pointing at.
+func (f form) chooseHighlighted() form {
+	if !f.pickerOpen() {
+		return f
+	}
+	np, _, _ := f.pickers[f.focus].Update(tea.KeyMsg{Type: tea.KeyEnter})
+	return f.withPicker(f.focus, np)
 }
