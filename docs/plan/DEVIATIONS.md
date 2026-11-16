@@ -182,6 +182,22 @@ One line per deviation: what changed, and why.
   moved from indirect to direct at the same version. `m`/`y` also require `Deps.OpenURL`/`Deps.Copy` to be set, like
   `o`. The convert and output tests described in the plan are `TestMeetLinkIsRead` (which also checks that patches
   send no `conferenceData` or `hangoutLink`) and `TestMeetLinkInDetailAndJSON`.
+- **Task 14.23 (terminal checks, tmux 3.4, 100×32, local database; no real Google, mouse or trackpad):** passed:
+  quick add's six brief examples (live preview, e.g. "Mon 16 Nov, 09:00–09:15, every weekday"; each saved as
+  intended: 9–10, Fri 13:00, Fri 15:30–16:15, Fri 20–Mon 23 all-day, a weekday series, all-day today); `J` moves 4
+  weeks; past days faint (`\e[2m`), today and future not; event mode marks the focused event and shows its key hint;
+  go-to `dec` → Dec 1, `15` → the next 15th, `14:00` refused with "isn't a day"; `Ctrl-J`/`Ctrl-K` move between
+  fields and **Ctrl-J doesn't save** (nothing created after three presses); the calendar menu hides and shows the
+  grid's events at once, and `clindar agenda` (no `-c`) follows it; the Color picker saves `color_id` (11 on a
+  recurring occurrence, via "this event"), drawn in tmux as red (`38;5;160`, tmux's 256-color version) next to
+  calendar-blue events, and JSON reports `#dc2127` (the palette was inserted by hand: offline databases have none
+  until a real sync); details show Meet with [Open in Google] [Join] [Copy] and no ID or Link; `y` reports "Meet
+  link copied"; `o`/`m` report "couldn't open the browser" (no browser in this container). **Left for a person:**
+  Option-drag on macOS; a real trackpad swipe and wheel notch; whether [Copy] reaches the clipboard in
+  iTerm2/kitty/WezTerm, tmux (`set-clipboard on`) and not Terminal.app; [Open in Google]/[Join] in a real browser;
+  "+N more" scrolling in event mode on a small terminal (covered by `TestEventModeScrollsThroughHiddenEvents`); and
+  the four real-Google rows (hiding a calendar leaves Google's checkbox alone; color set and cleared shows in the
+  web UI; a Meet event keeps its link after a title edit; a quick-add series matches the web UI).
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
