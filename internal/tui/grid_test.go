@@ -119,3 +119,17 @@ func TestGridColumnsStayAlignedWithEmoji(t *testing.T) {
 		}
 	}
 }
+
+// Day numbers start where their events start (" 2" would put the digit one column right).
+func TestDayNumbersAreLeftAligned(t *testing.T) {
+	ny := testutil.NY(t)
+	start := time.Date(2026, 11, 30, 0, 0, 0, 0, ny) // Mon Nov 30
+	later := time.Date(2026, 12, 25, 0, 0, 0, 0, ny) // keeps the today/selected markers off the first row
+	got, _ := renderGrid(gridView{start: start, today: later, selected: later,
+		days: model.GroupByDay(nil, start, gridDays), width: 70, height: 18, loc: ny})
+
+	row := strings.Split(got, "\n")[2] // title, weekday names, then the first week's day numbers
+	if !strings.HasPrefix(row, "30        Dec 1     2         3 ") {
+		t.Errorf("first week's labels = %q", row)
+	}
+}

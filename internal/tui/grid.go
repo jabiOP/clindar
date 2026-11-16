@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,7 +56,7 @@ func renderGrid(g gridView) (string, hitMap) {
 func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 	var hits hitMap
 	hits.add(0, 0, w, h, target{kind: targetDay, day: day.Date})
-	label := fmt.Sprintf("%2d", day.Date.Day())
+	label := strconv.Itoa(day.Date.Day()) // left-aligned: the digit starts where the events start
 	if day.Date.Day() == 1 {
 		label = day.Date.Format("Jan 2")
 	}
