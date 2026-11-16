@@ -7,8 +7,6 @@ import (
 	"github.com/jabiOP/clindar/internal/model"
 )
 
-const listDays = 14
-
 // listView renders the agenda list. entries is the flat, selectable list of
 // events (an event spanning days appears once per day, as in GroupByDay).
 type listView struct {
@@ -50,7 +48,7 @@ func renderList(v listView) (string, hitMap) {
 		}
 	}
 	if len(rows) == 0 {
-		return dimStyle.Render("No events in the next two weeks. Press a to add one."), nil
+		return dimStyle.Render("No events. Press a to add one."), nil
 	}
 	// Scroll so the cursor's row is visible.
 	cursorRow := 0

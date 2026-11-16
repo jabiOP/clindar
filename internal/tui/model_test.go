@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 	_ "time/tzdata"
@@ -199,5 +200,55 @@ func TestJKMoveFourWeeks(t *testing.T) {
 	f.keys("K")
 	if m := f.model(); !m.gridStart.Equal(start) || !m.selected.Equal(sel) {
 		t.Errorf("after K: gridStart %v selected %v", m.gridStart, m.selected)
+	}
+}
+
+func TestListFillsTheScreen(t *testing.T) {
+	f := newFixture(t) // height 20: 19 rows of body
+	f.keys("tab")
+
+	lines := strings.Split(f.m.View(), "\n")
+	used := 0
+	for _, l := range lines[:len(lines)-1] { // without the status bar
+		if strings.TrimSpace(l) != "" {
+			used++
+		}
+	}
+	if used != 19 {
+		t.Errorf("list uses %d of 19 rows:\n%s", used, f.m.View())
+	}
+}
+
+func TestListScrollsPastTheEnd(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab")
+	for range 40 { // ~20 weeks of twice-weekly standups: far past the first 4 weeks
+		f.keys("j")
+	}
+	if got := f.model().cursor; got != 40 {
+		t.Errorf("cursor = %d, want 40 (the list must keep loading)", got)
+	}
+}
+
+func TestListScrollsBackBeforeTheStart(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab", "k") // on Thu 12's first entry; k goes to the day before the list's start
+
+	m := f.model()
+	got := m.entries()[m.cursor]
+	if want := time.Date(2026, 11, 9, 9, 0, 0, 0, f.ny); !got.Start.Equal(want) {
+		t.Errorf("cursor on %q at %v, want Mon 9's standup", got.Title, got.Start)
+	}
+}
+
+func TestListPagesWithJK(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab", "J")
+	if got := f.model().cursor; got != 17 { // a page = height − 3
+		t.Fatalf("after J cursor = %d, want 17", got)
+	}
+	f.keys("K")
+	if got := f.model().cursor; got != 0 {
+		t.Errorf("after K cursor = %d, want 0", got)
 	}
 }

@@ -108,6 +108,11 @@ One line per deviation: what changed, and why.
   combined with bold), so the literal-string tests work. The list test, described but not written out in the plan,
   is `TestPastDayHeadersAreFaint`; `renderList` returns `(string, hitMap)` since Task 12.3. To get the stated red
   step (no faint codes) instead of a compile error, the `today` field was added to `listView` before the test ran.
+- **Task 14.7, two gaps in the spec filled:** (1) `window()` includes the list's range only while the list is
+  showing (`m.view == viewList`); otherwise a list grown to two years, or one never opened (zero `listFrom`), would
+  be loaded behind the grid. (2) Go-to (`g`) inside the list now calls `openList` for the new day, like `t`/`h`/`l`;
+  since the list no longer follows `m.selected` by itself, it would otherwise stay where it was. The removed
+  `listDays` constant became the `listDays()` method, as specified.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

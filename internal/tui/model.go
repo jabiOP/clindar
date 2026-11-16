@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/charmbracelet/bubbles/cursor"
@@ -73,6 +74,10 @@ type Model struct {
 	drag      dragState   // mouse drag in the grid (Phase 12)
 	hover     edgeRef     // the handle under the pointer (Phase 12.7)
 	lastWheel time.Time   // last wheel step taken (throttle, Task 14.4)
+
+	listFrom   time.Time // first day of the list
+	listSpan   int       // days loaded in the list
+	listAnchor *entryRef // after prepending: the entry the cursor must land just before
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
 	allowedScopes string // e.g. "tfa" or "ta"
@@ -120,8 +125,13 @@ func (m Model) window() (time.Time, time.Time) {
 		from = m.selected
 	}
 	to := m.gridStart.AddDate(0, 0, gridDays)
-	if end := m.selected.AddDate(0, 0, listDays); end.After(to) {
-		to = end
+	if m.view == viewList { // only while it shows: the list may span up to 2 years
+		if m.listFrom.Before(from) {
+			from = m.listFrom
+		}
+		if end := m.listFrom.AddDate(0, 0, m.listSpan); end.After(to) {
+			to = end
+		}
 	}
 	return from, to
 }
@@ -180,6 +190,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, c := range msg.calendars {
 			m.calendars[c.ID] = c
 		}
+		if m.view == viewList {
+			if m.listAnchor != nil { // just prepended: land before the old first entry
+				if i := slices.Index(m.entryRefs(), *m.listAnchor); i > 0 {
+					m.cursor = i - 1
+				}
+				m.listAnchor = nil
+			}
+			if m.listRows() < 2*(m.height-1) && m.listSpan < listMax { // a screenful, plus one ahead for J
+				m.listSpan += listStep
+				return m, m.load()
+			}
+		}
 		m.cursor = min(m.cursor, max(len(m.entries())-1, 0))
 		return m, nil
 	case syncDoneMsg:
@@ -211,8 +233,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) loc() *time.Location { return m.deps.Now().Location() }
 
 // entries is the list view's selectable events.
-func (m Model) entries() []model.Event {
-	return listEntries(model.GroupByDay(m.events, m.selected, listDays))
+func (m Model) entries() []model.Event { return listEntries(m.listDays()) }
+
+const (
+	listInitial = 28      // days the list starts with
+	listStep    = 14      // days added when scrolling past either end
+	listMax     = 2 * 366 // never load more than this
+)
+
+// entryRef identifies a list entry across reloads (multi-day events appear once per day).
+type entryRef struct {
+	calendarID, eventID string
+	day                 time.Time
+}
+
+func (m Model) listDays() []model.Day { return model.GroupByDay(m.events, m.listFrom, m.listSpan) }
+
+func (m Model) entryRefs() []entryRef {
+	var out []entryRef
+	for _, d := range m.listDays() {
+		for _, e := range d.Events {
+			out = append(out, entryRef{e.CalendarID, e.ID, d.Date})
+		}
+	}
+	return out
+}
+
+// listRows is how many lines the list draws (day headers + entries).
+func (m Model) listRows() int {
+	rows := 0
+	for _, d := range m.listDays() {
+		if len(d.Events) > 0 {
+			rows += 1 + len(d.Events)
+		}
+	}
+	return rows
+}
+
+// openList shows the list starting at day.
+func (m Model) openList(day time.Time) Model {
+	m.view, m.listFrom, m.listSpan, m.cursor = viewList, day, listInitial, 0
+	return m
 }
 
 func ago(d time.Duration) string {

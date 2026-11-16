@@ -45,10 +45,16 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Help):
 		m.mode = modeHelp
 	case key.Matches(k, keys.Toggle):
-		m.view = 1 - m.view
-		m.cursor = 0
+		if m.view == viewGrid {
+			m = m.openList(m.selected)
+		} else {
+			m.view, m.cursor = viewGrid, 0
+		}
 	case key.Matches(k, keys.Today):
 		m.selected, m.gridStart, m.cursor = m.today, weekStart(m.today, m.deps.WeekStart), 0
+		if m.view == viewList {
+			m = m.openList(m.selected)
+		}
 	case key.Matches(k, keys.Goto):
 		m.mode = modeGoto
 		m.gotoInput.SetValue("")
@@ -60,6 +66,14 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.form = newEventForm(m.selected, m.deps.DefaultCalendar)
 		m.mode = modeForm
 		return m, nil
+	case key.Matches(k, keys.ScrollDown, keys.ScrollUp) && m.view == viewList:
+		dir := 1
+		if key.Matches(k, keys.ScrollUp) {
+			dir = -1
+		}
+		page := max(1, m.height-3)
+		m.cursor = min(max(m.cursor+dir*page, 0), max(len(m.entries())-1, 0))
+		return m.extendListIfNeeded()
 	case key.Matches(k, keys.ScrollDown):
 		m = m.moveDays(gridDays, true) // a whole screen, like Google's 4-week view
 	case key.Matches(k, keys.ScrollUp):
@@ -84,7 +98,7 @@ func (m Model) gridKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Down):
 		m = m.moveDays(7, false)
 	case key.Matches(k, keys.Open):
-		m.view, m.cursor = viewList, 0
+		m = m.openList(m.selected)
 	case key.Matches(k, keys.Edit, keys.Delete, keys.RSVP):
 		m.message = "press enter to pick an event in the list"
 	}
@@ -100,14 +114,17 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(k, keys.Down):
 		m.cursor = min(m.cursor+1, max(len(entries)-1, 0))
+		return m.extendListIfNeeded()
+	case key.Matches(k, keys.Up) && m.cursor == 0:
+		return m.prependList()
 	case key.Matches(k, keys.Up):
-		m.cursor = max(m.cursor-1, 0)
+		m.cursor--
 	case key.Matches(k, keys.Left):
 		m = m.moveDays(-1, false)
-		m.cursor = 0
+		m = m.openList(m.selected)
 	case key.Matches(k, keys.Right):
 		m = m.moveDays(1, false)
-		m.cursor = 0
+		m = m.openList(m.selected)
 	case current == nil:
 		return m, nil
 	case key.Matches(k, keys.Open):
@@ -161,9 +178,31 @@ func (m Model) gotoKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m = m.moveDays(int(model.StartOfDay(t).Sub(m.selected).Round(24*time.Hour)/(24*time.Hour)), false)
 		m.cursor = 0 // like h/l/t: a new day starts at its first event
+		if m.view == viewList {
+			m = m.openList(m.selected) // the list follows the new day
+		}
 		return m, m.reloadIfNeeded()
 	}
 	var cmd tea.Cmd
 	m.gotoInput, cmd = m.gotoInput.Update(k)
 	return m, cmd
+}
+
+// extendListIfNeeded loads 2 more weeks when the cursor is near the end.
+func (m Model) extendListIfNeeded() (tea.Model, tea.Cmd) {
+	if m.cursor >= len(m.entries())-3 && m.listSpan < listMax {
+		m.listSpan += listStep
+		return m, m.reloadIfNeeded()
+	}
+	return m, nil
+}
+
+// prependList loads the 2 weeks before the list; after the load, the cursor
+// lands on the entry just before the current first one.
+func (m Model) prependList() (tea.Model, tea.Cmd) {
+	if refs := m.entryRefs(); len(refs) > 0 {
+		m.listAnchor = &refs[0]
+	}
+	m.listFrom, m.listSpan = m.listFrom.AddDate(0, 0, -listStep), m.listSpan+listStep
+	return m, m.reloadIfNeeded()
 }

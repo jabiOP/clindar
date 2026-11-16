@@ -61,7 +61,7 @@ func (m Model) wheel(dir int) (tea.Model, tea.Cmd) {
 	m.lastWheel = now
 	if m.view == viewList {
 		m.cursor = min(max(m.cursor+dir, 0), max(len(m.entries())-1, 0))
-		return m, nil
+		return m.extendListIfNeeded()
 	}
 	m = m.moveDays(dir, false)
 	return m, m.reloadIfNeeded()
@@ -87,13 +87,13 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		return m.handleKey(keyMsg(t.key))
 	case targetDay:
 		if t.day.Equal(m.selected) {
-			m.view, m.cursor = viewList, 0
+			m = m.openList(m.selected)
 			return m, m.reloadIfNeeded()
 		}
 		m = m.selectDay(t.day)
 	case targetMore:
 		m = m.selectDay(t.day)
-		m.view, m.cursor = viewList, 0
+		m = m.openList(m.selected)
 	case targetEvent:
 		m = m.selectDay(t.day)
 		if ok, why := canDrag(t.event, m.calendars[t.event.CalendarID]); !ok {
