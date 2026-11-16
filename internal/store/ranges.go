@@ -48,12 +48,14 @@ func (s *Store) Exceptions(ctx context.Context, accountID, calendarID, seriesID 
 		accountID, calendarID, seriesID)
 }
 
-// ClearCalendarEvents deletes a calendar's cached events, except ones with
-// pending outbox ops (local edits that haven't reached Google yet).
+// ClearCalendarEvents deletes a calendar's cached events, except ones (and
+// their series' exceptions) owned by pending outbox ops: local edits, or
+// moves into this calendar, that haven't reached Google yet.
 func (s *Store) ClearCalendarEvents(ctx context.Context, accountID, calendarID string) error {
+	const owned = `(SELECT event_id FROM outbox WHERE account_id = ? AND (calendar_id = ? OR destination = ?))`
 	_, err := s.q.ExecContext(ctx, `DELETE FROM events
 		WHERE account_id = ? AND calendar_id = ?
-		AND id NOT IN (SELECT event_id FROM outbox WHERE account_id = ? AND calendar_id = ?)`,
-		accountID, calendarID, accountID, calendarID)
+		AND id NOT IN `+owned+` AND series_id NOT IN `+owned,
+		accountID, calendarID, accountID, calendarID, calendarID, accountID, calendarID, calendarID)
 	return err
 }

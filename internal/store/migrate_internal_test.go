@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 
@@ -44,5 +45,39 @@ func TestUpgradeForcesAFullResync(t *testing.T) {
 	defer s2.Close()
 	if tok, _ := s2.CalendarSyncToken(ctx, "a", "c"); tok != "new-token" {
 		t.Errorf("after a second open: token = %q, want it kept", tok)
+	}
+}
+
+// A database from before migration 5 keeps its queued ops, in order.
+func TestMigration5KeepsQueuedOps(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "x.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range migrations[:4] {
+		if _, err := db.ExecContext(ctx, m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.ExecContext(ctx, "PRAGMA user_version = 4")
+	if _, err := db.ExecContext(ctx, `INSERT INTO outbox (seq, account_id, calendar_id, event_id, op, created_at)
+		VALUES (7, 'a', 'c', 'e1', 'patch', 0)`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.Enqueue(ctx, Op{AccountID: "a", CalendarID: "c", EventID: "e2", Kind: OpMove, Destination: "d"}); err != nil {
+		t.Fatal(err)
+	}
+	ops, _ := s.PendingOps(ctx, "a")
+	if len(ops) != 2 || ops[0].Seq != 7 || ops[1].Seq <= 7 || ops[1].Destination != "d" {
+		t.Errorf("ops = %+v, want seq 7 kept and the move after it", ops)
 	}
 }

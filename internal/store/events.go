@@ -71,6 +71,16 @@ func (s *Store) DeleteSeries(ctx context.Context, accountID, calendarID, seriesI
 	return err
 }
 
+// MoveSeries moves an event, or a series master with all its exceptions, to
+// another calendar. IDs stay the same, as on Google. A stale copy already in
+// the destination is replaced.
+func (s *Store) MoveSeries(ctx context.Context, accountID, from, to, id string) error {
+	_, err := s.q.ExecContext(ctx, `UPDATE OR REPLACE events
+		SET calendar_id = ?, data = json_set(data, '$.calendar_id', ?)
+		WHERE account_id = ? AND calendar_id = ? AND (id = ? OR series_id = ?)`, to, to, accountID, from, id, id)
+	return err
+}
+
 // DeleteExceptionsFrom deletes a series' exceptions whose original slot is at or after from.
 // Used when a series is truncated ("this and following").
 func (s *Store) DeleteExceptionsFrom(ctx context.Context, accountID, calendarID, seriesID string, from time.Time) error {

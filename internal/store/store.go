@@ -177,4 +177,31 @@ CREATE TABLE event_colors (
 	`
 UPDATE calendars SET sync_token = '';
 UPDATE sync_state SET calendars_token = '';
+`,
+	// 5: the "move" op. SQLite can't alter a CHECK, so the outbox is rebuilt;
+	// rows keep their seq (the push order).
+	`
+CREATE TABLE outbox_new (
+	seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+	account_id   TEXT NOT NULL,
+	calendar_id  TEXT NOT NULL,              -- the calendar the request goes to (a move's source)
+	event_id     TEXT NOT NULL,
+	op           TEXT NOT NULL CHECK (op IN ('insert', 'patch', 'rsvp', 'delete', 'move')),
+	destination  TEXT NOT NULL DEFAULT '',   -- move only: the calendar the event goes to
+	payload      TEXT NOT NULL DEFAULT '',   -- JSON model.Event (not for delete)
+	if_match     TEXT NOT NULL DEFAULT '',
+	send_updates TEXT NOT NULL DEFAULT 'none',
+	version      INTEGER NOT NULL DEFAULT 1,
+	attempts     INTEGER NOT NULL DEFAULT 0,
+	last_error   TEXT NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL
+);
+INSERT INTO outbox_new (seq, account_id, calendar_id, event_id, op, payload, if_match, send_updates,
+	version, attempts, last_error, created_at)
+	SELECT seq, account_id, calendar_id, event_id, op, payload, if_match, send_updates,
+	version, attempts, last_error, created_at FROM outbox;
+DROP TABLE outbox;
+ALTER TABLE outbox_new RENAME TO outbox;
+CREATE INDEX outbox_by_event ON outbox (account_id, calendar_id, event_id);
+CREATE INDEX outbox_by_destination ON outbox (account_id, destination, event_id);
 `}
