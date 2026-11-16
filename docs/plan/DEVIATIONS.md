@@ -137,6 +137,10 @@ One line per deviation: what changed, and why.
   `[Calendars]`.
 - **Task 14.14:** compiled and passed as written (after `gofmt`). New package `internal/quickadd` (→ `timeparse`,
   `recur`): the README's "Final package map" and its dependency-direction list should gain it.
+- **Task 14.15:** compiled and passed as written. Worth noting in `docs/cli.md` and `docs/scripting.md`: a title
+  read from stdin (`clindar add -`) with no `--at` also goes through quick add, so a task line ending in a token
+  word (`… daily`, `… fri`) gets parsed. The GTD recipes pass `--at`, which keeps the title literal; the docs should
+  say so.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

@@ -104,3 +104,26 @@ func TestAddUnderstandsSlashDatesInTheConfiguredOrder(t *testing.T) {
 		t.Errorf("month/day: start = %q", out)
 	}
 }
+
+func TestAddOneLine(t *testing.T) {
+	h := newHarness(t)
+
+	id := strings.TrimSpace(h.mustRun("add", "Dentist 20/11 15:30 45m", "--offline"))
+	if out := h.mustRun("show", id, "--format", "{{.Title}} {{.Start}} {{.End}}"); out != "Dentist 2026-11-20T15:30:00-05:00 2026-11-20T16:15:00-05:00\n" {
+		t.Errorf("got %q", out)
+	}
+	id = strings.TrimSpace(h.mustRun("add", "Call", "mom", "--offline")) // unquoted: all-day today
+	if out := h.mustRun("show", id, "--tsv"); !strings.Contains(out, "\t2026-11-12\t2026-11-13\t1\t") {
+		t.Errorf("got %q", out)
+	}
+}
+
+func TestAddOneLineErrorsAreUsageErrors(t *testing.T) {
+	h := newHarness(t)
+	if _, errOut, code := h.run("add", "Nap 30m"); code != 2 || !strings.Contains(errOut, "start time") {
+		t.Errorf("exit %d, %q", code, errOut)
+	}
+	if _, _, code := h.run("add", "Dentist", "--dur", "45m"); code != 2 {
+		t.Errorf("--dur without --at: exit %d, want 2", code)
+	}
+}

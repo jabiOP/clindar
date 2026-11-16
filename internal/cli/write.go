@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/quickadd"
 	"github.com/jabiOP/clindar/internal/recur"
 	"github.com/jabiOP/clindar/internal/service"
 	"github.com/jabiOP/clindar/internal/timeparse"
@@ -41,12 +42,18 @@ func addEventFlags(cmd *cobra.Command, f *eventFlags) {
 func newAddCmd(app *App) *cobra.Command {
 	var f eventFlags
 	cmd := &cobra.Command{
-		Use:   "add [TITLE... | -]",
+		Use:   "add [\"TITLE [date] [time] [duration] [repeat]\" | TITLE... --at WHEN | -]",
 		Short: "Create an event; prints its ID",
-		Long:  "Create an event. With no TITLE or with -, the title is the first line of stdin.",
-		Example: `  clindar add Dentist --at "tue 15:00" --dur 45m --where "Main St"
-  grep 'report' ~/gtd/next.txt | clindar add - --at "tomorrow 9am" --dur 2h
-  clindar add Standup --at "mon 9:00" --dur 15m --repeat weekdays`,
+		Long: `Create an event. Without --at, the line is read like Google's quick add: the
+title, then optional date, time, duration and repeat words at the end (no date
+means today; no time means all day). With --at, the title is taken literally and
+the flags decide the timing. With no TITLE or with -, the title is the first line
+of stdin.`,
+		Example: `  clindar add "Dentist 20/11 15:30 45m"
+  clindar add "Standup weekdays 9:00 15m"
+  clindar add "Trip 20/11-23/11"
+  clindar add Dentist --at "tue 15:00" --dur 45m --where "Main St"
+  grep 'report' ~/gtd/next.txt | clindar add - --at "tomorrow 9am" --dur 2h`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			title, err := titleFrom(args, app)
@@ -54,19 +61,31 @@ func newAddCmd(app *App) *cobra.Command {
 				return usageError{err}
 			}
 			now := app.Now()
-			t, err := app.Dates().ParseSpan(now, f.at, f.end, f.dur, f.allDay)
-			if err != nil {
-				return usageError{err}
-			}
-			var until time.Time
-			if f.until != "" {
-				if until, _, err = app.Dates().ParseTime(f.until, now); err != nil {
-					return usageError{fmt.Errorf("--until: %w", err)}
+			var t timeparse.Span
+			var rec []string
+			if f.at == "" { // one line, Google-style
+				if f.end != "" || f.dur != "" || f.allDay || f.repeat != "" || f.until != "" || f.count > 0 {
+					return usageError{fmt.Errorf("--end/--dur/--all-day/--repeat need --at; or write it all on one line: clindar add \"Dentist 20/11 15:30 45m\"")}
 				}
-			}
-			rec, err := recur.ParseRepeat(f.repeat, t.Start, t.AllDay, until, f.count)
-			if err != nil {
-				return usageError{err}
+				today := model.StartOfDay(now)
+				r, err := quickadd.Parse(title, quickadd.Defaults{From: today, To: today}, now, app.Dates())
+				if err != nil {
+					return usageError{err}
+				}
+				title, t, rec = r.Title, r.Span, r.Recurrence
+			} else {
+				if t, err = app.Dates().ParseSpan(now, f.at, f.end, f.dur, f.allDay); err != nil {
+					return usageError{err}
+				}
+				var until time.Time
+				if f.until != "" {
+					if until, _, err = app.Dates().ParseTime(f.until, now); err != nil {
+						return usageError{fmt.Errorf("--until: %w", err)}
+					}
+				}
+				if rec, err = recur.ParseRepeat(f.repeat, t.Start, t.AllDay, until, f.count); err != nil {
+					return usageError{err}
+				}
 			}
 			svc, err := app.Service(ctx)
 			if err != nil {
