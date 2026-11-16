@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func newAddCmd(app *App) *cobra.Command {
 title, then optional date, time, duration and repeat words at the end (no date
 means today; no time means all day). With --at, the title is taken literally and
 the flags decide the timing. With no TITLE or with -, the title is the first line
-of stdin.`,
+of stdin, taken literally; --at is then required.`,
 		Example: `  clindar add "Dentist 20/11 15:30 45m"
   clindar add "Standup weekdays 9:00 15m"
   clindar add "Trip 20/11-23/11"
@@ -56,9 +57,12 @@ of stdin.`,
   grep 'report' ~/gtd/next.txt | clindar add - --at "tomorrow 9am" --dur 2h`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			title, err := titleFrom(args, app)
+			title, fromStdin, err := titleFrom(args, app)
 			if err != nil {
 				return usageError{err}
+			}
+			if fromStdin && f.at == "" { // a line from a file must never be parsed as dates or repeats
+				return usageError{errors.New("a title read from stdin needs --at (only a title typed on the command line is read like quick add)")}
 			}
 			now := app.Now()
 			var t timeparse.Span
@@ -112,15 +116,15 @@ of stdin.`,
 	return cmd
 }
 
-func titleFrom(args []string, app *App) (string, error) {
+func titleFrom(args []string, app *App) (title string, fromStdin bool, err error) {
 	if len(args) > 0 && !(len(args) == 1 && args[0] == "-") {
-		return strings.Join(args, " "), nil
+		return strings.Join(args, " "), false, nil
 	}
 	line, err := bufio.NewReader(app.Stdin).ReadString('\n')
 	if line = strings.TrimSpace(line); line == "" {
-		return "", fmt.Errorf("no title: give one as arguments or on stdin (%v)", err)
+		return "", true, fmt.Errorf("no title: give one as arguments or on stdin (%v)", err)
 	}
-	return line, nil
+	return line, true, nil
 }
 
 func firstNonEmpty(values ...string) string {

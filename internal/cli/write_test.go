@@ -127,3 +127,23 @@ func TestAddOneLineErrorsAreUsageErrors(t *testing.T) {
 		t.Errorf("--dur without --at: exit %d, want 2", code)
 	}
 }
+
+func TestStdinTitleNeedsAt(t *testing.T) {
+	h := newHarness(t)
+	h.stdin = "Review report daily\n"
+
+	for _, args := range [][]string{{"add", "-", "--offline"}, {"add", "--offline"}} {
+		_, stderr, code := h.run(args...)
+		if code != 2 || !strings.Contains(stderr, "needs --at") {
+			t.Errorf("%v: exit %d, stderr %q", args, code, stderr)
+		}
+	}
+	if out := h.mustRun("agenda", "--offline", "--days", "30", "--tsv"); out != "" {
+		t.Errorf("nothing should be created, got %q", out)
+	}
+
+	id := strings.TrimSpace(h.mustRun("add", "-", "--at", "tomorrow 9am", "--offline"))
+	if out := h.mustRun("show", id, "--format", "{{.Title}}"); out != "Review report daily\n" {
+		t.Errorf("title = %q, want it literal", out)
+	}
+}
