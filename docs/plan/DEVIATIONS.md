@@ -113,6 +113,14 @@ One line per deviation: what changed, and why.
   be loaded behind the grid. (2) Go-to (`g`) inside the list now calls `openList` for the new day, like `t`/`h`/`l`;
   since the list no longer follows `m.selected` by itself, it would otherwise stay where it was. The removed
   `listDays` constant became the `listDays()` method, as specified.
+- **Task 14.8, three adjustments:** (1) `gridView` gets `dayMode bool` plus `focus int` instead of `focus int` with
+  -1 = none: every test that builds a `gridView` directly leaves `focus` at 0, which would mark the selected day's
+  first event and change the golden files. (2) Clicking the already-selected day goes through the same
+  `startDayMode()` as Enter, so on a day with no events it says "no events on this day · a to add" instead of
+  entering an empty event mode. The rewritten mouse test therefore clicks Mon 16 (a standup) and a new
+  `TestClickSelectedEmptyDaySaysSo` covers Tue 17. (3) `TestEventModeMovesAndOpens` and
+  `TestEventModeActsLikeTheDetailsBox` already passed before the change, because Enter used to open the list and the
+  same keys there reached the same result; the other tests gave the red step.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

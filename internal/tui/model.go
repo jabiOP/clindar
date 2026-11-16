@@ -75,6 +75,9 @@ type Model struct {
 	hover     edgeRef     // the handle under the pointer (Phase 12.7)
 	lastWheel time.Time   // last wheel step taken (throttle, Task 14.4)
 
+	dayMode   bool // event mode: j/k pick an event on the selected grid day (Task 14.8)
+	dayCursor int  // event mode: index into dayEvents()
+
 	listFrom   time.Time // first day of the list
 	listSpan   int       // days loaded in the list
 	listAnchor *entryRef // after prepending: the entry the cursor must land just before
@@ -234,6 +237,9 @@ func (m Model) loc() *time.Location { return m.deps.Now().Location() }
 
 // entries is the list view's selectable events.
 func (m Model) entries() []model.Event { return listEntries(m.listDays()) }
+
+// dayEvents are the selected day's events, in display order.
+func (m Model) dayEvents() []model.Event { return model.GroupByDay(m.events, m.selected, 1)[0].Events }
 
 const (
 	listInitial = 28      // days the list starts with

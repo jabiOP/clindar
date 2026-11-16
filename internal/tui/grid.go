@@ -26,6 +26,8 @@ type gridView struct {
 	hover           edgeRef   // the edge under the pointer: draw its symbol
 	grabbed         edgeRef   // the handle being dragged: draw its symbol
 	drop            time.Time // while dragging: the day under the pointer (zero = none)
+	dayMode         bool      // event mode on the selected day (Task 14.8)
+	focus           int       // event mode: index of the focused event on the selected day
 }
 
 func renderGrid(g gridView) (string, hitMap) {
@@ -75,18 +77,38 @@ func (g gridView) cell(day model.Day, w, h int) (string, hitMap) {
 	}
 	lines := []string{label}
 	room := h - 1
-	for i, e := range day.Events {
-		if i == room-1 && len(day.Events) > room {
-			hits.add(0, len(lines), w, 1, target{kind: targetMore, day: day.Date})
-			lines = append(lines, dimStyle.Render(fit(fmt.Sprintf("+%d more", len(day.Events)-i), w-1)))
-			break
-		}
-		if i == room {
-			break
-		}
-		line, lineHits := g.eventLine(e, day.Date, w-1, past)
+	focus := -1 // index of the focused event in this cell; -1 = none
+	if g.dayMode && day.Date.Equal(g.selected) {
+		focus = g.focus
+	}
+	addEvent := func(i int) {
+		line, lineHits := g.eventLine(day.Events[i], day.Date, w-1, past, i == focus)
 		hits = append(hits, lineHits.offset(0, len(lines))...)
 		lines = append(lines, line)
+	}
+	if focus >= 0 && len(day.Events) > room {
+		// Event mode in a full cell: a window of events around the focused one,
+		// then how many are hidden above and below.
+		visible := max(room-1, 1)
+		offset := min(max(focus-visible+1, 0), len(day.Events)-visible)
+		for i := offset; i < offset+visible; i++ {
+			addEvent(i)
+		}
+		if room > 1 {
+			lines = append(lines, dimStyle.Render(fit(fmt.Sprintf("↑%d ↓%d", offset, len(day.Events)-offset-visible), w-1)))
+		}
+	} else {
+		for i := range day.Events {
+			if i == room-1 && len(day.Events) > room {
+				hits.add(0, len(lines), w, 1, target{kind: targetMore, day: day.Date})
+				lines = append(lines, dimStyle.Render(fit(fmt.Sprintf("+%d more", len(day.Events)-i), w-1)))
+				break
+			}
+			if i == room {
+				break
+			}
+			addEvent(i)
+		}
 	}
 	for len(lines) < h {
 		lines = append(lines, fit("", w-1))
@@ -110,7 +132,7 @@ func edgeOf(e model.Event, p part) edgeRef { return edgeRef{e.CalendarID, e.ID, 
 // first-day line's leftmost cell is always the start handle and the last-day
 // line's rightmost cell the end handle; their symbols are drawn only while
 // hovered or dragged.
-func (g gridView) eventLine(e model.Event, day time.Time, w int, past bool) (string, hitMap) {
+func (g gridView) eventLine(e model.Event, day time.Time, w int, past, focused bool) (string, hitMap) {
 	var hits hitMap
 	hits.add(0, 0, w, 1, target{kind: targetEvent, day: day, event: e, part: partBody})
 	start, end := "", ""
@@ -128,6 +150,10 @@ func (g gridView) eventLine(e model.Event, day time.Time, w int, past bool) (str
 				end = "▸"
 			}
 		}
+	}
+	if focused { // event mode: a visible marker as well as reverse video
+		text := "▶" + start + fit(eventLabel(e, g.loc), w-1-width(start+end)) + end
+		return selectedStyle.Render(text), hits
 	}
 	text := start + fit(eventLabel(e, g.loc), w-width(start+end)) + end
 	return calendarStyle(g.calendars[e.CalendarID].Color).Faint(past).Render(text), hits

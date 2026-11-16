@@ -87,15 +87,16 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		return m.handleKey(keyMsg(t.key))
 	case targetDay:
 		if t.day.Equal(m.selected) {
-			m = m.openList(m.selected)
-			return m, m.reloadIfNeeded()
+			return m.startDayMode(), nil // like Enter
 		}
 		m = m.selectDay(t.day)
+		m.dayMode = false
 	case targetMore:
 		m = m.selectDay(t.day)
-		m = m.openList(m.selected)
+		m = m.startDayMode()
 	case targetEvent:
 		m = m.selectDay(t.day)
+		m.dayMode = false
 		if ok, why := canDrag(t.event, m.calendars[t.event.CalendarID]); !ok {
 			if t.part != partBody { // a resize attempt: just say why
 				m.message = why

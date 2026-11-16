@@ -38,6 +38,9 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.drag, m.message = dragState{}, "drag cancelled"
 		return m, nil
 	}
+	if m.view == viewGrid && m.dayMode {
+		return m.dayKey(k)
+	}
 	m.message = ""
 	switch {
 	case key.Matches(k, keys.Quit):
@@ -98,9 +101,9 @@ func (m Model) gridKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Down):
 		m = m.moveDays(7, false)
 	case key.Matches(k, keys.Open):
-		m = m.openList(m.selected)
+		return m.startDayMode(), nil
 	case key.Matches(k, keys.Edit, keys.Delete, keys.RSVP):
-		m.message = "press enter to pick an event in the list"
+		m.message = "press enter to pick an event"
 	}
 	return m, m.reloadIfNeeded()
 }
@@ -125,6 +128,8 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Right):
 		m = m.moveDays(1, false)
 		m = m.openList(m.selected)
+	case key.Matches(k, keys.Back):
+		m.view = viewGrid
 	case current == nil:
 		return m, nil
 	case key.Matches(k, keys.Open):
@@ -205,4 +210,42 @@ func (m Model) prependList() (tea.Model, tea.Cmd) {
 	}
 	m.listFrom, m.listSpan = m.listFrom.AddDate(0, 0, -listStep), m.listSpan+listStep
 	return m, m.reloadIfNeeded()
+}
+
+// startDayMode enters event mode on the selected day: its events become
+// selectable in the grid. A day with no events says so instead.
+func (m Model) startDayMode() Model {
+	if len(m.dayEvents()) == 0 {
+		m.message = "no events on this day · a to add"
+		return m
+	}
+	m.dayMode, m.dayCursor = true, 0
+	m.message = "j/k pick · enter open · e/d/r act · esc back"
+	return m
+}
+
+// dayKey handles keys in event mode.
+func (m Model) dayKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	events := m.dayEvents()
+	if len(events) == 0 {
+		m.dayMode = false
+		return m.handleKey(k)
+	}
+	m.dayCursor = min(m.dayCursor, len(events)-1)
+	switch {
+	case key.Matches(k, keys.Back):
+		m.dayMode, m.message = false, ""
+	case key.Matches(k, keys.Down):
+		m.dayCursor = min(m.dayCursor+1, len(events)-1)
+	case key.Matches(k, keys.Up):
+		m.dayCursor = max(m.dayCursor-1, 0)
+	case key.Matches(k, keys.Open):
+		m.detail, m.mode = events[m.dayCursor], modeDetail
+	case key.Matches(k, keys.Edit, keys.Delete, keys.RSVP):
+		return m.eventAction(k, events[m.dayCursor])
+	default: // any other key leaves event mode and does its usual job
+		m.dayMode = false
+		return m.handleKey(k)
+	}
+	return m, nil
 }

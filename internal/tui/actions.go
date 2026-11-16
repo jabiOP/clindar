@@ -120,7 +120,17 @@ func (m Model) startRSVP(e model.Event) Model {
 
 // detailKey: e/d/r act on the event shown; any other key closes the pop-up.
 func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
-	can := permissions(m.detail, m.calendars[m.detail.CalendarID])
+	if key.Matches(k, keys.Edit, keys.Delete, keys.RSVP) {
+		return m.eventAction(k, m.detail)
+	}
+	m.mode = modeNormal
+	return m, nil
+}
+
+// eventAction applies e/d/r to e with the same permission rules everywhere
+// (details box, event mode); refusals are explained in the status bar.
+func (m Model) eventAction(k tea.KeyMsg, e model.Event) (tea.Model, tea.Cmd) {
+	can := permissions(e, m.calendars[e.CalendarID])
 	switch {
 	case key.Matches(k, keys.Edit) && !can.edit:
 		m.message = "can't edit: " + can.whyNoEdit
@@ -129,13 +139,11 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.RSVP) && !can.rsvp:
 		m.message = can.whyNoRSVP
 	case key.Matches(k, keys.Edit):
-		m.form, m.mode = editEventForm(m.detail, m.loc()), modeForm
+		m.form, m.mode = editEventForm(e, m.loc()), modeForm
 	case key.Matches(k, keys.Delete):
-		m = m.startDelete(m.detail)
+		m = m.startDelete(e)
 	case key.Matches(k, keys.RSVP):
-		m = m.startRSVP(m.detail)
-	default:
-		m.mode = modeNormal
+		m = m.startRSVP(e)
 	}
 	return m, nil
 }

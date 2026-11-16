@@ -67,17 +67,29 @@ func TestMouseGridGolden(t *testing.T) {
 	testutil.Golden(t, "grid_mouse", f.m.View())
 }
 
-func TestClickSelectsDayThenOpensList(t *testing.T) {
+func TestClickSelectedDayStartsEventMode(t *testing.T) {
 	f := newMouseFixture(t)
 
-	f.click(f.dayAt(17))
-	if got := f.model().selected; !got.Equal(time.Date(2026, 11, 17, 0, 0, 0, 0, f.ny)) {
-		t.Fatalf("selected = %v, want Nov 17", got)
+	f.click(f.dayAt(16)) // Mon 16: a standup
+	if got := f.model().selected; !got.Equal(time.Date(2026, 11, 16, 0, 0, 0, 0, f.ny)) {
+		t.Fatalf("selected = %v, want Nov 16", got)
 	}
+	f.click(f.dayAt(16))
+
+	if m := f.model(); m.view != viewGrid || !m.dayMode {
+		t.Errorf("view = %v, dayMode = %v; clicking the selected day should enter event mode", m.view, m.dayMode)
+	}
+}
+
+// Like Enter: a second click on a day with no events says so instead of entering
+// an empty event mode.
+func TestClickSelectedEmptyDaySaysSo(t *testing.T) {
+	f := newMouseFixture(t)
+	f.click(f.dayAt(17)) // Tue 17: nothing
 	f.click(f.dayAt(17))
 
-	if f.model().view != viewList {
-		t.Error("clicking the selected day should open the list")
+	if m := f.model(); m.dayMode || !strings.Contains(m.message, "no events") {
+		t.Errorf("dayMode = %v, message = %q", m.dayMode, m.message)
 	}
 }
 

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -250,5 +251,82 @@ func TestListPagesWithJK(t *testing.T) {
 	f.keys("K")
 	if got := f.model().cursor; got != 0 {
 		t.Errorf("after K cursor = %d, want 0", got)
+	}
+}
+
+func TestEnterStartsEventMode(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter")
+
+	m := f.model()
+	if !m.dayMode || m.view != viewGrid {
+		t.Fatalf("dayMode = %v, view = %v", m.dayMode, m.view)
+	}
+	if !strings.Contains(f.m.View(), "▶09:00") {
+		t.Errorf("the first event should be marked:\n%s", f.m.View())
+	}
+}
+
+func TestEventModeMovesAndOpens(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter", "j", "enter")
+
+	if m := f.model(); m.mode != modeDetail || m.detail.Title != "Lunch with Sam" {
+		t.Errorf("mode = %v, detail = %q", m.mode, m.detail.Title)
+	}
+}
+
+func TestEventModeActsLikeTheDetailsBox(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter", "d") // Standup is a recurring instance: delete asks for a scope
+
+	if m := f.model(); m.mode != modeScope {
+		t.Errorf("mode = %v, want the scope picker", m.mode)
+	}
+}
+
+func TestEventModeOnEmptyDaySaysSo(t *testing.T) {
+	f := newFixture(t)
+	f.keys("l", "enter") // Fri 13: nothing
+
+	if m := f.model(); m.dayMode || !strings.Contains(m.message, "no events") {
+		t.Errorf("dayMode = %v, message = %q", m.dayMode, m.message)
+	}
+}
+
+func TestLeavingEventMode(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter", "esc")
+	if f.model().dayMode {
+		t.Fatal("esc should leave event mode")
+	}
+	f.keys("enter", "l")
+	if m := f.model(); m.dayMode || !m.selected.Equal(time.Date(2026, 11, 13, 0, 0, 0, 0, f.ny)) {
+		t.Errorf("l should leave event mode and move a day: dayMode = %v, selected = %v", m.dayMode, m.selected)
+	}
+}
+
+func TestEventModeScrollsThroughHiddenEvents(t *testing.T) {
+	f := newFixture(t) // height 20: each cell shows 3 events
+	for i := 1; i <= 6; i++ {
+		f.put(testutil.Timed(fmt.Sprintf("x%d", i), fmt.Sprintf("E%d", i),
+			time.Date(2026, 11, 13, 7+i, 0, 0, 0, f.ny), 30*time.Minute))
+	}
+	f.keys("l", "enter")
+	for range 5 {
+		f.keys("j")
+	}
+
+	screen := f.m.View()
+	if !strings.Contains(screen, "E6") || !strings.Contains(screen, "↑") {
+		t.Errorf("the 6th event and the ↑/↓ counter should show:\n%s", screen)
+	}
+}
+
+func TestEscInListReturnsToGrid(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab", "esc")
+	if f.model().view != viewGrid {
+		t.Error("esc in the list should return to the grid")
 	}
 }
