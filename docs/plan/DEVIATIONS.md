@@ -216,6 +216,12 @@ One line per deviation: what changed, and why.
   swipes made it unusable. Wheel events are ignored in the grid and the list; `wheel()` and `Model.lastWheel` are
   gone. Test: `TestWheelDoesNothing`, which replaces `TestWheelMovesOneDayAndIsThrottled`. Design §6b and §6c still
   describe the wheel and need updating.
+- **User decision: Esc in the form confirms before discarding.** (Of the options: vim-style normal/insert modes,
+  confirm-discard, or Esc-saves, the user chose confirm-discard.) Esc on an untouched form closes it; with any
+  change it shows "Discard changes? (y/n)" in the hint area: `y` closes without saving, any other key keeps editing
+  (and isn't typed into a field). An open list still closes first. [Cancel] behaves like Esc. A form opened from
+  quick add (Tab) counts as changed. Tests: `TestEscOnAnUntouchedFormCloses`,
+  `TestEscWithChangesAsksBeforeDiscarding`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

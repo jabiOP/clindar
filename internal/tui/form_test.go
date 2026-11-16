@@ -212,3 +212,33 @@ func TestSaveButtonWithAListOpen(t *testing.T) {
 		t.Errorf("Nov 13 = %v, want a daily Yoga", got)
 	}
 }
+
+func TestEscOnAnUntouchedFormCloses(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter", "j", "e") // edit Lunch, change nothing
+	f.keys("esc")
+	if m := f.model(); m.mode != modeNormal {
+		t.Errorf("mode = %v, want closed", m.mode)
+	}
+}
+
+func TestEscWithChangesAsksBeforeDiscarding(t *testing.T) {
+	f := newFixture(t)
+	f.openFullForm()
+	f.keys("Dentist", "esc")
+	if m := f.model(); m.mode != modeForm || !strings.Contains(f.m.View(), "Discard changes? (y/n)") {
+		t.Fatalf("mode = %v; want the form, asking:\n%s", m.mode, f.m.View())
+	}
+
+	f.keys("n") // keep editing: nothing lost, and "n" isn't typed into the title
+	if m := f.model(); m.mode != modeForm || m.form.value(fTitle) != "Dentist" {
+		t.Fatalf("after n: mode = %v, title = %q", m.mode, m.form.value(fTitle))
+	}
+	f.keys("esc", "y")
+	if m := f.model(); m.mode != modeNormal {
+		t.Errorf("after esc y: mode = %v, want closed", m.mode)
+	}
+	if got := f.titlesOn(12); slices.Contains(got, "Dentist") {
+		t.Error("discarding must not save")
+	}
+}

@@ -59,8 +59,19 @@ func (m Model) scopeKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) formKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.form.confirmDiscard { // "Discard changes? (y/n)": y closes, anything else keeps editing
+		m.form.confirmDiscard = false
+		if k.String() == "y" {
+			m.mode = modeNormal
+		}
+		return m, nil
+	}
 	switch {
 	case k.Type == tea.KeyEsc && !m.form.pickerOpen(): // an open list closes first
+		if m.form.dirty() {
+			m.form.confirmDiscard = true
+			return m, nil
+		}
 		m.mode = modeNormal
 		return m, nil
 	case k.Type == tea.KeyCtrlS: // save from anywhere; an open list's highlighted option is chosen first

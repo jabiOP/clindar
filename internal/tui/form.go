@@ -47,15 +47,16 @@ var repeatWords = []string{"none", "daily", "weekdays", "weekly", "monthly", "ye
 // form edits a new or existing event. It knows nothing about the service:
 // it produces a Draft or Changes and the Model decides what to do with them.
 type form struct {
-	inputs  [fieldCount]textinput.Model // text fields (picker fields' inputs are unused)
-	pickers map[int]picker              // picker fields: fAllDay, fCalendar, fRepeat; copied on write
-	locked  map[int]string              // pickers that can't change on edit, with the reason shown
-	initial [fieldCount]string          // to detect what an edit changed (pickers: the chosen value)
-	focus   int
-	editing *model.Event // nil when creating
-	errs    map[int]string
-	err     string // an error that belongs to no field
-	dates   timeparse.Parser
+	inputs         [fieldCount]textinput.Model // text fields (picker fields' inputs are unused)
+	pickers        map[int]picker              // picker fields: fAllDay, fCalendar, fRepeat; copied on write
+	locked         map[int]string              // pickers that can't change on edit, with the reason shown
+	initial        [fieldCount]string          // to detect what an edit changed (pickers: the chosen value)
+	focus          int
+	editing        *model.Event // nil when creating
+	errs           map[int]string
+	err            string // an error that belongs to no field
+	dates          timeparse.Parser
+	confirmDiscard bool // Esc with unsaved changes asked "Discard changes? (y/n)"
 }
 
 // fieldError is an error that belongs to one field.
@@ -457,7 +458,9 @@ func (f form) view(width int, mouse bool) modal {
 		md.buttons(button{"Save", "ctrl+s"}, button{"Cancel", "esc"}) // ctrl+s saves even with a list open
 	}
 	// Two lines: one would be wider than an 80-column terminal.
-	if p, ok := f.pickers[f.focus]; ok && p.open {
+	if f.confirmDiscard {
+		md.text(errorStyle.Render("Discard changes? (y/n)"))
+	} else if p, ok := f.pickers[f.focus]; ok && p.open {
 		md.text(dimStyle.Render("in the list: j/k move · enter choose · esc close the list"))
 		md.text(dimStyle.Render("ctrl+s save"))
 	} else {
@@ -502,4 +505,14 @@ func (f form) chooseHighlighted() form {
 	}
 	np, _, _ := f.pickers[f.focus].Update(tea.KeyMsg{Type: tea.KeyEnter})
 	return f.withPicker(f.focus, np)
+}
+
+// dirty reports whether anything differs from how the form opened.
+func (f form) dirty() bool {
+	for i := range fieldCount {
+		if f.changed(i) {
+			return true
+		}
+	}
+	return false
 }
