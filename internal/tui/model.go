@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/quickadd"
 	"github.com/jabiOP/clindar/internal/service"
 	"github.com/jabiOP/clindar/internal/timeparse"
 )
@@ -50,6 +51,7 @@ const (
 	modeGoto
 	modeHelp
 	modeCalendars // the calendar menu (Task 14.13)
+	modeQuick     // quick add: one line with a live preview (Task 14.16)
 )
 
 type Model struct {
@@ -81,8 +83,10 @@ type Model struct {
 	dayMode   bool // event mode: j/k pick an event on the selected grid day (Task 14.8)
 	dayCursor int  // event mode: index into dayEvents()
 
-	calMenu picker           // the calendar menu (Task 14.13)
-	calList []model.Calendar // calendars in the store's order (primary first)
+	quick    textinput.Model   // quick add's line (Task 14.16)
+	quickDef quickadd.Defaults // quick add: the day(s) used when the line names none
+	calMenu  picker            // the calendar menu (Task 14.13)
+	calList  []model.Calendar  // calendars in the store's order (primary first)
 
 	listFrom   time.Time // first day of the list
 	listSpan   int       // days loaded in the list

@@ -141,6 +141,10 @@ One line per deviation: what changed, and why.
   read from stdin (`clindar add -`) with no `--at` also goes through quick add, so a task line ending in a token
   word (`… daily`, `… fri`) gets parsed. The GTD recipes pass `--at`, which keeps the title literal; the docs should
   say so.
+- **Task 14.16:** compiled after adding `quick.go`'s imports (the plan showed `package tui` without them).
+  `formFromQuick` is written from the description: for all-day events the End field gets the inclusive last day only
+  when the event spans more than one day. Since `a` opens quick add now, `newEventForm` is used only by
+  `TestAddFormUsesDefaultCalendar`; quick add's Enter and `formFromQuick` both use `Deps.DefaultCalendar`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

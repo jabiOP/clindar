@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jabiOP/clindar/internal/model"
+	"github.com/jabiOP/clindar/internal/quickadd"
 	"github.com/jabiOP/clindar/internal/service"
 )
 
@@ -34,6 +35,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case modeCalendars:
 		return m.calMenuKey(k)
+	case modeQuick:
+		return m.quickKey(k)
 	}
 	if m.drag.active && key.Matches(k, keys.Back) {
 		m.drag, m.message = dragState{}, "drag cancelled"
@@ -73,9 +76,7 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.syncing = m.deps.Sync != nil
 		return m, m.syncCmd()
 	case key.Matches(k, keys.Add):
-		m.form = newEventForm(m.selected, m.deps.DefaultCalendar)
-		m.mode = modeForm
-		return m, nil
+		return m.openQuick(quickadd.Defaults{From: m.selected, To: m.selected})
 	case key.Matches(k, keys.ScrollDown, keys.ScrollUp) && m.view == viewList:
 		dir := 1
 		if key.Matches(k, keys.ScrollUp) {

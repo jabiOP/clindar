@@ -121,6 +121,8 @@ func (m Model) popup() (modal, bool) {
 		}
 	case modeCalendars:
 		return m.calMenu.view(min(m.width-4, 50), m.deps.Mouse), true
+	case modeQuick:
+		return m.quickPopup(), true
 	case modeRSVP:
 		md.text("Going?")
 		choices("(y)es  (n)o  (m)aybe", button{"Yes", "y"}, button{"No", "n"}, button{"Maybe", "m"}, button{"Cancel", "esc"})

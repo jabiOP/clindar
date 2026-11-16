@@ -210,7 +210,11 @@ func TestEscCancelsDrag(t *testing.T) {
 func TestStatusBarAndFormButtons(t *testing.T) {
 	f := newMouseFixture(t)
 
-	f.click(f.button("a")) // [+ Add]
+	f.click(f.button("a")) // [+ Add]: quick add
+	if f.model().mode != modeQuick {
+		t.Fatalf("mode = %v, want quick add", f.model().mode)
+	}
+	f.click(f.button("tab")) // [More…]: the full form
 	if f.model().mode != modeForm {
 		t.Fatalf("mode = %v, want the add form", f.model().mode)
 	}

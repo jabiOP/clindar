@@ -109,6 +109,9 @@ scan:
 	return r, nil
 }
 
+// RepeatWord is the repeat word the line ended with ("weekdays"), or "".
+func (r Result) RepeatWord() string { return r.repeat }
+
 // Preview describes the event, e.g. "Fri 20 Nov, 09:00–10:00, every weekday".
 func (r Result) Preview() string {
 	s := r.Span
