@@ -35,10 +35,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	_, hits := m.layout()
 	t, onSomething := hits.at(msg.X, msg.Y)
 	switch {
-	case msg.Button == tea.MouseButtonWheelUp && msg.Action == tea.MouseActionPress:
-		return m.wheel(-1)
-	case msg.Button == tea.MouseButtonWheelDown && msg.Action == tea.MouseActionPress:
-		return m.wheel(1)
+	case msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown:
+		return m, nil // the wheel is off: trackpad swipes made it unusable, even throttled
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
 		return m.press(t, onSomething)
 	case msg.Action == tea.MouseActionMotion && m.span.active: // before hover, which takes every other motion
@@ -71,25 +69,6 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m.drop()
 	}
 	return m, nil
-}
-
-const wheelEvery = 100 * time.Millisecond // trackpads send dozens of events per swipe
-
-func (m Model) wheel(dir int) (tea.Model, tea.Cmd) {
-	if m.mode != modeNormal {
-		return m, nil
-	}
-	now := m.deps.Now()
-	if now.Sub(m.lastWheel) < wheelEvery {
-		return m, nil
-	}
-	m.lastWheel = now
-	if m.view == viewList {
-		m.cursor = min(max(m.cursor+dir, 0), max(len(m.entries())-1, 0))
-		return m.extendListIfNeeded()
-	}
-	m = m.moveDays(dir, false)
-	return m, m.reloadIfNeeded()
 }
 
 func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {

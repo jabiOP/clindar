@@ -97,20 +97,20 @@ func (f *fixture) wheelDown() {
 	f.send(tea.MouseMsg{X: 5, Y: 5, Button: tea.MouseButtonWheelDown, Action: tea.MouseActionPress})
 }
 
-func TestWheelMovesOneDayAndIsThrottled(t *testing.T) {
+// The wheel is off: trackpad swipes made it unusable even throttled (user, after Task 14.4).
+func TestWheelDoesNothing(t *testing.T) {
 	f := newMouseFixture(t)
-	sel := f.model().selected
+	before := f.model()
 
-	f.wheelDown()
-	f.wheelDown() // same instant: dropped
-	if got := f.model().selected; !got.Equal(sel.AddDate(0, 0, 1)) {
-		t.Fatalf("selected = %v, want one day later", got)
+	for range 5 {
+		f.wheelDown()
+		f.clock = f.clock.Add(time.Second)
 	}
-	f.clock = f.clock.Add(150 * time.Millisecond)
+	f.keys("tab") // the list too
 	f.wheelDown()
 
-	if got := f.model().selected; !got.Equal(sel.AddDate(0, 0, 2)) {
-		t.Errorf("selected = %v, want two days later", got)
+	if m := f.model(); !m.selected.Equal(before.selected) || !m.gridStart.Equal(before.gridStart) || m.cursor != 0 {
+		t.Errorf("selected %v gridStart %v cursor %d: the wheel must not move anything", m.selected, m.gridStart, m.cursor)
 	}
 }
 

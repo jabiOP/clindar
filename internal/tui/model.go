@@ -30,7 +30,7 @@ type Deps struct {
 	Dates           timeparse.Parser   // config date_order: how typed dates are read
 	OpenURL         func(string) error // opens a link in the browser (Task 14.21); nil in most tests
 	Copy            func(string) error // puts text on the clipboard (Task 14.22); nil in most tests
-	Mouse           bool               // config mouse: clicks, wheel, drag-and-drop (Phase 12)
+	Mouse           bool               // config mouse: clicks, drag-and-drop, hover (Phase 12; the wheel is off)
 	SyncInterval    time.Duration      // 0 disables periodic sync (tests)
 }
 
@@ -81,7 +81,6 @@ type Model struct {
 	drag      dragState   // mouse drag in the grid (Phase 12)
 	span      spanDrag    // mouse drag across empty days (Task 14.18)
 	hover     edgeRef     // the handle under the pointer (Phase 12.7)
-	lastWheel time.Time   // last wheel step taken (throttle, Task 14.4)
 
 	dayMode   bool // event mode: j/k pick an event on the selected grid day (Task 14.8)
 	dayCursor int  // event mode: index into dayEvents()
@@ -326,7 +325,7 @@ func ago(d time.Duration) string {
 func Run(ctx context.Context, d Deps) error {
 	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithContext(ctx)}
 	if d.Mouse {
-		// All motion: clicks, wheel, dragging, and hover (reveals resize handles).
+		// All motion: clicks, dragging, and hover (reveals resize handles).
 		opts = append(opts, tea.WithMouseAllMotion())
 	}
 	_, err := tea.NewProgram(New(ctx, d), opts...).Run()

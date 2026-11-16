@@ -212,6 +212,10 @@ One line per deviation: what changed, and why.
   (list open or not). `TestRepeatPickerMakesASeries` now opens the list with Space. Tests:
   `TestEnterOnAPickerSaves`, `TestSaveButtonWithAListOpen`. (The user's other point, that Esc discards the form,
   which isn't vim-like, is a design question for the architect.)
+- **User decision: the mouse wheel is off (reverts Task 14.4).** Even throttled to one day per 100 ms, trackpad
+  swipes made it unusable. Wheel events are ignored in the grid and the list; `wheel()` and `Model.lastWheel` are
+  gone. Test: `TestWheelDoesNothing`, which replaces `TestWheelMovesOneDayAndIsThrottled`. Design §6b and §6c still
+  describe the wheel and need updating.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
