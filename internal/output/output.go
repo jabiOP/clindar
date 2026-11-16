@@ -69,6 +69,7 @@ type EventJSON struct {
 	Link            string         `json:"link,omitempty"`
 	StartsInMinutes *int           `json:"starts_in_minutes,omitempty"` // only from `clindar next`
 	Color           string         `json:"color,omitempty"`             // effective color: the event's own, else its calendar's ("#rrggbb")
+	MeetLink        string         `json:"meet_link,omitempty"`         // Google Meet URL, if the event has one
 }
 
 type AttendeeJSON struct {
@@ -146,7 +147,8 @@ func (p *Printer) toJSON(e model.Event) EventJSON {
 		ID: e.ID, SeriesID: e.SeriesID, CalendarID: e.CalendarID, Calendar: p.calendars[e.CalendarID].Name,
 		Title: e.Title, AllDay: e.AllDay, Status: e.Status, Location: e.Location, Description: e.Description,
 		Recurring: e.IsInstance() || e.IsMaster(), Link: e.Link,
-		Color: model.EffectiveColor(e, p.calendars[e.CalendarID], p.palette),
+		Color:    model.EffectiveColor(e, p.calendars[e.CalendarID], p.palette),
+		MeetLink: e.MeetLink,
 	}
 	if e.AllDay {
 		j.Start, j.End = e.Start.UTC().Format(time.DateOnly), e.End.UTC().Format(time.DateOnly)
@@ -290,6 +292,7 @@ func (p *Printer) prettyDetail(e model.Event) error {
 	row("When", p.when(e))
 	row("Calendar", p.calendars[e.CalendarID].Name)
 	row("Where", e.Location)
+	row("Meet", e.MeetLink)
 	if e.IsInstance() || e.IsMaster() {
 		row("Repeats", "yes") // shared by the CLI and the TUI, so no command-line hint here
 	}

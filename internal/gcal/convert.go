@@ -24,6 +24,15 @@ func FromAPI(accountID, calendarID string, ev *calendar.Event) (model.Event, err
 	if ev.Organizer != nil {
 		e.Organizer = ev.Organizer.Email
 	}
+	e.MeetLink = ev.HangoutLink // read-only: ToAPI never sends it, so patches keep the meeting
+	if e.MeetLink == "" && ev.ConferenceData != nil {
+		for _, ep := range ev.ConferenceData.EntryPoints {
+			if ep.EntryPointType == "video" {
+				e.MeetLink = ep.Uri
+				break
+			}
+		}
+	}
 	if ev.Updated != "" {
 		e.Updated, _ = time.Parse(time.RFC3339, ev.Updated) // informational only
 	}

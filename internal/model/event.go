@@ -59,10 +59,11 @@ type Event struct {
 	Attendees  []Attendee `json:"attendees,omitempty"`
 	Organizer  string     `json:"organizer,omitempty"` // organizer's email
 
-	ETag    string    `json:"etag,omitempty"`
-	Updated time.Time `json:"updated,omitzero"`
-	Link    string    `json:"link,omitempty"`     // Google web URL
-	ColorID string    `json:"color_id,omitempty"` // Google's event colorId; "" = the calendar's color
+	ETag     string    `json:"etag,omitempty"`
+	Updated  time.Time `json:"updated,omitzero"`
+	Link     string    `json:"link,omitempty"`      // Google web URL
+	ColorID  string    `json:"color_id,omitempty"`  // Google's event colorId; "" = the calendar's color
+	MeetLink string    `json:"meet_link,omitempty"` // Google Meet URL (read-only: never sent back)
 }
 
 func (e Event) IsMaster() bool          { return len(e.Recurrence) > 0 }

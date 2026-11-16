@@ -109,6 +109,10 @@ func (m Model) popup() (modal, bool) {
 		if m.detail.Link != "" {
 			bs, hints = append(bs, button{"Open in Google", "o"}), append(hints, "o open in Google")
 		}
+		if m.detail.MeetLink != "" {
+			bs = append(bs, button{"Join", "m"}, button{"Copy", "y"})
+			hints = append(hints, "m join · y copy link")
+		}
 		bs, hints = append(bs, button{"Close", "esc"}), append(hints, "esc close")
 		choices(dimStyle.Render(strings.Join(hints, " · ")), bs...)
 	case modeScope:

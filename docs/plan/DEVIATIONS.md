@@ -178,6 +178,10 @@ One line per deviation: what changed, and why.
 - **Task 14.21:** compiled as written apart from imports. `o` also requires `Deps.OpenURL` to be set (most tests
   build the TUI without it); opening runs through a small `openURL` helper that Task 14.22's [Join] reuses. The
   output test described in the plan is `TestOmitInternalsDropsIDAndLink`.
+- **Task 14.22:** compiled as written; go-osc52 v2.0.1's API (`New`, `Tmux`, `Screen`, `WriteTo`) matches, and it
+  moved from indirect to direct at the same version. `m`/`y` also require `Deps.OpenURL`/`Deps.Copy` to be set, like
+  `o`. The convert and output tests described in the plan are `TestMeetLinkIsRead` (which also checks that patches
+  send no `conferenceData` or `hangoutLink`) and `TestMeetLinkInDetailAndJSON`.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

@@ -123,8 +123,19 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(k, keys.Edit, keys.Delete, keys.RSVP) {
 		return m.eventAction(k, m.detail)
 	}
-	if k.String() == "o" && m.detail.Link != "" && m.deps.OpenURL != nil {
+	switch link := m.detail.MeetLink; {
+	case k.String() == "o" && m.detail.Link != "" && m.deps.OpenURL != nil:
 		return m, m.openURL(m.detail.Link)
+	case k.String() == "m" && link != "" && m.deps.OpenURL != nil: // join the Meet call
+		return m, m.openURL(link)
+	case k.String() == "y" && link != "" && m.deps.Copy != nil: // yank the Meet link
+		cp := m.deps.Copy
+		return m, func() tea.Msg {
+			if err := cp(link); err != nil {
+				return infoMsg{"couldn't copy: " + err.Error()}
+			}
+			return infoMsg{"Meet link copied"}
+		}
 	}
 	m.mode = modeNormal
 	return m, nil

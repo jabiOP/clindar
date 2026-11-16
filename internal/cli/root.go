@@ -13,6 +13,7 @@ import (
 
 	"github.com/jabiOP/clindar/internal/auth"
 	"github.com/jabiOP/clindar/internal/browser"
+	"github.com/jabiOP/clindar/internal/clipboard"
 	"github.com/jabiOP/clindar/internal/config"
 	"github.com/jabiOP/clindar/internal/gcal"
 	"github.com/jabiOP/clindar/internal/service"
@@ -142,6 +143,7 @@ func tuiDeps(app *App, svc *service.Service) tui.Deps {
 		DefaultCalendar: app.Config.DefaultCalendar,
 		Dates:           app.Dates(),
 		OpenURL:         browser.Open,
+		Copy:            clipboard.Copy,
 		Mouse:           app.Config.Mouse,
 	}
 }

@@ -29,6 +29,7 @@ type Deps struct {
 	DefaultCalendar string             // config default_calendar: pre-fills the add form
 	Dates           timeparse.Parser   // config date_order: how typed dates are read
 	OpenURL         func(string) error // opens a link in the browser (Task 14.21); nil in most tests
+	Copy            func(string) error // puts text on the clipboard (Task 14.22); nil in most tests
 	Mouse           bool               // config mouse: clicks, wheel, drag-and-drop (Phase 12)
 	SyncInterval    time.Duration      // 0 disables periodic sync (tests)
 }

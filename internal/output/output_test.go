@@ -250,3 +250,17 @@ func TestOmitInternalsDropsIDAndLink(t *testing.T) {
 		}
 	}
 }
+
+func TestMeetLinkInDetailAndJSON(t *testing.T) {
+	e := sample(t)[1]
+	e.MeetLink = "https://meet.google.com/abc-defg-hij"
+	pretty := render(t, output.Pretty, "", func(p *output.Printer) error { return p.Event(e) })
+	jsonOut := render(t, output.JSON, "", func(p *output.Printer) error { return p.Event(e) })
+
+	if !strings.Contains(pretty, "Meet:") || !strings.Contains(pretty, e.MeetLink) {
+		t.Errorf("pretty detail:\n%s", pretty)
+	}
+	if !strings.Contains(jsonOut, `"meet_link":"https://meet.google.com/abc-defg-hij"`) {
+		t.Errorf("json: %s", jsonOut)
+	}
+}

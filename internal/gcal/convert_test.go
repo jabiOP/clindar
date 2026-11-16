@@ -152,3 +152,29 @@ func TestEventColorRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestMeetLinkIsRead(t *testing.T) {
+	dates := func(ev *calendar.Event) *calendar.Event {
+		ev.Start, ev.End = &calendar.EventDateTime{Date: "2026-11-26"}, &calendar.EventDateTime{Date: "2026-11-27"}
+		return ev
+	}
+	hangout, _ := gcal.FromAPI("a", "c", dates(&calendar.Event{Id: "e", HangoutLink: "https://meet.google.com/abc-defg-hij"}))
+	if hangout.MeetLink != "https://meet.google.com/abc-defg-hij" {
+		t.Errorf("from hangoutLink: %q", hangout.MeetLink)
+	}
+	conf, _ := gcal.FromAPI("a", "c", dates(&calendar.Event{Id: "e", ConferenceData: &calendar.ConferenceData{
+		EntryPoints: []*calendar.EntryPoint{
+			{EntryPointType: "phone", Uri: "tel:+1-555-0100"},
+			{EntryPointType: "video", Uri: "https://meet.google.com/xyz"},
+		}}}))
+	if conf.MeetLink != "https://meet.google.com/xyz" {
+		t.Errorf("from conferenceData: %q, want the video entry point", conf.MeetLink)
+	}
+	body, err := gcal.ToAPI(conf).MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "conferenceData") || strings.Contains(string(body), "hangoutLink") {
+		t.Errorf("patches must not send the meeting: %s", body)
+	}
+}

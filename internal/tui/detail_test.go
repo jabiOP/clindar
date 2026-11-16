@@ -117,3 +117,30 @@ func TestOpenInGoogle(t *testing.T) {
 		t.Errorf("opened %q, message %q", opened, f.model().message)
 	}
 }
+
+func TestMeetJoinAndCopy(t *testing.T) {
+	var opened, copied string
+	f := newFixtureWith(t, Deps{
+		OpenURL: func(u string) error { opened = u; return nil },
+		Copy:    func(s string) error { copied = s; return nil },
+	})
+	e := testutil.Timed("m", "Sync call", time.Date(2026, 11, 12, 16, 0, 0, 0, f.ny), 30*time.Minute)
+	e.MeetLink = "https://meet.google.com/abc-defg-hij"
+	f.put(e)
+	f.openDetail(e)
+
+	f.keys("y")
+	f.keys("m")
+
+	if copied != e.MeetLink || opened != e.MeetLink {
+		t.Errorf("copied %q, opened %q", copied, opened)
+	}
+}
+
+func TestNoMeetButtonsWithoutAMeetLink(t *testing.T) {
+	f := newMouseFixture(t)
+	f.openDetail(testutil.Timed("lunch", "Lunch with Sam", time.Date(2026, 11, 12, 12, 0, 0, 0, f.ny), time.Hour))
+	if s := f.m.View(); strings.Contains(s, "[Join]") || strings.Contains(s, "[Copy]") {
+		t.Errorf("Meet buttons without a Meet link:\n%s", s)
+	}
+}
