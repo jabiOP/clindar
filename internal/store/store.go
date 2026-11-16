@@ -170,4 +170,11 @@ CREATE TABLE event_colors (
 	background TEXT NOT NULL,
 	PRIMARY KEY (account_id, color_id)
 );
+`,
+	// 4: refetch everything once. Events cached before clindar read colorId and
+	// Meet links lack them, and incremental sync only resends changed events.
+	// Append a migration like this whenever FromAPI starts reading a new field.
+	`
+UPDATE calendars SET sync_token = '';
+UPDATE sync_state SET calendars_token = '';
 `}

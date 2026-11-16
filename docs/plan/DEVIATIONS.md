@@ -198,6 +198,13 @@ One line per deviation: what changed, and why.
   "+N more" scrolling in event mode on a small terminal (covered by `TestEventModeScrollsThroughHiddenEvents`); and
   the four real-Google rows (hiding a calendar leaves Google's checkbox alone; color set and cleared shows in the
   web UI; a Meet event keeps its link after a title edit; a quick-add series matches the web UI).
+- **User report after Phase 14: Meet links and event colors don't show.** Most likely cause: the user's events were
+  cached before Tasks 14.19/14.22 taught `FromAPI` to read `colorId` and Meet links, and incremental sync only
+  resends events that changed, so unchanged events never got the new fields. Migration 4 resets the sync tokens
+  once, so the next sync is a full one. Rule for the plan: whenever `FromAPI` starts reading a new field, append
+  such a migration. Test: `TestUpgradeForcesAFullResync` (white-box: it rewinds `user_version` to 3). A daemon still
+  running an old binary keeps syncing with old code, so it must be restarted. Pending the user's confirmation after
+  upgrading.
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
