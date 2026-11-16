@@ -6,9 +6,11 @@ Two parts:
   branch** (`f3c8a11`, `2018d48`, `7105aca`, `9ee8872`; merged to `main` at `9ee8872`). They are shown as exact diffs
   (tests first in each file pair). If you're building from this plan, apply them in order after Phase 14. Earlier
   tasks carry a "⚠ Changed in Task 15.N" note where they're affected.
-- **Tasks 15.5–15.8: to do, small.** Decisions from the user's review of 15.1–15.4: Esc then Enter discards, stdin
+- **Tasks 15.5–15.14: done on `main`** (as specified, except the lines in `DEVIATIONS.md`). Only Task 15.15's
+  real-Google checks are left.
+- **Tasks 15.5–15.8: small.** Decisions from the user's review of 15.1–15.4: Esc then Enter discards, stdin
   titles need `--at`, a clearer warning after a write, and [Copy] copying the wrong text. Do these first.
-- **Tasks 15.9–15.15: to do.** Moving an event to another calendar (a user decision). Tasks 15.5–15.15 are **written
+- **Tasks 15.9–15.15:** moving an event to another calendar (a user decision). Tasks 15.5–15.15 are **written
   as a plan only, not compiled or run**. Names match the code at `9ee8872`. If the compiler disagrees, follow the intent, fix
   it, and log it in `DEVIATIONS.md`. Every task states its **red step**.
 

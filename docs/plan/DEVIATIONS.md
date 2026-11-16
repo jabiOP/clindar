@@ -234,6 +234,15 @@ One line per deviation: what changed, and why.
   of under its value (tester). Wrapping each `Label: value` row's value separately, indented 11 columns, would fix it.
 - `clindar calendars show|hide NAME`: there's no CLI command to change calendar visibility yet (Task 14.12 adds it to
   the store, service and TUI only); a small follow-up.
+- **Task 15.8:** cause 2 (the OSC 52 write raced the renderer). `Deps.Copy` now returns the sequence
+  (`clipboard.Sequence`); the model prefixes it to the frame for 150 ms (`copyFrameTime`), long enough for the 60 fps
+  renderer to write it once. Checked in tmux: the whole link reached tmux's clipboard.
+- **Task 15.7:** the fake gained `FailPull` (list calls fail, writes don't) for the test.
+- **Task 15.11:** `Push` reads the outbox once, so ops queued behind a move kept the old etag in memory and got a 412.
+  It now re-reads the pending ops after each move. Also: a move refused with 404 is discarded like a permanent
+  refusal (rows put back, "couldn't move it" logged). The fake gained `AddCalendar` and `MoveFail` for the tests.
+- **Task 15.14:** the scope note is a `Model.scopeNote` field shown above "Recurring event. Apply to:"; it's cleared
+  wherever the scope picker opens for other reasons. Checked in tmux: moving via the form, and Esc / Esc Esc / Esc Enter.
 
 ## Decisions after the Phase 15 review (user, recorded by the architect)
 - Plan and code work happen on `main` from now on.
