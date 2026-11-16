@@ -73,7 +73,9 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		case t.kind == targetKey:
 			return m.handleKey(keyMsg(t.key))
 		case t.kind == targetField && m.mode == modeForm:
-			m.form = m.form.focusField(t.field)
+			m.form = m.form.focusField(t.field).openPicker() // a picker field opens its list
+		case t.kind == targetOption && m.mode == modeForm:
+			m.form = m.form.pickOption(t.field)
 		case t.kind == targetOption && m.mode == modeCalendars:
 			var ev pickEvent
 			var i int

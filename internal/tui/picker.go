@@ -119,6 +119,25 @@ func (p picker) view(w int, mouse bool) modal {
 		md.text("/" + p.filter)
 	}
 	md.text("")
+	lines, idx := p.rows(w)
+	for n, line := range lines {
+		md.option(line, idx[n])
+	}
+	md.text("")
+	hint := "j/k move · enter choose · / filter · esc close"
+	if p.checklist {
+		hint = "j/k move · space toggle · / filter · esc close"
+	}
+	if mouse {
+		md.buttons(button{"Close", "esc"})
+	}
+	md.text(dimStyle.Render(hint))
+	return md
+}
+
+// rows draws the open picker's visible options, cursor row marked, fitted to
+// w-4 cells; idx[n] is the option index of row n (for click targets).
+func (p picker) rows(w int) (lines []string, idx []int) {
 	for row, i := range p.visible() {
 		o := p.options[i]
 		mark := "  "
@@ -144,18 +163,9 @@ func (p picker) view(w int, mouse bool) modal {
 		} else {
 			line = fit(mark+box+swatch(o.swatch)+o.label, max(w-4, 10))
 		}
-		md.option(line, i)
+		lines, idx = append(lines, line), append(idx, i)
 	}
-	md.text("")
-	hint := "j/k move · enter choose · / filter · esc close"
-	if p.checklist {
-		hint = "j/k move · space toggle · / filter · esc close"
-	}
-	if mouse {
-		md.buttons(button{"Close", "esc"})
-	}
-	md.text(dimStyle.Render(hint))
-	return md
+	return lines, idx
 }
 
 // swatch is a colored ● for a "#rrggbb" color, or nothing.

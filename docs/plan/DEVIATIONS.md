@@ -145,6 +145,19 @@ One line per deviation: what changed, and why.
   `formFromQuick` is written from the description: for all-day events the End field gets the inclusive last day only
   when the event spans more than one day. Since `a` opens quick add now, `newEventForm` is used only by
   `TestAddFormUsesDefaultCalendar`; quick add's Enter and `formFromQuick` both use `Deps.DefaultCalendar`.
+- **Task 14.17, adjustments:** (1) `form.pickers` is `map[int]picker` (values), not `map[int]*picker`, and every
+  change copies the map first (`withPicker`): Bubble Tea models are values, and with pointers every copy of a form
+  would share and mutate the same pickers. (2) On edit, a changed Duration with an unchanged (pre-filled) End drops
+  the End, as the old form did, so changing the duration doesn't fail with "an end or a duration, not both". (3) The
+  edit form's End is a bare time when the event ends the same day, or the next day at or before its start time (span
+  reads a bare time that way); longer spans get the full date. (4) `draft`/`changes` read the parser from the form
+  (`f.dates`) instead of a parameter. (5) The open dropdown's rows come from a new `picker.rows`, shared with the
+  pop-up view. (6) The hint is two lines: as one line (~86 cells) it pushed the box past an 80-column terminal, seen
+  in the step-9 look. (7) `formKey`: Esc closes an open list before the form. (8) Updated two older tests to the new
+  form: `TestFormShowsParseErrors` now expects the Date field's error, and `TestAddFormUsesDefaultCalendar` uses the
+  new `newEventForm` signature. Step 9 checked in tmux at 80 columns: quick add → tab → walk the fields → open
+  Repeat → choose weekly → save, and `agenda` shows the weekly series. `Ctrl-J`/`Ctrl-K` worked there (a Task 14.23
+  item).
 
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned

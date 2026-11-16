@@ -59,11 +59,11 @@ func (m Model) scopeKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) formKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch k.Type {
-	case tea.KeyEsc:
+	switch {
+	case k.Type == tea.KeyEsc && !m.form.pickerOpen(): // an open list closes first
 		m.mode = modeNormal
 		return m, nil
-	case tea.KeyEnter:
+	case k.Type == tea.KeyEnter && !m.form.isPicker(m.form.focus): // on a picker, Enter opens/chooses
 		return m.submitForm()
 	}
 	var cmd tea.Cmd
@@ -74,9 +74,9 @@ func (m Model) formKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) submitForm() (tea.Model, tea.Cmd) {
 	now := m.deps.Now()
 	if m.form.editing == nil {
-		d, err := m.form.draft(now, m.deps.Dates)
+		d, err := m.form.draft(now)
 		if err != nil {
-			m.form.err = err.Error()
+			m.form = m.form.showError(err)
 			return m, nil
 		}
 		return m, m.act("created "+d.Title, func(ctx context.Context, s *service.Service) error {
@@ -84,9 +84,9 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 			return err
 		})
 	}
-	ch, err := m.form.changes(now, m.deps.Dates)
+	ch, err := m.form.changes(now)
 	if err != nil {
-		m.form.err = err.Error()
+		m.form = m.form.showError(err)
 		return m, nil
 	}
 	return m.applyChanges(*m.form.editing, ch)
@@ -139,7 +139,7 @@ func (m Model) eventAction(k tea.KeyMsg, e model.Event) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.RSVP) && !can.rsvp:
 		m.message = can.whyNoRSVP
 	case key.Matches(k, keys.Edit):
-		m.form, m.mode = editEventForm(e, m.loc()), modeForm
+		m.form, m.mode = editEventForm(e, m.loc(), m.calList, m.deps.Dates), modeForm
 	case key.Matches(k, keys.Delete):
 		m = m.startDelete(e)
 	case key.Matches(k, keys.RSVP):

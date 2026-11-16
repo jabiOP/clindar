@@ -10,7 +10,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
 func TestAddEventThroughForm(t *testing.T) {
@@ -29,13 +31,14 @@ func TestAddEventThroughForm(t *testing.T) {
 func TestFormShowsParseErrors(t *testing.T) {
 	f := newFixture(t)
 	f.openFullForm()
-	f.keys("X", "tab")
-	f.send(tea.KeyMsg{Type: tea.KeyCtrlU}) // clear the Start field
+	f.keys("X")
+	f.focus(fDate)
+	f.send(tea.KeyMsg{Type: tea.KeyCtrlU}) // clear the Date field
 	f.keys("someday", "enter")
 
 	m := f.model()
-	if m.mode != modeForm || !strings.Contains(m.form.err, "someday") {
-		t.Errorf("mode = %v, form.err = %q", m.mode, m.form.err)
+	if m.mode != modeForm || !strings.Contains(m.form.errs[fDate], "not a date") {
+		t.Errorf("mode = %v, Date error = %q", m.mode, m.form.errs[fDate])
 	}
 }
 
@@ -58,9 +61,10 @@ func TestDeleteRecurringInstanceAsksForScope(t *testing.T) {
 }
 
 func TestAddFormUsesDefaultCalendar(t *testing.T) {
-	f := newEventForm(time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC), "Work")
+	cals := []model.Calendar{{ID: "me", Name: "Me", Primary: true, AccessRole: "owner"}, {ID: "w", Name: "Work", AccessRole: "writer"}}
+	f := newEventForm(time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC), cals, "Work", timeparse.Parser{})
 
-	if got := f.value(fCalendar); got != "Work" {
+	if got := f.pickers[fCalendar].current().label; got != "Work" {
 		t.Errorf("calendar field = %q, want the configured default", got)
 	}
 }

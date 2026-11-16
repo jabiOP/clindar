@@ -82,15 +82,21 @@ func (m Model) quickPopup() modal {
 
 // formFromQuick opens the full add form pre-filled from a quick-add line.
 func (m Model) formFromQuick(r quickadd.Result) form {
-	var v [fieldCount]string
-	v[fTitle], v[fCalendar], v[fRepeat] = r.Title, m.deps.DefaultCalendar, r.RepeatWord()
+	f := newEventForm(r.Span.Start, m.calList, m.deps.DefaultCalendar, m.deps.Dates)
+	layout := f.dateLayout()
+	f = f.setText(fTitle, r.Title)
 	if r.Span.AllDay {
-		v[fStart] = r.Span.Start.Format("2006-01-02")
+		date := r.Span.Start.Format(layout)
 		if last := r.Span.End.AddDate(0, 0, -1); last.After(r.Span.Start) {
-			v[fEnd] = last.Format("2006-01-02") // the inclusive last day
+			date += "-" + last.Format(layout) // the inclusive last day
 		}
+		f = f.setText(fDate, date).setChoice(fAllDay, "yes")
 	} else {
-		v[fStart], v[fEnd] = r.Span.Start.Format("2006-01-02 15:04"), r.Span.End.Format("15:04")
+		f = f.setText(fDate, r.Span.Start.Format(layout)).setChoice(fAllDay, "no").
+			setText(fStart, r.Span.Start.Format("15:04")).setText(fEnd, r.Span.End.Format("15:04"))
 	}
-	return newForm(v, nil)
+	if w := r.RepeatWord(); w != "" {
+		f = f.setChoice(fRepeat, w)
+	}
+	return f
 }
