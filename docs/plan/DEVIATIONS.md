@@ -234,3 +234,15 @@ One line per deviation: what changed, and why.
   of under its value (tester). Wrapping each `Label: value` row's value separately, indented 11 columns, would fix it.
 - `clindar calendars show|hide NAME`: there's no CLI command to change calendar visibility yet (Task 14.12 adds it to
   the store, service and TUI only); a small follow-up.
+
+## Decisions after the Phase 15 review (user, recorded by the architect)
+- Plan and code work happen on `main` from now on.
+- Moving an event tells guests like any other edit (`send_updates`), as Google Calendar's own question does (Task 15.12).
+- Accepted: an edit to one occurrence queued during a pending series move can be discarded as a conflict.
+- Accepted: moving a birthday/working-location event is tried, refused by Google, reverted and logged (no `eventType`).
+- `clindar calendars show|hide` stays out of scope (Idea above declined).
+- Stdin titles are literal and need `--at` (Task 15.6). The after-write warning says whether the change reached
+  Google (Task 15.7).
+- Confirmed by the user after upgrading: Meet links and colors now show (Task 15.1).
+- Esc then Enter discards a changed form; Esc Esc keeps editing (Task 15.5, replaces "(y/n)").
+- [Copy] in iTerm2 copied only part of the link: Task 15.8.

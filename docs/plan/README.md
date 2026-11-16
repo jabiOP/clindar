@@ -38,7 +38,7 @@ These files explain *how*, as small tasks.
 | 12 | `12-mouse.md` | Mouse: clicks, wheel (turned off in Task 15.3), buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
 | 13 | `13-fixes.md` | Fixes from testing (13.1–13.10, 13.13), then two product decisions: left-aligned day numbers, indented wrapped details |
 | 14 | `14-ux-round-1.md` | UX round 1: event mode, quick add, pickers, calendar menu, colors, Meet links, day/month dates (spec, not compiled) |
-| 15 | `15-after-ux-round-1.md` | Done: one full resync (migration 4), form keys (Enter saves, Space lists, `Ctrl-S`), Esc asks before discarding, wheel off. To do: moving an event to another calendar (spec, not compiled) |
+| 15 | `15-after-ux-round-1.md` | Done: one full resync (migration 4), form keys (Enter saves, Space lists, `Ctrl-S`), Esc asks before discarding, wheel off. To do (spec, not compiled): Esc then Enter discards, literal stdin titles, clearer write warning, [Copy] bug, then moving an event to another calendar |
 
 ## Toolset primer (read once)
 

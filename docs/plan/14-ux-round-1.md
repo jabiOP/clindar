@@ -1739,6 +1739,8 @@ preview (14.16) makes this visible before saving.
 
 ## Task 14.15: Quick add in the CLI (item 6)
 
+> ⚠ **Changed in Task 15.6:** a title read from stdin is never parsed; `clindar add -` needs `--at`.
+
 **Goal:** `clindar add "Dentist 20/11 15:30 45m"` with no `--at` uses the quick-add parser, defaulting to today. With
 `--at`, the title stays literal and the flags decide everything, as before. Unquoted works too, because the
 arguments are joined. `--end`/`--dur`/`--all-day`/`--repeat`/`--until`/`--count` need `--at`; without it they're a usage
@@ -1955,7 +1957,7 @@ that shows the interpretation, or what's wrong, as you type.
 
 ## Task 14.17: The full form (item 6)
 
-> ⚠ **Changed in Tasks 15.2, 15.4 and 15.10:** Enter always saves (inside an open list it chooses), Space opens a list, `Ctrl-S` and [Save] save from anywhere; Esc on a changed form asks "Discard changes? (y/n)"; the Calendar picker unlocks on edit when the event may move.
+> ⚠ **Changed in Tasks 15.2, 15.4 and 15.14:** Enter always saves (inside an open list it chooses), Space opens a list, `Ctrl-S` and [Save] save from anywhere; Esc on a changed form asks before discarding (Esc then Enter discards, Task 15.5); the Calendar picker unlocks on edit when the event may move.
 
 **Goal:** the form becomes:
 
@@ -1967,7 +1969,7 @@ that shows the interpretation, or what's wrong, as you type.
 | 4 | Start | text | a time: `15:30`, `3pm`. **Typing one switches All-day to no** |
 | 5 | End | text | a time (same day; ≤ start = the next day), or `date time` |
 | 6 | Duration | text | instead of End |
-| 7 | Calendar | picker | **writable** calendars only; on edit, locked ("can't change"; unlocked when the event may move, Task 15.10) |
+| 7 | Calendar | picker | **writable** calendars only; on edit, locked ("can't change"; unlocked when the event may move, Task 15.14) |
 | 8 | Repeat | picker | none, daily, weekdays, weekly, monthly, yearly; on edit, locked |
 | 9 | Where | text | |
 | 10 | Notes | text | |
@@ -2549,6 +2551,8 @@ when `ColorID` is empty. Task 14.23 checks against real Google that null clears 
 
 ## Task 14.22: Meet links: show, [Join], [Copy] (item 10)
 
+> ⚠ **Bug, Task 15.8:** in iTerm2, [Copy] put only part of the link on the clipboard. Diagnose there.
+
 > ⚠ **Fixed in Task 15.1:** the same one-time full resync gives cached events their Meet links.
 
 **Goal:** clindar **reads** Meet links; it never creates them.
@@ -2669,7 +2673,7 @@ Record every result in `DEVIATIONS.md`. Fix anything that fails **and** its test
 - [ ] `J`/`K` move 4 weeks in the grid and page in the list.
 - [ ] Past days look dimmed (and today and future days don't).
 - [ ] ~~A trackpad swipe moves a few days, not weeks. A single wheel notch moves one day.~~ The wheel is off since
-      Task 15.3; Task 15.11 checks that it does nothing.
+      Task 15.3; Task 15.15 checks that it does nothing.
 - [ ] Grabbing an edge and releasing in place does nothing. On an invitation, the status bar says why.
 - [ ] `Ctrl-J`/`Ctrl-K` move between form fields. **Check that `Ctrl-J` isn't read as Enter** (it would save the form).
 - [ ] The list fills the screen, scrolls past both ends, and `Esc` returns to the grid.

@@ -237,12 +237,17 @@ Decisions from real use (brief "UX round 1"):
 
 - **Form keys:** `Enter` always saves, except inside an open list, where it chooses. `Space` opens a list. `Ctrl-S`
   and [Save] save from anywhere (with a list open, they first take the highlighted option).
-- **Esc on a changed form** asks "Discard changes? (y/n)": `y` discards, any other key keeps editing. An untouched
-  form closes at once; an open list closes first. [Cancel] is Esc.
+- **Esc on a changed form** asks before discarding: `Esc` then `Enter` discards; `Esc` `Esc` (or any other key)
+  keeps editing. The hint line says so. An untouched form closes at once; an open list closes first. [Cancel] is Esc.
+- **Stdin titles are literal:** `clindar add -` needs `--at`; only a title typed on the command line is read like
+  quick add.
+- **After a CLI write**, a failed sync says whether the change reached Google ("sent to Google; refreshing timed
+  out") or not ("saved here; not sent to Google yet").
 - **The mouse wheel is off.** Trackpad swipes made it unusable even throttled. Keys scroll; clicks and drags stay.
 - **Changing an event's calendar** (§4): the edit form's Calendar picker is unlocked when the move is allowed and lists
   writable calendars only; otherwise it's locked with the reason. On an occurrence, saving a new calendar offers only
-  "all" and says why. The CLI: `clindar edit ID -c NAME`. Dragging never changes the calendar.
+  "all" and says why. The CLI: `clindar edit ID -c NAME`. Dragging never changes the calendar. Guests are told as
+  for any edit (`send_updates`), which is what Google Calendar's own "send update emails?" question does.
 
 ## 7. Security & config
 

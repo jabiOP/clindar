@@ -6,8 +6,10 @@ Two parts:
   branch** (`f3c8a11`, `2018d48`, `7105aca`, `9ee8872`; merged to `main` at `9ee8872`). They are shown as exact diffs
   (tests first in each file pair). If you're building from this plan, apply them in order after Phase 14. Earlier
   tasks carry a "⚠ Changed in Task 15.N" note where they're affected.
-- **Tasks 15.5–15.11: to do.** Moving an event to another calendar (a user decision). These are **written as a plan
-  only, not compiled or run**. Names match the code at `9ee8872`. If the compiler disagrees, follow the intent, fix
+- **Tasks 15.5–15.8: to do, small.** Decisions from the user's review of 15.1–15.4: Esc then Enter discards, stdin
+  titles need `--at`, a clearer warning after a write, and [Copy] copying the wrong text. Do these first.
+- **Tasks 15.9–15.15: to do.** Moving an event to another calendar (a user decision). Tasks 15.5–15.15 are **written
+  as a plan only, not compiled or run**. Names match the code at `9ee8872`. If the compiler disagrees, follow the intent, fix
   it, and log it in `DEVIATIONS.md`. Every task states its **red step**.
 
 **Rules that come out of this phase** (also in `README.md` and design §3/§6d):
@@ -17,8 +19,9 @@ Two parts:
   it happens to change on Google. A running daemon keeps its old binary: restart it after upgrading.
 - **In the form, Enter always saves**, except inside an open list, where it chooses. Space opens a list. `Ctrl-S`
   and [Save] save from anywhere (with a list open they first take the highlighted option).
-- **Esc on a changed form asks "Discard changes? (y/n)".** An untouched form closes at once; an open list closes
-  first.
+- **Esc on a changed form asks before discarding: Esc then Enter discards, Esc Esc keeps editing** (Task 15.5; it
+  was "(y/n)" in Task 15.4). An untouched form closes at once; an open list closes first.
+- **A title read from stdin is always literal:** `clindar add -` needs `--at` (Task 15.6).
 - **The mouse wheel is off.** Even throttled (Task 14.4), trackpad swipes made it unusable.
 
 | Task | What |
@@ -27,13 +30,17 @@ Two parts:
 | 15.2 | Form: Enter always saves; Space opens lists; `Ctrl-S` and [Save] save from anywhere |
 | 15.3 | The mouse wheel is off (reverts Task 14.4) |
 | 15.4 | Esc on a changed form asks before discarding |
-| 15.5 | Google: `events.move` in the client, `Remote` and the fake |
-| 15.6 | Store: the `move` op (migration 5), coalescing, moving rows |
-| 15.7 | Sync: pushing a move; pull doesn't undo it |
-| 15.8 | Service: `Changes.CalendarID` and the move rule |
-| 15.9 | CLI: `clindar edit ID -c NAME` |
-| 15.10 | TUI: the Calendar picker unlocks when a move is allowed |
-| 15.11 | Checks in a real terminal and against real Google |
+| 15.5 | Esc then Enter discards; Esc Esc keeps editing |
+| 15.6 | A title from stdin needs `--at` |
+| 15.7 | After a write, the warning says whether the change reached Google |
+| 15.8 | [Copy] (`y`) copies the whole Meet link |
+| 15.9 | Google: `events.move` in the client, `Remote` and the fake |
+| 15.10 | Store: the `move` op (migration 5), coalescing, moving rows |
+| 15.11 | Sync: pushing a move; pull doesn't undo it |
+| 15.12 | Service: `Changes.CalendarID` and the move rule |
+| 15.13 | CLI: `clindar edit ID -c NAME` |
+| 15.14 | TUI: the Calendar picker unlocks when a move is allowed |
+| 15.15 | Checks in a real terminal and against real Google |
 
 ---
 
@@ -515,9 +522,175 @@ test uses it.)
 
 ---
 
-# Moving an event to another calendar (Tasks 15.5–15.11)
+# Small fixes from the user's review (Tasks 15.5–15.8)
 
-> ⚠ **Tasks 15.5–15.11 are written as a plan only; they were not compiled or run.** Treat the code as a precise
+> ⚠ **Written as a plan only; not compiled or run.** Names match the code at `9ee8872`.
+
+## Task 15.5: Esc then Enter discards; Esc Esc keeps editing (changes Task 15.4)
+
+**User decision:** "(y/n)" is clumsy after Esc. Now, on a changed form:
+
+| Keys | Result |
+|---|---|
+| `Esc` | asks: the hint area shows **`Discard changes? enter discard · esc keep editing`** (in `errorStyle`, as now) |
+| `Esc`, `Enter` | closes without saving |
+| `Esc`, `Esc` | back to editing, nothing lost |
+| `Esc`, any other key | back to editing; the key isn't typed (as now) |
+
+Unchanged: an untouched form closes on the first Esc; an open list closes first; [Cancel] sends Esc. The hint
+documents it, as before: the second normal hint line becomes **`enter or ctrl+s save · esc then enter discard`**
+(it fits in 80 columns).
+
+**Files:** `internal/tui/actions.go`, `internal/tui/form.go`, `internal/tui/form_test.go`
+
+1. Tests: rewrite `TestEscWithChangesAsksBeforeDiscarding`:
+   ```go
+   func TestEscWithChangesAsksBeforeDiscarding(t *testing.T) {
+   	f := newFixture(t)
+   	f.openFullForm()
+   	f.keys("Dentist", "esc")
+   	if m := f.model(); m.mode != modeForm || !strings.Contains(f.m.View(), "enter discard") {
+   		t.Fatalf("mode = %v; want the form, asking:\n%s", m.mode, f.m.View())
+   	}
+
+   	f.keys("esc") // esc esc: keep editing, nothing lost
+   	if m := f.model(); m.mode != modeForm || m.form.value(fTitle) != "Dentist" || m.form.confirmDiscard {
+   		t.Fatalf("after esc esc: mode = %v, title = %q", m.mode, m.form.value(fTitle))
+   	}
+   	f.keys("esc", "x") // another key also keeps editing, and isn't typed
+   	if m := f.model(); m.mode != modeForm || m.form.value(fTitle) != "Dentist" {
+   		t.Fatalf("after esc x: mode = %v, title = %q", m.mode, m.form.value(fTitle))
+   	}
+   	f.keys("esc", "enter")
+   	if m := f.model(); m.mode != modeNormal {
+   		t.Errorf("after esc enter: mode = %v, want closed", m.mode)
+   	}
+   	if got := f.titlesOn(12); slices.Contains(got, "Dentist") {
+   		t.Error("discarding must not save")
+   	}
+   }
+   ```
+   and add `TestFormHintSaysHowToDiscard`: an open form's `View()` contains `esc then enter discard`. **Red:** `esc esc` closes nothing but `esc enter` saves instead of discarding
+   (Enter is "save"), and the hint text is missing.
+2. `formKey`:
+   ```go
+	if m.form.confirmDiscard { // Esc asked: Enter discards; anything else keeps editing
+		m.form.confirmDiscard = false
+		if k.Type == tea.KeyEnter {
+			m.mode = modeNormal
+		}
+		return m, nil
+	}
+   ```
+3. `form.view`: the prompt text becomes `Discard changes? enter discard · esc keep editing`; the second normal hint
+   line becomes `enter or ctrl+s save · esc then enter discard`.
+4. Design §6d and `DEVIATIONS.md`: say Esc then Enter (no y/n).
+
+**Commit:** `feat(tui): esc then enter discards a changed form; esc esc keeps editing`
+
+---
+
+## Task 15.6: A title from stdin needs `--at` (Task 14.15)
+
+**User decision:** a title read from stdin must never be parsed. Today `clindar add -` without `--at` sends the line
+through quick add, so a task line ending in `daily` or `fri` silently becomes a series or moves to Friday. Now it's an
+error, and nothing is created:
+
+```
+clindar: a title read from stdin needs --at (only a title typed on the command line is read like quick add)
+```
+(exit code: usage error, as other flag mistakes).
+
+**Files:** `internal/cli/write.go`, `internal/cli/write_test.go`
+
+1. Test `TestStdinTitleNeedsAt`: stdin `"Review report daily\n"`, `add -` (and `add` with no args) → usage error with
+   "needs --at" on stderr, and no event queued (`agenda --offline --json` is empty). With `--at "tomorrow 9am"` the
+   title is `Review report daily`, literally. **Red:** today it creates a daily "Review report".
+2. `titleFrom` returns whether the title came from stdin (`title string, fromStdin bool, err error`); in `add`'s
+   `RunE`, before quick add: `if f.at == "" && fromStdin { return usageError{errStdinNeedsAt} }`.
+3. `add`'s `Long` help: replace "With no TITLE or with -, the title is the first line of stdin." with "With no TITLE or
+   with -, the title is the first line of stdin, taken literally; --at is then required." The GTD example already
+   passes `--at`. `docs/cli.md` and `docs/scripting.md` (Task 11.2) say the same.
+
+**Commit:** `fix(cli): a title from stdin is literal and needs --at`
+
+---
+
+## Task 15.7: After a write, say whether the change reached Google (tester note, Task 5.2)
+
+**User decision: yes.** After `add`/`edit`/`rm`/`rsvp`, the CLI syncs within `sync_timeout` (5s). When that times
+out *during the pull*, the edit has already reached Google, yet the warning reads "sync failed … context deadline
+exceeded", which sounds like the edit was lost. Now the warning after a write says which half failed:
+
+| What failed | Warning |
+|---|---|
+| push (offline, timeout, Google error) | `clindar: saved here; not sent to Google yet (it goes with the next sync): <err>` |
+| pull, after a successful push | `clindar: sent to Google; refreshing from Google timed out` (deadline) or `… refreshing from Google failed: <err>` |
+
+Read commands (`RefreshIfStale`) keep today's wording: there was no write.
+
+**Files:** `internal/syncer/engine.go`, `internal/cli/app.go`, `internal/cli/write_test.go` (or `app_test.go`)
+
+1. `syncer`: `Sync` wraps the two halves with exported sentinels, so callers can tell them apart:
+   ```go
+   var (
+   	ErrPush = errors.New("push")
+   	ErrPull = errors.New("pull")
+   )
+   ...
+   	return fmt.Errorf("%w: %w", ErrPush, err) // and ErrPull for the pull
+   ```
+   The message text stays "push: …" / "pull: …".
+2. `app.go`: `PushAfterWrite` calls a `syncAfterWrite` that picks the message with `errors.Is(err, syncer.ErrPull)`
+   and `errors.Is(err, context.DeadlineExceeded)`; `syncQuietly` (reads) is unchanged.
+3. Test with the CLI harness and a fake Google that stalls only list calls (or an `Engine` whose pull fails):
+   `TestWriteWarningSaysItReachedGoogle` (pull fails → "sent to Google") and `TestWriteWarningWhenOffline` (push
+   fails → "not sent to Google yet"). **Red:** both print "sync failed".
+
+**Commit:** `fix(cli): after a write, say whether the change reached Google`
+
+---
+
+## Task 15.8: [Copy] (`y`) copies the whole Meet link (Task 14.22)
+
+**User report (iTerm2):** `y` / [Copy] puts the wrong text on the clipboard: "only the middle of the link, not the
+whole text". **Diagnose before fixing**; there are three plausible causes:
+
+1. **Nothing was copied, and the paste was an old selection.** iTerm2 ignores OSC 52 unless *Settings → General →
+   Selection → "Applications in terminal may access clipboard"* is on. The clipboard then still holds whatever was
+   selected before, e.g. part of a wrapped link selected with Option-drag. If so, the fix is documentation (and the
+   status bar can't know: OSC 52 has no reply).
+2. **The sequence is garbled on its way out.** `clipboard.Copy` writes OSC 52 to **stderr**, from a `tea.Cmd`
+   goroutine, while Bubble Tea's renderer writes frames to **stdout** from its own goroutine. Nothing orders the two
+   writers; a frame written in the middle of the sequence ends it early, and the terminal decodes only part of the
+   base64. The fix is to emit the sequence through Bubble Tea's own output, so it's ordered with the frames: keep
+   the text in `Model.copyPending`, and have `View()` prefix the frame's first line with the OSC 52 sequence once
+   (it has zero width: `lipgloss.Width` and the renderer skip escape sequences), clearing it on the next update.
+   Check that the golden files don't change (they never have a pending copy).
+3. **The wrong text is copied.** `y` copies `m.detail.MeetLink`; check it is the whole URL for the event at hand
+   (`clindar show ID --json` → `meet_link`).
+
+**How to tell:** run `script -q /tmp/clindar.out clindar` (macOS `script` takes the file first), open a Meet event's
+details, press `y`, quit, then `grep -ao $'\e]52;c;[A-Za-z0-9+/=]*' /tmp/clindar.out | cut -d';' -f3 | base64 -d`. The
+whole link printed means clindar sent it right (cause 1 or an iTerm2 issue); a cut-off link means cause 2.
+
+**Files (cause 2):** `internal/tui/actions.go`, `internal/tui/layout.go`, `internal/tui/model.go`,
+`internal/clipboard/clipboard.go` (it builds the sequence string instead of writing it: `Sequence(text) string`),
+`internal/tui/detail_test.go`.
+
+**Test (cause 2):** `TestCopyGoesOutWithTheFrame`: on a Meet event's details, `y` → the next `View()` contains
+`"\x1b]52;c;" + base64(link)` exactly once, and the one after doesn't. **Red:** today `View()` never contains it.
+
+Whatever the cause, write it in `DEVIATIONS.md`, and add the iTerm2 setting to `docs/cli.md`'s TUI section (Task 11.2)
+next to "not in macOS Terminal.app".
+
+**Commit:** `fix(tui): copy the whole Meet link` (or `docs: …` if it was cause 1)
+
+---
+
+# Moving an event to another calendar (Tasks 15.9–15.15)
+
+> ⚠ **Tasks 15.9–15.15 are written as a plan only; they were not compiled or run.** Treat the code as a precise
 > spec. If the compiler disagrees, follow the intent and note the fix in `DEVIATIONS.md`.
 
 **User decision.** You can change the Calendar of an existing event when **all** of these hold:
@@ -534,8 +707,13 @@ shown as a one-off because its series isn't in our calendar) is still an occurre
 **How Google does it.** `POST calendars/{from}/events/{id}/move?destination={to}` (`events.move`). The event keeps
 its ID and comes back with a new etag. A series moves with its exceptions. Afterwards, `events.list` on the old
 calendar returns the event (and each exception) as **cancelled**, and on the new calendar as **new**. Moving changes
-the event's organizer to the destination calendar; it takes no `If-Match`. We send `sendUpdates=none`: nothing about
-the meeting changes for guests (Task 15.11 checks that they aren't re-invited).
+the event's organizer to the destination calendar; it takes no `If-Match`.
+
+**Guests (user decision: do what Google Calendar does).** A move is an ordinary change for guests: they keep their
+copy and their answer, and Google emails them only if asked (`sendUpdates`; the web UI asks "send update emails?" on
+changes to events with guests). clindar's standing answer to that question is the `send_updates` setting (default
+`all`), so a move uses it exactly like every other edit: `s.updatesFor(e)` (`none` when there are no guests). Task
+15.15 checks on real Google that guests get at most an update, not a new invitation to answer.
 
 **Design in one paragraph.** A move is its own outbox op kind, `move`, addressed like every op to the calendar the
 request goes to (the **source**), with a new `destination` column. Locally the move happens at once: the event's rows
@@ -547,11 +725,11 @@ bring Google's copy back into the source calendar nor wipe the moved rows from t
 **Known limit (accept it, log it in `DEVIATIONS.md` if you see it):** when a whole series moves, Google gives each
 exception a new etag too. An edit to *one occurrence* queued while the series move is still pending carries the old
 etag, so it comes back 412 and is discarded with the usual log line. The next pull refreshes the etags. The master's
-own pending edits are retargeted (Task 15.7), so whole-event edits are safe.
+own pending edits are retargeted (Task 15.11), so whole-event edits are safe.
 
 ---
 
-## Task 15.5: Google: `events.move`
+## Task 15.9: Google: `events.move`
 
 **Goal:** `MoveEvent` in `gcal.Client`, in the `syncer.Remote` interface, and in the fake, which models what pull sees
 afterwards.
@@ -689,7 +867,7 @@ afterwards.
 
 ---
 
-## Task 15.6: Store: the `move` op
+## Task 15.10: Store: the `move` op
 
 **Goal:** the outbox can hold a move, coalescing knows about it, and the store can move an event's rows.
 
@@ -703,7 +881,7 @@ SQLite can't change a `CHECK` constraint, so the outbox table is rebuilt. Rows k
 Renaming the new table also carries its `AUTOINCREMENT` counter over, so new ops still come after old ones.
 
 ```go
-	// 5: the "move" op (Task 15.6). SQLite can't alter a CHECK, so the outbox
+	// 5: the "move" op (Task 15.10). SQLite can't alter a CHECK, so the outbox
 	// is rebuilt; rows keep their seq, which is the push order.
 	`
 CREATE TABLE outbox_new (
@@ -743,7 +921,7 @@ No resync migration is needed: `FromAPI` reads nothing new.
 `SELECT` column list) carry it. `encodePayload` keeps a payload for moves (only deletes have none).
 
 For a move, `Op.IfMatch` holds the etag the event had when it was moved. **Push doesn't send it** (`events.move` takes
-no `If-Match`); Task 15.7 uses it only to recognize later ops based on that etag. (It records, it doesn't guard.)
+no `If-Match`); Task 15.11 uses it only to recognize later ops based on that etag. (It records, it doesn't guard.)
 
 ### Coalescing
 
@@ -895,7 +1073,7 @@ because a move merges like a patch, and the migration test fails on the CHECK co
 
 ---
 
-## Task 15.7: Sync: pushing a move, and pull doesn't undo it
+## Task 15.11: Sync: pushing a move, and pull doesn't undo it
 
 **Goal:** push sends moves; completing or discarding one leaves exactly one local copy in the right calendar; and no
 pull, incremental or full, before or after the push, brings the event back into the old calendar or loses it from
@@ -1004,7 +1182,7 @@ the fake and upsert it into the store (or a `w.addCalendar` helper). Then:
   set to `gcal.ErrPermanent` → after sync the event is back in the test calendar locally, the op is gone, and
   `clindar log` (`svc.Logs`) has "couldn't move it".
 
-**Red:** with Task 15.6 done but this task's code missing, `pushOne` ignores `OpMove` (nil error, empty event):
+**Red:** with Task 15.10 done but this task's code missing, `pushOne` ignores `OpMove` (nil error, empty event):
 `complete` stores an empty event and the first test fails on the fake's state. Then each rule above makes its test
 pass.
 
@@ -1014,7 +1192,7 @@ pass.
 
 ---
 
-## Task 15.8: Service: `Changes.CalendarID`
+## Task 15.12: Service: `Changes.CalendarID`
 
 **Goal:** `Update` moves an event when `Changes.CalendarID` names another calendar, with the move rule in **one
 place** that the TUI also uses.
@@ -1081,7 +1259,7 @@ place** that the TUI also uses.
    ```go
    // move applies the other changes first (an op on the old calendar), then moves
    // the event, or its whole series, in the same transaction. The patch is pushed
-   // before the move, each to the right calendar (Task 15.6).
+   // before the move, each to the right calendar (Task 15.10).
    func (s *Service) move(ctx context.Context, e model.Event, to string, rest Changes, scope Scope) (model.Event, error) {
    	from, err := s.ResolveCalendar(ctx, e.CalendarID)
    	if err != nil {
@@ -1115,7 +1293,7 @@ place** that the TUI also uses.
    		moved = cur
    		moved.CalendarID = to
    		return tx.Enqueue(ctx, store.Op{AccountID: s.account, CalendarID: e.CalendarID, EventID: id,
-   			Kind: store.OpMove, Destination: to, Payload: moved, IfMatch: cur.ETag, SendUpdates: "none",
+   			Kind: store.OpMove, Destination: to, Payload: moved, IfMatch: cur.ETag, SendUpdates: s.updatesFor(cur),
    			CreatedAt: s.now()})
    	})
    	return moved, err
@@ -1127,8 +1305,8 @@ place** that the TUI also uses.
    comparable). For "following" with a calendar change, `ErrMoveOccurrence` stops it before any edit is made.
 4. Tests (`move_test.go`, with `newEnv`; add a writable `{ID: "work", Name: "Work", AccessRole: "writer"}` calendar
    in the test or in `newEnv`):
-   - `TestMoveOneOff`: one queued op of kind move, source the test calendar, destination `work`, `SendUpdates ==
-     "none"`; `svc.Get(id).CalendarID == "work"`; `titlesOn` still shows it once.
+   - `TestMoveOneOff`: one queued op of kind move, source the test calendar, destination `work`, `SendUpdates`
+     follows `updatesFor` (`none` without guests, the setting with guests); `svc.Get(id).CalendarID == "work"`; `titlesOn` still shows it once.
    - `TestMoveWithOtherChanges`: title and calendar in one `Update` → ops: patch on the test calendar (new title),
      then the move.
    - `TestMoveSeriesNeedsScopeAll`: an instance with `ScopeThis`, `ScopeFollowing` and `ScopeNone` →
@@ -1146,7 +1324,7 @@ place** that the TUI also uses.
 
 ---
 
-## Task 15.9: CLI: `clindar edit ID -c NAME`
+## Task 15.13: CLI: `clindar edit ID -c NAME`
 
 **Goal:** `edit` takes `-c/--calendar` like `add`, and moves the event.
 
@@ -1178,7 +1356,7 @@ place** that the TUI also uses.
 
 ---
 
-## Task 15.10: TUI: the Calendar picker unlocks when a move is allowed
+## Task 15.14: TUI: the Calendar picker unlocks when a move is allowed
 
 **Goal:** in the edit form, the Calendar picker works when `service.CanMove` allows it, listing **writable calendars
 only**; otherwise it stays locked and shows the reason. Saving a calendar change on an occurrence of a series opens
@@ -1239,15 +1417,15 @@ the scope picker with **only "all"** and a line explaining why.
 
 ---
 
-## Task 15.11: Checks in a real terminal and against real Google
+## Task 15.15: Checks in a real terminal and against real Google
 
 Record every result in `DEVIATIONS.md`. Fix anything that fails **and** its test or fake, as before.
 
 **Real terminal:**
 - [ ] The form: Enter saves from any field, including a closed picker; Space opens a list and Enter there chooses;
       `Ctrl-S` and [Save] save with a list open and keep the highlighted option.
-- [ ] Esc on an untouched form closes it. After typing, Esc asks "Discard changes? (y/n)"; `n` keeps editing (and
-      isn't typed), `y` closes without saving. [Cancel] does the same. From quick add + Tab, Esc asks.
+- [ ] Esc on an untouched form closes it. After typing, Esc asks; then Enter discards and Esc keeps editing (other
+      keys aren't typed). [Cancel] does the same as Esc. From quick add + Tab, Esc asks. The hint lines say so.
 - [ ] The mouse wheel and a trackpad swipe do nothing in the grid and the list.
 - [ ] The edit form's Calendar picker: unlocked on your own event (writable calendars only), locked on an invitation
       with the reason; on an occurrence, saving a new calendar offers only [All events] with the note.
@@ -1258,8 +1436,10 @@ Record every result in `DEVIATIONS.md`. Fix anything that fails **and** its test
       it in Other), and `clindar sync` twice leaves exactly one copy.
 - [ ] A series with one edited occurrence moves with `--scope all`; the web UI shows the series and the edited
       occurrence in Other.
-- [ ] Guests aren't re-invited: move an event with a guest (a second account); the guest gets no new invitation email
-      and their copy still works (this is `sendUpdates=none`; if their copy breaks, try `all` and record it).
+- [ ] Guests: move an event with a guest (a second account) with `send_updates = "all"`. Record exactly what the guest
+      receives (an update email is fine; a fresh invitation that asks them to answer again is not), that their answer
+      is kept, and that their copy still opens. Do the same move in the Google web UI and compare: clindar should
+      behave the same.
 - [ ] An event with a Meet link keeps it after the move.
 - [ ] Moving one occurrence is refused with the "whole series" message (CLI) or the "all"-only picker (TUI).
 - [ ] What Google does with a birthday or working-location event on your primary calendar: expect the move refused,

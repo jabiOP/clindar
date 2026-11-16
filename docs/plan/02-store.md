@@ -19,7 +19,7 @@ go get modernc.org/sqlite@v1.62.0 github.com/google/go-cmp@v0.7.0
 
 ## Task 2.1: Open, migrate, transactions, accounts, test helpers
 
-> ⚠ **Later migrations:** 2 (Task 14.12), 3 (Task 14.19), 4 (Task 15.1: one full resync), 5 (Task 15.6: outbox rebuilt for the `move` op). **Rule (Task 15.1):** whenever `FromAPI` starts reading a new field, append a migration that resets the sync tokens, or events cached earlier never get the field.
+> ⚠ **Later migrations:** 2 (Task 14.12), 3 (Task 14.19), 4 (Task 15.1: one full resync), 5 (Task 15.10: outbox rebuilt for the `move` op). **Rule (Task 15.1):** whenever `FromAPI` starts reading a new field, append a migration that resets the sync tokens, or events cached earlier never get the field.
 
 **Goal:** open/create the DB with the right pragmas, run migrations once, run work in a transaction, and
 record accounts. Also add the shared test helpers that every later phase uses.
@@ -918,7 +918,7 @@ func (s *Store) ClearCalendarEvents(ctx context.Context, accountID, calendarID s
 
 ## Task 2.5: The outbox
 
-> ⚠ **Extended in Task 15.6:** a `move` op kind with a `destination` column (migration 5 rebuilds the table), new coalescing rows, `HasPending`/`ClearCalendarEvents` that also see moves into a calendar, `MoveSeries` and `RetargetETag`.
+> ⚠ **Extended in Task 15.10:** a `move` op kind with a `destination` column (migration 5 rebuilds the table), new coalescing rows, `HasPending`/`ClearCalendarEvents` that also see moves into a calendar, `MoveSeries` and `RetargetETag`.
 
 **Goal:** the queue of local changes waiting to reach Google. This is the heart of offline editing, so take
 your time. Read design §3 first.

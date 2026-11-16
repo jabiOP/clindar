@@ -746,7 +746,7 @@ func zoneName(loc *time.Location, fallback string) string {
 
 ## Task 4.3: Update (with scopes)
 
-> ⚠ **Extended in Task 15.8:** `Changes.CalendarID` moves the event (a one-off, or a whole series with scope *all*), under the rule in `service.CanMove`.
+> ⚠ **Extended in Task 15.12:** `Changes.CalendarID` moves the event (a one-off, or a whole series with scope *all*), under the rule in `service.CanMove`.
 
 **Goal:** edit one-off events, and edit instances with scope `this`, `following`, or `all` (design §4).
 
