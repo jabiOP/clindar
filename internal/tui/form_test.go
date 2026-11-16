@@ -226,19 +226,31 @@ func TestEscWithChangesAsksBeforeDiscarding(t *testing.T) {
 	f := newFixture(t)
 	f.openFullForm()
 	f.keys("Dentist", "esc")
-	if m := f.model(); m.mode != modeForm || !strings.Contains(f.m.View(), "Discard changes? (y/n)") {
+	if m := f.model(); m.mode != modeForm || !strings.Contains(f.m.View(), "enter discard") {
 		t.Fatalf("mode = %v; want the form, asking:\n%s", m.mode, f.m.View())
 	}
 
-	f.keys("n") // keep editing: nothing lost, and "n" isn't typed into the title
-	if m := f.model(); m.mode != modeForm || m.form.value(fTitle) != "Dentist" {
-		t.Fatalf("after n: mode = %v, title = %q", m.mode, m.form.value(fTitle))
+	f.keys("esc") // esc esc: keep editing, nothing lost
+	if m := f.model(); m.mode != modeForm || m.form.value(fTitle) != "Dentist" || m.form.confirmDiscard {
+		t.Fatalf("after esc esc: mode = %v, title = %q", m.mode, m.form.value(fTitle))
 	}
-	f.keys("esc", "y")
+	f.keys("esc", "x") // another key also keeps editing, and isn't typed
+	if m := f.model(); m.mode != modeForm || m.form.value(fTitle) != "Dentist" {
+		t.Fatalf("after esc x: mode = %v, title = %q", m.mode, m.form.value(fTitle))
+	}
+	f.keys("esc", "enter")
 	if m := f.model(); m.mode != modeNormal {
-		t.Errorf("after esc y: mode = %v, want closed", m.mode)
+		t.Errorf("after esc enter: mode = %v, want closed", m.mode)
 	}
 	if got := f.titlesOn(12); slices.Contains(got, "Dentist") {
 		t.Error("discarding must not save")
+	}
+}
+
+func TestFormHintSaysHowToDiscard(t *testing.T) {
+	f := newFixture(t)
+	f.openFullForm()
+	if !strings.Contains(f.m.View(), "esc then enter discard") {
+		t.Errorf("hint should say how to discard:\n%s", f.m.View())
 	}
 }

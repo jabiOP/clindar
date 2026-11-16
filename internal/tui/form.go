@@ -459,13 +459,13 @@ func (f form) view(width int, mouse bool) modal {
 	}
 	// Two lines: one would be wider than an 80-column terminal.
 	if f.confirmDiscard {
-		md.text(errorStyle.Render("Discard changes? (y/n)"))
+		md.text(errorStyle.Render("Discard changes? enter discard · esc keep editing"))
 	} else if p, ok := f.pickers[f.focus]; ok && p.open {
 		md.text(dimStyle.Render("in the list: j/k move · enter choose · esc close the list"))
 		md.text(dimStyle.Render("ctrl+s save"))
 	} else {
 		md.text(dimStyle.Render("ctrl+j/tab next · ctrl+k previous · h/l change · space list"))
-		md.text(dimStyle.Render("enter or ctrl+s save · esc cancel"))
+		md.text(dimStyle.Render("enter or ctrl+s save · esc then enter discard"))
 	}
 	return md
 }

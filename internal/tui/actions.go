@@ -59,9 +59,9 @@ func (m Model) scopeKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) formKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.form.confirmDiscard { // "Discard changes? (y/n)": y closes, anything else keeps editing
+	if m.form.confirmDiscard { // Esc asked: Enter discards; anything else keeps editing
 		m.form.confirmDiscard = false
-		if k.String() == "y" {
+		if k.Type == tea.KeyEnter {
 			m.mode = modeNormal
 		}
 		return m, nil
