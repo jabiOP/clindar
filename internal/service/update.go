@@ -20,6 +20,7 @@ type Changes struct {
 	AllDay                       *bool
 	Invite                       *[]string // replaces the attendee list
 	ColorID                      *string   // "" = back to the calendar's color
+	CalendarID                   *string   // name or ID: moves the event (an instance's whole series: scope all)
 }
 
 func (c Changes) withoutTiming() Changes {
@@ -78,6 +79,18 @@ func (s *Service) Update(ctx context.Context, id string, ch Changes, scope Scope
 	if _, err := s.writableCalendar(ctx, e.CalendarID); err != nil {
 		return model.Event{}, err
 	}
+	if ch.CalendarID != nil {
+		to, err := s.writableCalendar(ctx, *ch.CalendarID)
+		if err != nil {
+			return model.Event{}, err
+		}
+		rest := ch
+		rest.CalendarID = nil
+		if to.ID != e.CalendarID {
+			return s.move(ctx, e, to.ID, rest, scope)
+		}
+		ch = rest // already there: just the other changes
+	}
 	if !e.IsInstance() { // one-off event, or a master addressed directly
 		if err := ch.apply(&e); err != nil {
 			return model.Event{}, err
@@ -97,6 +110,64 @@ func (s *Service) Update(ctx context.Context, id string, ch Changes, scope Scope
 	default:
 		return model.Event{}, ErrNeedScope
 	}
+}
+
+// CanMove says whether e may move out of its calendar (from): you own it, the
+// calendar is writable, and it's a one-off or a series (an instance moves its
+// whole series). The destination must be writable too; Update checks that.
+func CanMove(e model.Event, from model.Calendar) error {
+	_, _, _, occurrence := model.ParseInstanceID(e.ID)
+	switch {
+	case !from.Writable():
+		return fmt.Errorf("%s: %w", from.Name, ErrReadOnly)
+	case e.IsInvitation():
+		return ErrInvitation
+	case occurrence && !e.IsInstance(): // an orphan occurrence, shown as a one-off
+		return ErrMoveOccurrence
+	}
+	return nil
+}
+
+// move applies the other changes first (an op on the old calendar), then
+// moves the event, or its whole series, in the same transaction.
+func (s *Service) move(ctx context.Context, e model.Event, to string, rest Changes, scope Scope) (model.Event, error) {
+	from, err := s.ResolveCalendar(ctx, e.CalendarID)
+	if err != nil {
+		return model.Event{}, err
+	}
+	if err := CanMove(e, from); err != nil {
+		return model.Event{}, err
+	}
+	id := e.ID
+	if e.IsInstance() {
+		if scope != ScopeAll {
+			return model.Event{}, ErrMoveOccurrence
+		}
+		id = e.SeriesID
+	}
+	var moved model.Event
+	err = s.store.InTx(ctx, func(tx *store.Store) error {
+		in := *s
+		in.store = tx
+		if rest != (Changes{}) {
+			if _, err := in.Update(ctx, e.ID, rest, scope); err != nil {
+				return err
+			}
+		}
+		cur, err := tx.GetEvent(ctx, s.account, e.CalendarID, id)
+		if err != nil {
+			return err
+		}
+		if err := tx.MoveSeries(ctx, s.account, e.CalendarID, to, id); err != nil {
+			return err
+		}
+		moved = cur
+		moved.CalendarID = to
+		return tx.Enqueue(ctx, store.Op{AccountID: s.account, CalendarID: e.CalendarID, EventID: id,
+			Kind: store.OpMove, Destination: to, Payload: moved, IfMatch: cur.ETag,
+			SendUpdates: s.updatesFor(cur), CreatedAt: s.now()})
+	})
+	return moved, err
 }
 
 // updateAll applies ch to the series master. Time changes made relative to

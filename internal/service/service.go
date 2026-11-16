@@ -20,6 +20,9 @@ var (
 	ErrNotAttendee  = errors.New("you are not an attendee of this event")
 	ErrNoCalendar   = errors.New("no such calendar")
 	ErrInvalidEvent = errors.New("invalid event")
+
+	ErrInvitation     = errors.New("this is an invitation: only the organizer can change it")
+	ErrMoveOccurrence = errors.New("one occurrence can't move to another calendar: move the whole series (scope all)")
 )
 
 type Service struct {

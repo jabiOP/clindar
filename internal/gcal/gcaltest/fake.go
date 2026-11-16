@@ -56,6 +56,14 @@ func (f *Fake) Put(e model.Event) model.Event {
 	return f.put(e)
 }
 
+// AddCalendar adds a calendar, as if created elsewhere.
+func (f *Fake) AddCalendar(c model.Calendar) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calendars = append(f.calendars, c)
+	f.events[c.ID] = map[string]model.Event{}
+}
+
 // Remove deletes an event as Google does: it becomes a cancelled tombstone.
 func (f *Fake) Remove(calendarID, eventID string) {
 	f.mu.Lock()

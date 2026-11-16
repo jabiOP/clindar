@@ -119,3 +119,10 @@ func (e *Event) SelfAttendee() *Attendee {
 	}
 	return nil
 }
+
+// IsInvitation reports whether you're a guest: on the attendee list but not
+// the organizer. Guests can't change the event, only answer it.
+func (e Event) IsInvitation() bool {
+	self := e.SelfAttendee()
+	return self != nil && !self.Organizer
+}

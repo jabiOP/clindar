@@ -1,9 +1,11 @@
 package syncer
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jabiOP/clindar/internal/gcal"
 	"github.com/jabiOP/clindar/internal/model"
@@ -90,6 +92,11 @@ func (e *Engine) pullEvents(ctx context.Context, calendarID string) error {
 	if err != nil {
 		return err
 	}
+	// Cancelled masters last: their DeleteSeries then also removes tombstones of
+	// exceptions in the same listing (a series moved to another calendar).
+	slices.SortStableFunc(events, func(a, b model.Event) int {
+		return cmp.Compare(cancelledMaster(a), cancelledMaster(b))
+	})
 	return e.Store.InTx(ctx, func(tx *store.Store) error {
 		if full { // full listing: start over (keeps rows with pending edits)
 			if err := tx.ClearCalendarEvents(ctx, e.AccountID, calendarID); err != nil {
@@ -109,6 +116,9 @@ func (e *Engine) pullEvents(ctx context.Context, calendarID string) error {
 // that event (local wins until pushed; the push then resolves any conflict).
 func (e *Engine) apply(ctx context.Context, tx *store.Store, ev model.Event) error {
 	pending, err := tx.HasPending(ctx, ev.AccountID, ev.CalendarID, ev.ID)
+	if err == nil && !pending && ev.SeriesID != "" { // its series is moving out of this calendar
+		pending, err = tx.MovePending(ctx, ev.AccountID, ev.CalendarID, ev.SeriesID)
+	}
 	if err != nil || pending {
 		return err
 	}
@@ -120,6 +130,13 @@ func (e *Engine) apply(ctx context.Context, tx *store.Store, ev model.Event) err
 	default:
 		return tx.DeleteSeries(ctx, ev.AccountID, ev.CalendarID, ev.ID)
 	}
+}
+
+func cancelledMaster(e model.Event) int {
+	if e.Cancelled() && e.SeriesID == "" {
+		return 1
+	}
+	return 0
 }
 
 // pullPalette fetches Google's event color palette once and caches it;
