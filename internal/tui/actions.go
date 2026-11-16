@@ -13,14 +13,14 @@ import (
 )
 
 func (m Model) startDelete(e model.Event) Model {
-	id, title := e.ID, e.Title
+	id, title := service.Ref(e.CalendarID, e.ID), e.Title
 	m.afterScope = func(sc service.Scope) tea.Cmd {
 		return m.act("deleted "+title, func(ctx context.Context, s *service.Service) error {
 			return s.Delete(ctx, id, sc)
 		})
 	}
 	if e.IsInstance() {
-		m.mode, m.allowedScopes, m.scopeNote = modeScope, "tfa", ""
+		m.mode, m.allowedScopes, m.scopeNote, m.scopeFromForm = modeScope, "tfa", "", false
 	} else {
 		m.mode = modeConfirm
 	}
@@ -35,14 +35,14 @@ func (m Model) rsvpKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	e := m.target
-	id := e.ID
+	id := service.Ref(e.CalendarID, e.ID)
 	m.afterScope = func(sc service.Scope) tea.Cmd {
 		return m.act("replied "+string(resp), func(ctx context.Context, s *service.Service) error {
 			return s.RSVP(ctx, id, resp, sc)
 		})
 	}
 	if e.IsInstance() {
-		m.mode, m.allowedScopes, m.scopeNote = modeScope, "ta", ""
+		m.mode, m.allowedScopes, m.scopeNote, m.scopeFromForm = modeScope, "ta", "", false
 		return m, nil
 	}
 	m.mode = modeNormal
@@ -54,6 +54,9 @@ func (m Model) scopeKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	sc, ok := scopes[k.String()]
 	m.mode = modeNormal
 	if !ok || !strings.Contains(m.allowedScopes, k.String()) {
+		if m.scopeFromForm { // cancelling the scope goes back to the form, not past it
+			m.mode = modeForm
+		}
 		return m, nil
 	}
 	return m, m.afterScope(sc)
@@ -104,7 +107,10 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 		m.form = m.form.showError(err)
 		return m, nil
 	}
-	return m.applyChanges(*m.form.editing, ch)
+	next, cmd := m.applyChanges(*m.form.editing, ch)
+	nm := next.(Model)
+	nm.scopeFromForm = nm.mode == modeScope
+	return nm, cmd
 }
 
 // applyChanges saves an edit, asking for a scope first if e is part of a
@@ -112,12 +118,12 @@ func (m Model) submitForm() (tea.Model, tea.Cmd) {
 func (m Model) applyChanges(e model.Event, ch service.Changes) (tea.Model, tea.Cmd) {
 	m.afterScope = func(sc service.Scope) tea.Cmd {
 		return m.act("saved "+e.Title, func(ctx context.Context, s *service.Service) error {
-			_, err := s.Update(ctx, e.ID, ch, sc)
+			_, err := s.Update(ctx, service.Ref(e.CalendarID, e.ID), ch, sc)
 			return err
 		})
 	}
 	if e.IsInstance() {
-		m.mode, m.allowedScopes, m.scopeNote = modeScope, "tfa", ""
+		m.mode, m.allowedScopes, m.scopeNote, m.scopeFromForm = modeScope, "tfa", "", false
 		if ch.CalendarID != nil { // Google can't move one occurrence
 			m.allowedScopes = "a"
 			m.scopeNote = "One occurrence can't move to another calendar. Move the whole series?"

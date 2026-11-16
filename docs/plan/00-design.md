@@ -82,6 +82,12 @@ SQLite stores each event as indexed columns (`start_ts`, `end_ts`, `series_id`, 
 `is_master`, `status`) plus a JSON blob of the full `model.Event`. Adding a field means changing
 the struct and nothing else.
 
+**One event, two calendars.** An event you can see in two calendars (e.g. you invited someone whose calendar is
+shared with you) is stored once per calendar under the same ID. Every command and service method takes either a bare
+ID or `CALENDAR/ID` (calendar ID or name). A bare ID picks the copy that fits the action: for show/edit/move/delete,
+the one you can edit (writable, not an invitation); for RSVP, the one where you're invited. A tie is refused, and the
+error names the `CALENDAR/ID`s to use. The TUI always says which copy it means.
+
 ## 3. Sync
 
 Every sync cycle **pushes first, then pulls**.

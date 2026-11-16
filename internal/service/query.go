@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/jabiOP/clindar/internal/model"
@@ -104,21 +105,62 @@ func (s *Service) Next(ctx context.Context) (e model.Event, ok bool, err error) 
 	return model.Event{}, false, nil
 }
 
-// Get returns an event by ID: a stored event, or an instance of a series
-// (instance IDs work even when no exception is stored).
-func (s *Service) Get(ctx context.Context, id string) (model.Event, error) {
-	e, err := s.store.FindEvent(ctx, s.account, id)
-	if err == nil && !e.Cancelled() {
+// Ref names an event in one calendar: "CALENDAR/ID", where CALENDAR is a
+// calendar ID or name. Every method that takes an event ID also takes a Ref;
+// a bare ID is looked up across calendars.
+func Ref(calendarID, id string) string { return calendarID + "/" + id }
+
+// splitRef separates a Ref. Event IDs never contain "/".
+func splitRef(ref string) (calendar, id string) {
+	if i := strings.LastIndex(ref, "/"); i >= 0 {
+		return ref[:i], ref[i+1:]
+	}
+	return "", ref
+}
+
+// An event you can see in two calendars (e.g. one shared with you) is stored
+// twice under one ID. With a bare ID, these say which copy an action wants.
+func editRank(e model.Event, c model.Calendar) int {
+	switch {
+	case c.Writable() && !e.IsInvitation():
+		return 2
+	case c.Writable():
+		return 1
+	}
+	return 0
+}
+
+func rsvpRank(e model.Event, c model.Calendar) int {
+	switch self := e.SelfAttendee(); {
+	case self == nil || !c.Writable():
+		return 0
+	case !self.Organizer:
+		return 2
+	}
+	return 1
+}
+
+// Get returns an event by ID or Ref: a stored event, or an instance of a
+// series (instance IDs work even when no exception is stored). Of several
+// copies, it takes the one you can edit.
+func (s *Service) Get(ctx context.Context, ref string) (model.Event, error) {
+	return s.get(ctx, ref, editRank)
+}
+
+func (s *Service) get(ctx context.Context, ref string, rank func(model.Event, model.Calendar) int) (model.Event, error) {
+	cal, id := splitRef(ref)
+	e, err := s.pick(ctx, cal, id, rank)
+	if err == nil {
 		return s.detachIfOrphan(ctx, e)
 	}
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
+	if !errors.Is(err, store.ErrNotFound) {
 		return model.Event{}, err
 	}
 	seriesID, originalStart, _, ok := model.ParseInstanceID(id)
 	if !ok {
 		return model.Event{}, fmt.Errorf("event %s: %w", id, store.ErrNotFound)
 	}
-	master, err := s.store.FindEvent(ctx, s.account, seriesID)
+	master, err := s.pick(ctx, cal, seriesID, rank)
 	if err != nil {
 		return model.Event{}, fmt.Errorf("event %s: %w", id, err)
 	}
@@ -131,6 +173,62 @@ func (s *Service) Get(ctx context.Context, id string) (model.Event, error) {
 		return model.Event{}, fmt.Errorf("event %s: %w", id, store.ErrNotFound)
 	}
 	return inst, err
+}
+
+// pick returns the live copy of event id in calendar cal ("" = any), or the
+// best-ranked copy; a tie is ambiguous, and the error names the Refs to use.
+func (s *Service) pick(ctx context.Context, cal, id string, rank func(model.Event, model.Calendar) int) (model.Event, error) {
+	var copies []model.Event
+	if cal != "" {
+		c, err := s.ResolveCalendar(ctx, cal)
+		if err != nil {
+			return model.Event{}, err
+		}
+		e, err := s.store.GetEvent(ctx, s.account, c.ID, id)
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			return model.Event{}, err
+		}
+		if err == nil {
+			copies = append(copies, e)
+		}
+	} else {
+		var err error
+		if copies, err = s.store.FindEvents(ctx, s.account, id); err != nil {
+			return model.Event{}, err
+		}
+	}
+	copies = slices.DeleteFunc(copies, model.Event.Cancelled)
+	if len(copies) == 0 {
+		return model.Event{}, store.ErrNotFound
+	}
+	if len(copies) == 1 {
+		return copies[0], nil
+	}
+	cals, err := s.Calendars(ctx)
+	if err != nil {
+		return model.Event{}, err
+	}
+	byID := map[string]model.Calendar{}
+	for _, c := range cals {
+		byID[c.ID] = c
+	}
+	best, ties := -1, []model.Event(nil)
+	for _, e := range copies {
+		switch r := rank(e, byID[e.CalendarID]); {
+		case r > best:
+			best, ties = r, []model.Event{e}
+		case r == best:
+			ties = append(ties, e)
+		}
+	}
+	if len(ties) == 1 {
+		return ties[0], nil
+	}
+	var refs []string
+	for _, e := range ties {
+		refs = append(refs, Ref(e.CalendarID, id))
+	}
+	return model.Event{}, fmt.Errorf("event %s: %w; say which: %s", id, store.ErrAmbiguous, strings.Join(refs, " or "))
 }
 
 // detach presents an orphan instance (its series isn't in our calendar) as a

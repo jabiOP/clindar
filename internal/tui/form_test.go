@@ -330,3 +330,40 @@ func TestMovingAnOccurrenceOffersOnlyTheWholeSeries(t *testing.T) {
 		t.Errorf("series in %q (%v), want work", e.CalendarID, err)
 	}
 }
+
+// An event stored in two calendars (one shared with you) is saved in the copy
+// being edited, not refused as ambiguous.
+func TestEditingOneOfTwoCopies(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	lunch, _ := f.st.GetEvent(context.Background(), testutil.Account, testutil.Calendar, "lunch")
+	lunch.CalendarID = "work"
+	f.put(lunch)
+
+	m, cmd := f.model().applyChanges(lunch, service.Changes{Title: new("Lunch moved")})
+	f.m = f.drain(m, cmd)
+
+	if got, _ := f.st.GetEvent(context.Background(), testutil.Account, "work", "lunch"); got.Title != "Lunch moved" {
+		t.Errorf("work copy = %q (status: %q)", got.Title, f.model().message)
+	}
+	if got, _ := f.st.GetEvent(context.Background(), testutil.Account, testutil.Calendar, "lunch"); got.Title != "Lunch with Sam" {
+		t.Errorf("the other copy changed: %q", got.Title)
+	}
+}
+
+func TestEscOnTheScopePickerReturnsToTheForm(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	f.keys("enter", "e") // the Standup occurrence
+	f.focus(fCalendar)
+	f.keys("l", "enter")
+	if f.model().mode != modeScope {
+		t.Fatalf("mode = %v, want the scope picker", f.model().mode)
+	}
+
+	f.keys("esc")
+
+	if m := f.model(); m.mode != modeForm || m.form.value(fCalendar) != "work" {
+		t.Errorf("mode = %v, calendar = %q; want the form back, unchanged", m.mode, m.form.value(fCalendar))
+	}
+}

@@ -43,7 +43,7 @@ func (s *Store) GetEvent(ctx context.Context, accountID, calendarID, id string) 
 // appear in two calendars (e.g. an invite to you and to a shared calendar);
 // then it returns ErrAmbiguous.
 func (s *Store) FindEvent(ctx context.Context, accountID, id string) (model.Event, error) {
-	events, err := s.queryEvents(ctx, `WHERE account_id = ? AND id = ?`, accountID, id)
+	events, err := s.FindEvents(ctx, accountID, id)
 	if err != nil {
 		return model.Event{}, err
 	}
@@ -55,6 +55,11 @@ func (s *Store) FindEvent(ctx context.Context, accountID, id string) (model.Even
 	default:
 		return model.Event{}, fmt.Errorf("event %s: %w", id, ErrAmbiguous)
 	}
+}
+
+// FindEvents returns every stored copy of an event, one per calendar it's in.
+func (s *Store) FindEvents(ctx context.Context, accountID, id string) ([]model.Event, error) {
+	return s.queryEvents(ctx, `WHERE account_id = ? AND id = ?`, accountID, id)
 }
 
 func (s *Store) DeleteEvent(ctx context.Context, accountID, calendarID, id string) error {

@@ -43,7 +43,7 @@ func (s *Service) Delete(ctx context.Context, id string, scope Scope) error {
 	case ScopeFollowing:
 		before, _, err := recur.SplitAt(master, e.OriginalStart)
 		if errors.Is(err, recur.ErrSplitAtFirst) {
-			return s.Delete(ctx, master.ID, ScopeNone)
+			return s.Delete(ctx, Ref(master.CalendarID, master.ID), ScopeNone)
 		}
 		if err != nil {
 			return err
@@ -56,7 +56,7 @@ func (s *Service) Delete(ctx context.Context, id string, scope Scope) error {
 			return s.save(ctx, tx, master, store.OpPatch)
 		})
 	case ScopeAll:
-		return s.Delete(ctx, master.ID, ScopeNone)
+		return s.Delete(ctx, Ref(master.CalendarID, master.ID), ScopeNone)
 	default:
 		return ErrNeedScope
 	}
@@ -64,7 +64,7 @@ func (s *Service) Delete(ctx context.Context, id string, scope Scope) error {
 
 // RSVP sets your response. Scope "following" is not supported.
 func (s *Service) RSVP(ctx context.Context, id string, resp model.ResponseStatus, scope Scope) error {
-	e, err := s.Get(ctx, id)
+	e, err := s.get(ctx, id, rsvpRank) // of several copies, the one where you're invited
 	if err != nil {
 		return err
 	}

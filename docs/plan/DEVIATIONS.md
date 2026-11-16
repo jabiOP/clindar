@@ -255,3 +255,15 @@ One line per deviation: what changed, and why.
 - Confirmed by the user after upgrading: Meet links and colors now show (Task 15.1).
 - Esc then Enter discards a changed form; Esc Esc keeps editing (Task 15.5, replaces "(y/n)").
 - [Copy] in iTerm2 copied only part of the link: Task 15.8.
+
+## Task 15.15 results (agent, real Google)
+- Passed: one-off move keeps its ID (one copy after two syncs); a series moves with its edited occurrence; the Meet
+  link survives (`clindar show`; web UI not looked at); one occurrence is refused in the CLI and offered only "all"
+  in the TUI. Not run: birthday/working-location (none on the primary calendar).
+- **Failed, fixed after:** the guest check never reached Google. The work calendar is shared with the main account, so
+  the invited event was stored twice under one ID, and every lookup by bare ID was ambiguous (show, edit, rm, rsvp,
+  and the TUI form, which knew the calendar but didn't pass it). Older than the move work. Fix: `service.Ref`
+  (`CALENDAR/ID`) everywhere an ID is taken; the TUI always passes one; a bare ID picks the copy that fits the action
+  (design §2), and a real tie names the refs to use. **Re-run the guest check.**
+- Fixed: Esc on the scope picker opened from the form now returns to the form (`Model.scopeFromForm`); the help no
+  longer says the wheel scrolls.

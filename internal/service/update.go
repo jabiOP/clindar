@@ -150,7 +150,7 @@ func (s *Service) move(ctx context.Context, e model.Event, to string, rest Chang
 		in := *s
 		in.store = tx
 		if rest != (Changes{}) {
-			if _, err := in.Update(ctx, e.ID, rest, scope); err != nil {
+			if _, err := in.Update(ctx, Ref(e.CalendarID, e.ID), rest, scope); err != nil {
 				return err
 			}
 		}

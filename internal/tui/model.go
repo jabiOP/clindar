@@ -99,6 +99,7 @@ type Model struct {
 	afterScope    func(service.Scope) tea.Cmd
 	allowedScopes string // e.g. "tfa" or "ta"
 	scopeNote     string // why the scope choices are limited, if they are
+	scopeFromForm bool   // the scope picker came from the form: cancelling returns to it
 }
 
 // --- messages ---
