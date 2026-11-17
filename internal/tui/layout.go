@@ -101,7 +101,7 @@ func (m Model) popup() (modal, bool) {
 			bs, hints = append(bs, button{"Edit", "e"}), append(hints, "e edit")
 		}
 		if can.delete {
-			bs, hints = append(bs, button{"Delete", "d"}), append(hints, "d delete")
+			bs, hints = append(bs, button{"Delete", "delete"}), append(hints, "dd delete")
 		}
 		if can.rsvp {
 			bs, hints = append(bs, button{"RSVP", "r"}), append(hints, "r RSVP")

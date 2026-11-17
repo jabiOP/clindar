@@ -46,7 +46,7 @@ func TestDeleteRecurringInstanceAsksForScope(t *testing.T) {
 	f := newFixture(t)
 	f.keys("tab") // list starting today (Thu Nov 12): Standup 09:00 is first
 
-	f.keys("d")
+	f.keys("d", "d")
 	if f.model().mode != modeScope {
 		t.Fatalf("mode = %v, want scope picker", f.model().mode)
 	}
@@ -132,5 +132,31 @@ func TestQuickAddTabOpensThePrefilledForm(t *testing.T) {
 	m := f.model()
 	if m.mode != modeForm || m.form.value(fTitle) != "Dentist" || !strings.Contains(m.form.value(fStart), "15:30") {
 		t.Errorf("mode %v, title %q, start %q", m.mode, m.form.value(fTitle), m.form.value(fStart))
+	}
+}
+
+// dd deletes a one-off at once, as in vim; d then another key does nothing.
+func TestDDDeletes(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab", "j") // Lunch, a one-off
+
+	f.keys("d")
+	if !strings.Contains(f.model().message, "d again") {
+		t.Errorf("after d: message %q", f.model().message)
+	}
+	f.keys("j", "k") // the j is swallowed by the pending d; k moves back up
+	if got := f.titlesOn(12); !slices.Contains(got, "Lunch with Sam") {
+		t.Fatalf("d j must not delete: %v", got)
+	}
+	if f.model().cursor != 0 {
+		t.Errorf("cursor = %d, want 0 (j swallowed, k moved up)", f.model().cursor)
+	}
+
+	f.keys("j", "d", "d")
+	if got := f.titlesOn(12); slices.Contains(got, "Lunch with Sam") {
+		t.Errorf("dd should delete Lunch: %v", got)
+	}
+	if f.model().mode != modeNormal {
+		t.Errorf("mode = %v, want no confirmation", f.model().mode)
 	}
 }

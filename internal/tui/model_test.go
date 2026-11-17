@@ -278,7 +278,7 @@ func TestEventModeMovesAndOpens(t *testing.T) {
 
 func TestEventModeActsLikeTheDetailsBox(t *testing.T) {
 	f := newFixture(t)
-	f.keys("enter", "d") // Standup is a recurring instance: delete asks for a scope
+	f.keys("enter", "d", "d") // Standup is a recurring instance: delete asks for a scope
 
 	if m := f.model(); m.mode != modeScope {
 		t.Errorf("mode = %v, want the scope picker", m.mode)

@@ -74,6 +74,8 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 	if m.mode != modeNormal {
 		switch {
+		case t.kind == targetKey && t.key == "delete" && m.mode == modeDetail: // [Delete]: a click asks first
+			return m.startDelete(m.detail, true)
 		case t.kind == targetKey:
 			return m.handleKey(keyMsg(t.key))
 		case t.kind == targetField && m.mode == modeForm:

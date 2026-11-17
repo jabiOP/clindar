@@ -261,11 +261,12 @@ func TestHoverOnEdgeRevealsHandle(t *testing.T) {
 	}
 }
 
-// With the mouse on, the delete confirmation still names its keys, and a key
-// other than y cancels visibly rather than silently.
+// A click on [Delete] asks first (no undo); the question names its keys, and
+// a key other than y cancels visibly rather than silently.
 func TestDeleteConfirmShowsKeysAndSaysWhenCancelled(t *testing.T) {
 	f := newMouseFixture(t)
-	f.keys("tab", "j", "d") // list from Thu 12: Standup, then Lunch (a one-off)
+	f.keys("tab", "j", "enter") // list from Thu 12: Standup, then Lunch (a one-off): its details
+	f.click(f.button("delete"))
 
 	if screen := f.m.View(); !strings.Contains(screen, "(y/n)") || !strings.Contains(screen, "[Delete]") {
 		t.Fatalf("confirm pop-up should show (y/n) and the buttons:\n%s", screen)

@@ -20,7 +20,7 @@ var keys = struct {
 	Open:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open day / event")),
 	Add:        key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add event")),
 	Edit:       key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit event (list)")),
-	Delete:     key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete event (list)")),
+	Delete:     key.NewBinding(key.WithKeys("d"), key.WithHelp("dd", "delete event (list, event mode, details)")),
 	RSVP:       key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "RSVP (list)")),
 	Sync:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sync now")),
 	Calendars:  key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "choose calendars")),

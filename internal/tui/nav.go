@@ -12,6 +12,18 @@ import (
 )
 
 func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// dd deletes, as in vim: the first d only waits for the second.
+	onEvent := m.mode == modeDetail || (m.mode == modeNormal && (m.view == viewList || m.dayMode))
+	if key.Matches(k, keys.Delete) && onEvent && !m.pendingD {
+		m.pendingD, m.message = true, "d… (d again deletes)"
+		return m, nil
+	}
+	if m.pendingD {
+		m.pendingD, m.message = false, ""
+		if !key.Matches(k, keys.Delete) {
+			return m, nil // like vim: d followed by another key does nothing
+		}
+	}
 	switch m.mode {
 	case modeForm:
 		return m.formKey(k)
@@ -147,7 +159,7 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeForm
 		return m, nil
 	case key.Matches(k, keys.Delete):
-		return m.startDelete(*current), nil
+		return m.startDelete(*current, false)
 	case key.Matches(k, keys.RSVP):
 		return m.startRSVP(*current), nil
 	}
@@ -228,7 +240,7 @@ func (m Model) startDayMode() Model {
 		return m
 	}
 	m.dayMode, m.dayCursor = true, 0
-	m.message = "j/k pick · enter open · e/d/r act · esc back"
+	m.message = "j/k pick · enter open · e edit · dd delete · r RSVP · esc back"
 	return m
 }
 

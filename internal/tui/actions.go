@@ -12,19 +12,26 @@ import (
 	"github.com/jabiOP/clindar/internal/service"
 )
 
-func (m Model) startDelete(e model.Event) Model {
+// startDelete deletes e: at once for a one-off (dd), or after "Delete this
+// event? (y/n)" when confirm is set (the mouse's [Delete]). A recurring
+// instance asks for a scope either way.
+func (m Model) startDelete(e model.Event, confirm bool) (Model, tea.Cmd) {
 	id, title := service.Ref(e.CalendarID, e.ID), e.Title
 	m.afterScope = func(sc service.Scope) tea.Cmd {
 		return m.act("deleted "+title, func(ctx context.Context, s *service.Service) error {
 			return s.Delete(ctx, id, sc)
 		})
 	}
-	if e.IsInstance() {
+	switch {
+	case e.IsInstance():
 		m.mode, m.allowedScopes, m.scopeNote, m.scopeFromForm = modeScope, "tfa", "", false
-	} else {
+	case confirm:
 		m.mode = modeConfirm
+	default:
+		m.mode = modeNormal
+		return m, m.afterScope(service.ScopeNone)
 	}
-	return m
+	return m, nil
 }
 
 func (m Model) rsvpKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -186,7 +193,7 @@ func (m Model) eventAction(k tea.KeyMsg, e model.Event) (tea.Model, tea.Cmd) {
 	case key.Matches(k, keys.Edit):
 		m.form, m.mode = editEventForm(e, m.loc(), m.calList, m.deps.Dates).withPalette(m.palette), modeForm
 	case key.Matches(k, keys.Delete):
-		m = m.startDelete(e)
+		return m.startDelete(e, false)
 	case key.Matches(k, keys.RSVP):
 		m = m.startRSVP(e)
 	}
