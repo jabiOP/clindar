@@ -318,3 +318,18 @@ One line per deviation: what changed, and why.
   (within `sync_timeout`), and `sync_interval` defaults to 20s. Restart the daemon to pick up the new default.
   Confirmed by the user: the daemon syncs quicker.
 - Confirmed by the user (2026-11-17): a read-only calendar's events (holidays) can't be moved or edited.
+
+## Phase 11 (docs and release)
+- **11.1** `docs/setup-google-cloud.md` is written from the plan and Google's current screen names, **not followed in
+  a fresh Google Cloud project** (no Google Cloud access from the build environment). The first person to follow it
+  should note any screen that differs.
+- **11.2** `docs/cli.md`: every example was run (local account, `--offline`). Found while checking: `--end` with a
+  bare time before the start is refused in the CLI (by design: a typo guard), while quick add and the TUI form read
+  `22:00`→`01:00` as the next day; the doc says so and shows `--end "sat 01:00"`. Stale help text fixed: `daemon
+  --interval` said 45s, `agenda -c` said "shown in Google".
+- **11.3** `docs/scripting.md`: every recipe's clindar part was run; `fzf` and `notify-send` aren't installed in
+  the build environment, so those two were run with `head -1` and `echo` in their place.
+- **11.4** README rewritten; the release loop builds all four targets and `--version` prints the version.
+- **11.5** `go test -race -count=1 ./...`, `go vet` and `gofmt` clean. **The rest of the checklist needs the user**
+  (a real account, a fresh config and data folder, the network unplugged); then commit `chore: v0.1.0` and tag it.
+
