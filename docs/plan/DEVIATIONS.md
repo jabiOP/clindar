@@ -223,6 +223,52 @@ One line per deviation: what changed, and why.
   quick add (Tab) counts as changed. Tests: `TestEscOnAnUntouchedFormCloses`,
   `TestEscWithChangesAsksBeforeDiscarding`.
 
+- **Task 15.15, moving events (real Google, 2026-11-16, `5bf05d6`, tmux 160×45).** Account me@example.com
+  (the user's own, not a dedicated test account). There is no calendar named "Other", so by the user's choice
+  events were created on **primary** and moved **into clindar-test**. `send_updates` is the default `"all"` (no
+  config.toml). `go test ./...` passes. Results:
+  - **One-off: pass.** `clindar add "clindar move test 1 one-off" --at "2026-11-18 10:00" -c me@example.com`
+    → `76ojh4mllsju79igeijkjlb1rs`; `show --json` before: that ID, `me@example.com`. `clindar edit ID -c
+    clindar-test` + `sync`: same ID, `calendar_id` = clindar-test's ID. Two more syncs: `agenda` shows exactly one
+    copy. Web UI (user): only in clindar-test.
+  - **Series: pass.** Daily ×4 from 2026-11-19 08:00 on primary (`7hprl7hblvda7i2kdukaboeg84`). The occurrence on
+    the 20th was moved to 09:15 with `clindar edit <occurrence> --at … --scope this` rather than in the web UI
+    (same kind of exception on Google). `clindar edit <series id> -c clindar-test --scope all` + `sync`: all four
+    rows in clindar-test, the 20th still at 09:15. Web UI (user): the series and the changed occurrence are in
+    clindar-test, nothing left on primary.
+  - **Meet link: pass.** Created in the web UI on primary ("clindar move test 4 meet", `26s66cmngqav7m46r0bvvirkj7`)
+    with Meet `https://meet.google.com/abc-defg-hij`. After `clindar edit ID -c clindar-test` and two syncs,
+    `show --json` gives the same ID and the same `meet_link`, one copy in `agenda`. Web UI comparison: pending.
+  - **Single occurrence, CLI: pass.** `clindar edit 7hprl7hblvda7i2kdukaboeg84_20261121T070000Z -c clindar-test
+    --scope this` → `clindar: one occurrence can't move to another calendar: move the whole series (scope all)`,
+    exit 1; after `sync` all four rows were still on primary.
+  - **Single occurrence, TUI: pass.** Edit form on an occurrence: Calendar picker unlocked; changing it and pressing
+    Enter shows "One occurrence can't move to another calendar. Move the whole series?" above "Recurring event.
+    Apply to:" with only [All events] [Cancel]. Cancelled; outbox empty, nothing changed. Seen in passing: Esc on
+    that pop-up closed the whole form (back to the grid), not back to the form; and the help screen still said
+    "scroll to move a week" though the wheel is off (Task 15.3). Both fixed in `84323bd`; re-checked 2026-11-17 in
+    tmux: Esc on the pop-up returns to the form with the new calendar kept, and help says "the wheel does nothing".
+  - **Guests: failed on 2026-11-16 (blocked before reaching Google); passed on re-run after `84323bd`.** `clindar add "clindar move test 3 guest" --at "2026-11-18
+    16:00" -c me@example.com --invite work@example.com` → `nbfnk19ir4mvurg9pebhabun4k`; the guest accepted
+    (details: "Guests: work@example.com (accepted)"). work@example.com's calendar is also in this account's list
+    (writer), so the same ID is stored twice (`agenda` shows it under me@example.com and work@example.com).
+    `clindar show ID` → `clindar: event nbfnk19ir4mvurg9pebhabun4k: ambiguous: matches more than one event`; so
+    `clindar edit ID -c clindar-test` can't be run. The TUI too: opening the copy on me@example.com, setting
+    Calendar to clindar-test and pressing Enter shows in the status bar `event nbfnk19ir4mvurg9pebhabun4k:
+    ambiguous: matches more than one event`; after sync both copies are where they were. Cause: `Service.Update`
+    takes only an ID and resolves it with `Service.Get` → `store.FindEvent` (by ID across all calendars), which
+    returns `ErrAmbiguous`; the TUI knows the calendar but doesn't pass it. Not new in Phase 15, but it means no
+    event shared between two calendars you can see can be edited, moved, or deleted from clindar. Fixed in
+    `84323bd` (see "Task 15.15 results" below).
+    **Re-run, 2026-11-17 (`84323bd`):** a new event on primary inviting work@example.com, stored twice again (primary
+    and work@example.com's calendar); `clindar show ID` with the bare ID now picks the primary copy. The guest
+    accepted; `clindar edit ID -c clindar-test` + `sync`: same ID, now in clindar-test, the guest still `accepted`,
+    the guest's copy still under the same ID, nothing in `clindar log`. Then the user moved it back to primary in the
+    Google web UI. **User, as the guest, for both moves: no new email at all (not even an "updated" one), the answer
+    stayed "accepted", the event still opened; only its calendar changed.** clindar and the web UI behave the same.
+  - **Event Google won't move: not run.** The user's primary calendar has no birthday or working-location events
+    (the user confirmed; clindar doesn't record `eventType`).
+
 ## Ideas
 - **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
   to two characters (`fmt.Sprintf("%2d")` in `gridView.cell`, Task 10.1), so " 2" puts its digit one column right
@@ -264,6 +310,7 @@ One line per deviation: what changed, and why.
   the invited event was stored twice under one ID, and every lookup by bare ID was ambiguous (show, edit, rm, rsvp,
   and the TUI form, which knew the calendar but didn't pass it). Older than the move work. Fix: `service.Ref`
   (`CALENDAR/ID`) everywhere an ID is taken; the TUI always passes one; a bare ID picks the copy that fits the action
-  (design §2), and a real tie names the refs to use. **Re-run the guest check.**
+  (design §2), and a real tie names the refs to use. Guest check re-run 2026-11-17: passed (no email to the guest
+  for a move by clindar or by the web UI, answer kept; details in the Task 15.15 entry above).
 - Fixed: Esc on the scope picker opened from the form now returns to the form (`Model.scopeFromForm`); the help no
   longer says the wheel scrolls.
