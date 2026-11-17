@@ -143,7 +143,7 @@ func tuiDeps(app *App, svc *service.Service) tui.Deps {
 		DefaultCalendar: app.Config.DefaultCalendar,
 		Dates:           app.Dates(),
 		OpenURL:         browser.Open,
-		Copy:            clipboard.Sequence,
+		Copy:            clipboard.Copy,
 		Mouse:           app.Config.Mouse,
 	}
 }

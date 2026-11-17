@@ -28,12 +28,12 @@ type Deps struct {
 	Sync            func(context.Context) error // nil disables syncing (tests)
 	Now             func() time.Time
 	WeekStart       time.Weekday
-	DefaultCalendar string              // config default_calendar: pre-fills the add form
-	Dates           timeparse.Parser    // config date_order: how typed dates are read
-	OpenURL         func(string) error  // opens a link in the browser (Task 14.21); nil in most tests
-	Copy            func(string) string // the terminal sequence that copies text (OSC 52); nil in most tests
-	Mouse           bool                // config mouse: clicks, drag-and-drop, hover (Phase 12; the wheel is off)
-	SyncInterval    time.Duration       // 0 disables periodic sync (tests)
+	DefaultCalendar string                       // config default_calendar: pre-fills the add form
+	Dates           timeparse.Parser             // config date_order: how typed dates are read
+	OpenURL         func(string) error           // opens a link in the browser (Task 14.21); nil in most tests
+	Copy            func(string) (string, error) // copies text; or returns the OSC 52 sequence to send instead; nil in most tests
+	Mouse           bool                         // config mouse: clicks, drag-and-drop, hover (Phase 12; the wheel is off)
+	SyncInterval    time.Duration                // 0 disables periodic sync (tests)
 }
 
 type view int
@@ -162,6 +162,12 @@ var pushRetry = 3 * time.Second
 
 type calShownMsg struct{ err error }
 type infoMsg struct{ text string } // a one-off result shown in the status bar
+
+// copyMsg is the result of a copy: done, or a sequence to draw with the frame.
+type copyMsg struct {
+	sequence string
+	err      error
+}
 
 // copiedMsg ends a copy: by then the frame carrying the sequence has been drawn.
 type copiedMsg struct{}
@@ -316,6 +322,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logEntries, m.mode = msg.entries, modeLog
 		m.started = m.deps.Now() // seen: the status bar stops counting them
 		return m, m.load()
+	case copyMsg:
+		switch {
+		case msg.err != nil:
+			m.message = "couldn't copy: " + msg.err.Error()
+		case msg.sequence == "":
+			m.message = "Meet link copied"
+		default: // through the terminal: drawn with the frame, not written beside it (they'd interleave)
+			m.copySeq = msg.sequence
+			return m, tea.Tick(copyFrameTime, func(time.Time) tea.Msg { return copiedMsg{} })
+		}
+		return m, nil
 	case copiedMsg:
 		m.copySeq, m.message = "", "Meet link copied"
 		return m, nil

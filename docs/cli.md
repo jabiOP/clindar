@@ -307,8 +307,9 @@ folders. Your login token is in the system keyring, or in a private file in the 
 | `r` | answer an invitation |
 | `C` | color: a palette of the calendar's colors (`h`/`j`/`k`/`l`, `Enter`) |
 
-`y` copies through the terminal (OSC 52): it works in iTerm2 (allow it in *Settings → General → Selection*), kitty,
-WezTerm and tmux (`set -g set-clipboard on`), not in macOS Terminal.app.
+`y` copies with the system clipboard (`pbcopy` on macOS; `wl-copy`, `xclip` or `xsel` on Linux), in any terminal.
+Over SSH, or without those tools, it copies through the terminal instead (OSC 52): that works in iTerm2 (allow it in
+*Settings → General → Selection*), kitty, WezTerm and tmux (`set -g set-clipboard on`), not in macOS Terminal.app.
 
 **Quick add** (`a`): type the event as one line (see [Quick add](#quick-add)); the line below shows what will be
 created. `Enter` saves, `Tab` opens the full form with it, `Esc` cancels.

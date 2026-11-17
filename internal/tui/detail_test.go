@@ -123,7 +123,7 @@ func TestMeetJoinAndCopy(t *testing.T) {
 	var opened, copied string
 	f := newFixtureWith(t, Deps{
 		OpenURL: func(u string) error { opened = u; return nil },
-		Copy:    func(s string) string { copied = s; return "<copy " + s + ">" },
+		Copy:    func(s string) (string, error) { copied = s; return "", nil },
 	})
 	e := testutil.Timed("m", "Sync call", time.Date(2026, 11, 12, 16, 0, 0, 0, f.ny), 30*time.Minute)
 	e.MeetLink = "https://meet.google.com/abc-defg-hij"
@@ -140,13 +140,14 @@ func TestMeetJoinAndCopy(t *testing.T) {
 
 // The copy sequence goes out inside a frame, so it can't interleave with one.
 func TestCopyGoesOutWithTheFrame(t *testing.T) {
-	f := newFixtureWith(t, Deps{Copy: func(s string) string { return "<copy " + s + ">" }})
+	f := newFixtureWith(t, Deps{Copy: func(s string) (string, error) { return "<copy " + s + ">", nil }})
 	e := testutil.Timed("m", "Sync call", time.Date(2026, 11, 12, 16, 0, 0, 0, f.ny), 30*time.Minute)
 	e.MeetLink = "https://meet.google.com/abc-defg-hij"
 	f.put(e)
 	f.openDetail(e)
 
 	m, cmd := f.m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	m, cmd = m.Update(cmd()) // the copy's result: a sequence for the terminal
 	if got := m.View(); strings.Count(got, "<copy "+e.MeetLink+">") != 1 {
 		t.Fatalf("the frame should carry the copy once:\n%s", got)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -167,8 +166,8 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case k.String() == "m" && link != "" && m.deps.OpenURL != nil: // join the Meet call
 		return m, m.openURL(link)
 	case k.String() == "y" && link != "" && m.deps.Copy != nil: // yank the Meet link
-		m.copySeq = m.deps.Copy(link) // drawn with the frame, not written beside it (they'd interleave)
-		return m, tea.Tick(copyFrameTime, func(time.Time) tea.Msg { return copiedMsg{} })
+		cp := m.deps.Copy
+		return m, func() tea.Msg { seq, err := cp(link); return copyMsg{seq, err} }
 	}
 	m.mode = modeNormal
 	return m, nil
