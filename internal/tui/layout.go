@@ -140,6 +140,8 @@ func (m Model) popup() (modal, bool) {
 		}
 	case modeCalendars:
 		return m.calMenu.view(min(m.width-4, 50), m.deps.Mouse), true
+	case modeColor:
+		return m.colorPick.view(min(m.width-4, 50), m.deps.Mouse), true
 	case modeQuick:
 		return m.quickPopup(), true
 	case modeRSVP:

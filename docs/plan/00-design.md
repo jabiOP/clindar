@@ -271,6 +271,9 @@ Decisions from real use (brief "UX round 1"):
 - **The selected event keeps its color:** highlighted with its color as background and black or white text.
 - **Mouse:** one click on a day selects it; a double click (within 400 ms) adds an event there; dragging across days
   still adds a span.
+- **Quick color palette:** right-click an event (grid or list), or `C` in the list, event mode or the details box: a
+  grid of the calendar's colors as dots, 9 per row in hue order, plus "Calendar default", like Google Calendar's
+  right-click menu. A click or Enter applies the color at once (recurring events ask for a scope).
 - **`?` anywhere** shows help; closing it returns to the details box or event mode it was opened from.
 
 ## 7. Security & config

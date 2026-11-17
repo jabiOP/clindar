@@ -47,6 +47,10 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case modeCalendars:
 		return m.calMenuKey(k)
+	case modeColor:
+		np, ev, _ := m.colorPick.Update(k)
+		m.colorPick = np
+		return m.colorEvent(ev)
 	case modeQuick:
 		return m.quickKey(k)
 	}
@@ -162,6 +166,8 @@ func (m Model) listKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.startDelete(*current, false)
 	case key.Matches(k, keys.RSVP):
 		return m.startRSVP(*current), nil
+	case key.Matches(k, keys.Color):
+		return m.startColor(*current), nil
 	}
 	return m, m.reloadIfNeeded()
 }
@@ -265,6 +271,8 @@ func (m Model) dayKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode, m.helpFrom = modeHelp, modeNormal
 	case key.Matches(k, keys.Edit, keys.Delete, keys.RSVP):
 		return m.eventAction(k, events[m.dayCursor])
+	case key.Matches(k, keys.Color):
+		return m.startColor(events[m.dayCursor]), nil
 	default: // any other key leaves event mode and does its usual job
 		m.dayMode = false
 		return m.handleKey(k)

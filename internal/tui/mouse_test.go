@@ -363,3 +363,61 @@ func TestDragAcrossEmptyDaysAddsASpan(t *testing.T) {
 		}
 	}
 }
+
+// withPalette gives the fixture Google's classic palette, as a sync would.
+func (f *fixture) withPalette() {
+	f.t.Helper()
+	if err := f.st.SetEventColors(context.Background(), testutil.Account, map[string]string{
+		"1": "#a4bdfc", "2": "#7ae7bf", "3": "#dbadff", "4": "#ff887c", "5": "#fbd75b", "6": "#ffb878",
+		"7": "#46d6db", "8": "#e1e1e1", "9": "#5484ed", "10": "#51b749", "11": "#dc2127",
+	}); err != nil {
+		f.t.Fatal(err)
+	}
+	f.send(f.model().load()())
+}
+
+// Right-click an event: a quick palette of dots, as in Google Calendar; a
+// click on a dot colors the event at once.
+func TestRightClickColorsAnEvent(t *testing.T) {
+	f := newMouseFixture(t)
+	f.withPalette()
+	x, y := f.eventAt("Lunch with Sam", 12, partBody)
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonRight, Action: tea.MouseActionPress})
+	if m := f.model(); m.mode != modeColor || !strings.Contains(f.m.View(), "Calendar default") {
+		t.Fatalf("mode = %v:\n%s", m.mode, f.m.View())
+	}
+
+	f.click(f.where(func(t target) bool {
+		return t.kind == targetOption && f.model().colorPick.options[t.field].value == "11"
+	}))
+
+	lunch, _ := f.svc.Get(context.Background(), "lunch")
+	if f.model().mode != modeNormal || lunch.ColorID != "11" {
+		t.Errorf("mode = %v, lunch color = %q; want Tomato (11)", f.model().mode, lunch.ColorID)
+	}
+}
+
+func TestColorKeyFromTheList(t *testing.T) {
+	f := newFixture(t)
+	f.keys("tab", "j", "C") // Lunch
+	if f.model().mode != modeColor {
+		t.Fatalf("mode = %v, want the palette", f.model().mode)
+	}
+	f.keys("j", "enter") // the row under "Calendar default": the first color
+
+	lunch, _ := f.svc.Get(context.Background(), "lunch")
+	if lunch.ColorID == "" {
+		t.Error("lunch should have a color")
+	}
+}
+
+func TestNoColorPaletteForAnInvitation(t *testing.T) {
+	f := newFixture(t)
+	inv := testutil.Timed("inv", "Their meeting", time.Date(2026, 11, 12, 15, 0, 0, 0, f.ny), time.Hour)
+	inv.Attendees = []model.Attendee{{Email: testutil.Account, Self: true}, {Email: "boss@example.com", Organizer: true}}
+	f.put(inv)
+	f.keys("tab", "j", "j", "C")
+	if m := f.model(); m.mode != modeNormal || !strings.Contains(m.message, "guest") {
+		t.Errorf("mode = %v, message = %q", m.mode, m.message)
+	}
+}

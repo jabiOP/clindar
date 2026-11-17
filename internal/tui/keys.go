@@ -6,7 +6,7 @@ import "github.com/charmbracelet/bubbles/key"
 // and the help screen renders them.
 var keys = struct {
 	Left, Right, Up, Down, ScrollUp, ScrollDown, Today, Goto, Toggle, Open,
-	Add, Edit, Delete, RSVP, Sync, Calendars, Help, Quit, Back key.Binding
+	Add, Edit, Delete, RSVP, Color, Sync, Calendars, Help, Quit, Back key.Binding
 }{
 	Left:       key.NewBinding(key.WithKeys("h", "left"), key.WithHelp("h/←", "previous day")),
 	Right:      key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("l/→", "next day")),
@@ -22,6 +22,7 @@ var keys = struct {
 	Edit:       key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit event (list)")),
 	Delete:     key.NewBinding(key.WithKeys("d"), key.WithHelp("dd", "delete event (list, event mode, details)")),
 	RSVP:       key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "RSVP (list)")),
+	Color:      key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "color (list, event mode, details)")),
 	Sync:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sync now")),
 	Calendars:  key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "choose calendars")),
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
@@ -33,7 +34,7 @@ func helpText(mouse bool) string {
 	s := "Keys\n\n"
 	for _, b := range []key.Binding{keys.Left, keys.Right, keys.Up, keys.Down, keys.ScrollUp, keys.ScrollDown,
 		keys.Today, keys.Goto, keys.Toggle, keys.Open, keys.Add, keys.Edit, keys.Delete, keys.RSVP,
-		keys.Sync, keys.Calendars, keys.Back, keys.Quit} {
+		keys.Color, keys.Sync, keys.Calendars, keys.Back, keys.Quit} {
 		s += "  " + fit(b.Help().Key, 8) + b.Help().Desc + "\n"
 	}
 	if mouse {
@@ -42,6 +43,7 @@ func helpText(mouse bool) string {
 			"  double-click a day to add an event; drag across days to add one spanning them\n" +
 			"  click an event to see it (the wheel does nothing: use the keys to move)\n" +
 			"  drag an event to another day; drag ◂ or ▸ to change its first or last day\n" +
+			"  right-click an event to change its color\n" +
 			"  select text: Option-drag on macOS, Shift-drag elsewhere\n"
 	}
 	return s + "\nPress any key to close."

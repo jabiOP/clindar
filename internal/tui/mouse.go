@@ -39,6 +39,16 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil // the wheel is off: trackpad swipes made it unusable, even throttled
 	case msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress:
 		return m.press(t, onSomething)
+	case msg.Button == tea.MouseButtonRight && msg.Action == tea.MouseActionPress && m.mode == modeNormal:
+		switch t.kind { // right-click an event: its quick color palette, as in Google Calendar
+		case targetEvent:
+			return m.startColor(t.event), nil
+		case targetEntry:
+			if t.entry < len(m.entries()) {
+				return m.startColor(m.entries()[t.entry]), nil
+			}
+		}
+		return m, nil
 	case msg.Action == tea.MouseActionMotion && m.span.active: // before hover, which takes every other motion
 		switch {
 		case t.kind == targetDay || t.kind == targetEmpty || t.kind == targetEvent || t.kind == targetMore:
@@ -85,6 +95,13 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 			m.form = m.form.focusField(t.field).openPicker() // a picker field opens its list
 		case t.kind == targetOption && m.mode == modeForm:
 			m.form = m.form.pickOption(t.field)
+		case t.kind == targetOption && m.mode == modeColor: // a click on a dot applies it
+			np, ev, _ := m.colorPick.pick(t.field)
+			m.colorPick = np
+			return m.colorEvent(ev)
+		case !onSomething && m.mode == modeColor:
+			m.mode = modeNormal // click outside closes
+			return m, nil
 		case t.kind == targetOption && m.mode == modeCalendars:
 			var ev pickEvent
 			var i int

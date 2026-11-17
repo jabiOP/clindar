@@ -29,6 +29,24 @@ type picker struct {
 	open      bool
 	checklist bool
 	grid      bool // open as a grid: one row per group; h/l along a row, j/k between rows
+	dots      bool // grid of bare color dots, 9 per row, groups flowing on (the quick palette)
+}
+
+// columns is how many options a grid row holds.
+func (p picker) columns() int {
+	if p.dots {
+		return 9
+	}
+	return gridColumns
+}
+
+// rowGroup is what starts a new grid row when it changes. Dots flow on, except
+// that an option without a color (e.g. "Calendar default") gets its own row.
+func (p picker) rowGroup(o option) int {
+	if p.dots {
+		return min(o.group, 1)
+	}
+	return o.group
 }
 
 type pickEvent int
@@ -138,12 +156,24 @@ func (p picker) view(w int, mouse bool) modal {
 		md.text("/" + p.filter)
 	}
 	md.text("")
-	lines, idx := p.rows(w)
-	for n, line := range lines {
-		md.option(line, idx[n])
+	hint := "j/k move · enter choose · / filter · esc close"
+	if p.grid {
+		lines, cells := p.gridRows(w)
+		for n, line := range lines {
+			md.optionCells(0, line, cells[n])
+		}
+		if vis := p.visible(); p.dots && p.cursor < len(vis) { // dots have no names: say which one
+			md.text("")
+			md.text(p.options[vis[p.cursor]].label)
+		}
+		hint = "h/j/k/l move · enter choose · esc close"
+	} else {
+		lines, idx := p.rows(w)
+		for n, line := range lines {
+			md.option(line, idx[n])
+		}
 	}
 	md.text("")
-	hint := "j/k move · enter choose · / filter · esc close"
 	if p.checklist {
 		hint = "j/k move · space toggle · / filter · esc close"
 	}
@@ -207,7 +237,7 @@ func (p picker) gridLayout(cols int) [][]int {
 	var rows [][]int
 	for pos, i := range vis {
 		n := len(rows)
-		if n == 0 || len(rows[n-1]) == cols || p.options[vis[rows[n-1][0]]].group != p.options[i].group {
+		if n == 0 || len(rows[n-1]) == cols || p.rowGroup(p.options[vis[rows[n-1][0]]]) != p.rowGroup(p.options[i]) {
 			rows = append(rows, nil)
 			n++
 		}
@@ -218,7 +248,7 @@ func (p picker) gridLayout(cols int) [][]int {
 
 // gridStep moves the cursor dir rows down (or up), keeping its column.
 func (p picker) gridStep(dir int) int {
-	rows := p.gridLayout(gridColumns)
+	rows := p.gridLayout(p.columns())
 	for r, row := range rows {
 		for c, pos := range row {
 			if pos != p.cursor {
@@ -236,7 +266,7 @@ type gridCell struct{ x, w, i int }
 
 // gridRows draws the open grid (a window of rows around the cursor) for w cells.
 func (p picker) gridRows(w int) (lines []string, cells [][]gridCell) {
-	cols := gridColumns
+	cols := p.columns()
 	vis := p.visible()
 	rows := p.gridLayout(cols)
 	cur := 0
@@ -249,6 +279,9 @@ func (p picker) gridRows(w int) (lines []string, cells [][]gridCell) {
 	first := min(max(cur-window/2, 0), max(len(rows)-window, 0))
 	last := min(first+window, len(rows))
 	cellW := (w - 4) / cols
+	if p.dots {
+		cellW = 4
+	}
 	more := func(s string) { lines, cells = append(lines, dimStyle.Render("  "+s)), append(cells, nil) }
 	if first > 0 {
 		more("↑ more")
@@ -259,12 +292,23 @@ func (p picker) gridRows(w int) (lines []string, cells [][]gridCell) {
 		for c, pos := range rows[r] {
 			o := p.options[vis[pos]]
 			text := fit("  "+swatch(o.swatch)+o.label, cellW)
-			if pos == p.cursor {
+			if p.dots && o.swatch != "" {
+				text = dotCell(o.swatch, pos == p.cursor, vis[pos] == p.chosen)
+			} else if pos == p.cursor {
 				dot := ""
 				if o.swatch != "" {
 					dot = "● "
 				}
 				text = selectedStyle.Render(fit("▶ "+dot+o.label, cellW))
+			}
+			if p.dots && o.swatch == "" { // a whole row, like Google's "Default" button
+				text = fit("  "+o.label, cols*cellW)
+				if pos == p.cursor {
+					text = selectedStyle.Render(fit("▶ "+o.label, cols*cellW))
+				}
+				cs = append(cs, gridCell{x: 0, w: cols * cellW, i: vis[pos]})
+				line += text
+				continue
 			}
 			cs = append(cs, gridCell{x: c * cellW, w: cellW, i: vis[pos]})
 			line += text
@@ -275,6 +319,20 @@ func (p picker) gridRows(w int) (lines []string, cells [][]gridCell) {
 		more("↓ more")
 	}
 	return lines, cells
+}
+
+// dotCell is one 4-cell dot of the quick palette: "[●]" under the cursor,
+// "◉" for the current color.
+func dotCell(color string, cursor, chosen bool) string {
+	dot := "●"
+	if chosen {
+		dot = "◉"
+	}
+	dot = calendarStyle(color).Render(dot)
+	if cursor {
+		return "[" + dot + "] "
+	}
+	return " " + dot + "  "
 }
 
 // swatch is a colored ● for a "#rrggbb" color, or nothing.

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -156,6 +157,8 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.eventAction(k, m.detail)
 	}
 	switch link := m.detail.MeetLink; {
+	case key.Matches(k, keys.Color):
+		return m.startColor(m.detail), nil
 	case key.Matches(k, keys.Help): // help, then back to these details
 		m.mode, m.helpFrom = modeHelp, modeDetail
 		return m, nil
@@ -168,6 +171,38 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Tick(copyFrameTime, func(time.Time) tea.Msg { return copiedMsg{} })
 	}
 	m.mode = modeNormal
+	return m, nil
+}
+
+// startColor opens the quick color palette for e (right-click, or C), with the
+// same permission rule as editing.
+func (m Model) startColor(e model.Event) Model {
+	cal := m.calendars[e.CalendarID]
+	if ok, why := canDrag(e, cal); !ok {
+		m.mode, m.message = modeNormal, "can't change the color: "+why
+		return m
+	}
+	p := picker{title: "Color · " + e.Title, options: colorOptions(cal, m.palette), grid: true, dots: true, open: true}
+	p.chosen = max(slices.IndexFunc(p.options, func(o option) bool { return o.value == colorValue(e) }), 0)
+	p.cursor = max(indexOf(p.visible(), p.chosen), 0)
+	m.colorPick, m.colorTarget, m.mode = p, e, modeColor
+	return m
+}
+
+// colorEvent applies the quick palette's choice (or closes it).
+func (m Model) colorEvent(ev pickEvent) (tea.Model, tea.Cmd) {
+	switch ev {
+	case pickClosed:
+		m.mode = modeNormal
+	case pickChanged:
+		m.mode = modeNormal
+		v := m.colorPick.current().value
+		if v == colorValue(m.colorTarget) {
+			return m, nil
+		}
+		colorID, labelID := splitColor(v)
+		return m.applyChanges(m.colorTarget, service.Changes{ColorID: &colorID, LabelID: &labelID})
+	}
 	return m, nil
 }
 

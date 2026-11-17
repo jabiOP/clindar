@@ -54,6 +54,7 @@ const (
 	modeHelp
 	modeCalendars // the calendar menu (Task 14.13)
 	modeQuick     // quick add: one line with a live preview (Task 14.16)
+	modeColor     // the quick color palette for one event (right-click, or C)
 )
 
 type Model struct {
@@ -99,12 +100,14 @@ type Model struct {
 	listAnchor *entryRef // after prepending: the entry the cursor must land just before
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
-	allowedScopes string   // e.g. "tfa" or "ta"
-	scopeNote     string   // why the scope choices are limited, if they are
-	scopeFromForm bool     // the scope picker came from the form: cancelling returns to it
-	pendingD      bool     // the first d of dd
-	helpFrom      mode     // where closing help returns to
-	lastClick     clickRef // the last click on a day (double click adds)
+	allowedScopes string      // e.g. "tfa" or "ta"
+	scopeNote     string      // why the scope choices are limited, if they are
+	scopeFromForm bool        // the scope picker came from the form: cancelling returns to it
+	colorPick     picker      // the quick color palette (modeColor)
+	colorTarget   model.Event // the event it colors
+	pendingD      bool        // the first d of dd
+	helpFrom      mode        // where closing help returns to
+	lastClick     clickRef    // the last click on a day (double click adds)
 }
 
 // --- messages ---
