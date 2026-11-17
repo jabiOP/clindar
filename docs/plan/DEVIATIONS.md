@@ -346,3 +346,9 @@ One line per deviation: what changed, and why.
   JSON and the recipes. The setup guide was followed when clindar was first set up (the fresh run reused that
   client file). **Checklist complete: v0.1.0.**
 
+## After v0.1.0
+- **[Copy] did nothing in iTerm2** (user). OSC 52 depends on the terminal allowing it and fails silently; the earlier
+  "only the middle of the link" was most likely an older selection being pasted. `y` now uses the system clipboard
+  (`pbcopy`, `wl-copy`, `xclip`, `xsel`) when clindar runs locally, OSC 52 only over SSH or without those tools.
+  Confirmed working by the user on macOS.
+
