@@ -80,3 +80,21 @@ func TestNotLoggedIn(t *testing.T) {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
 }
+
+// A daemon started before login (or on the wrong folders) waits and says
+// which folder it looked in, instead of exiting and being restarted at once.
+func TestDaemonNotLoggedInWaits(t *testing.T) {
+	h := newHarness(t)
+	st, _ := h.app.Store()
+	st.DeleteAccount(context.Background(), testutil.Account)
+	var stderr bytes.Buffer
+	h.app.Stderr = &stderr
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+
+	code := cli.Run(ctx, h.app, []string{"daemon", "--interval", "10s"})
+
+	if code != 0 || !strings.Contains(stderr.String(), "not logged in") || !strings.Contains(stderr.String(), h.app.Paths.DataDir) {
+		t.Errorf("exit %d, stderr:\n%s", code, stderr.String())
+	}
+}

@@ -246,7 +246,8 @@ Its log shows when Google can't be reached (`sync failed … retry_in=…`, wait
 and when it can again (`sync recovered`): `tail -f ~/Library/Logs/clindar.log` on macOS,
 `journalctl --user -u clindar -f` on Linux.
 
-`daemon install` writes the file and prints the command that starts it. After upgrading clindar, restart it so it
+`daemon install` writes the file and prints the command that starts it. The file records the config and data folders
+of the shell you ran it from, so the daemon syncs the same copy as your `clindar`; reinstall it if you move them. After upgrading clindar, restart it so it
 runs the new version: `systemctl --user restart clindar` (Linux), or `launchctl unload` then `launchctl load` the
 `.plist` it printed (macOS).
 

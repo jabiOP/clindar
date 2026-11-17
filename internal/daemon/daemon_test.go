@@ -53,15 +53,25 @@ func TestLoopBacksOffOnErrorsAndResets(t *testing.T) {
 }
 
 func TestUnitsRunTheGivenBinary(t *testing.T) {
+	dirs := daemon.Dirs{Config: "/home/me/cfg", Data: "/home/me/data & more"}
 	for _, u := range []daemon.Unit{
-		daemon.SystemdUnit("/usr/local/bin/clindar", "/home/me"),
-		daemon.LaunchdAgent("/usr/local/bin/clindar", "/Users/me"),
+		daemon.SystemdUnit("/usr/local/bin/clindar", "/home/me", dirs),
+		daemon.LaunchdAgent("/usr/local/bin/clindar", "/Users/me", dirs),
 	} {
 		if !strings.Contains(u.Content, "/usr/local/bin/clindar") || !strings.Contains(u.Content, "daemon") {
 			t.Errorf("%s content doesn't run `clindar daemon`:\n%s", u.Path, u.Content)
 		}
+		// The service manager doesn't start it with the installing shell's environment:
+		// the folders must be in the file, or it may open another (empty) database.
+		if !strings.Contains(u.Content, "CLINDAR_CONFIG_DIR") || !strings.Contains(u.Content, "/home/me/cfg") ||
+			!strings.Contains(u.Content, "CLINDAR_DATA_DIR") {
+			t.Errorf("%s doesn't pin the folders:\n%s", u.Path, u.Content)
+		}
 	}
-	if got := daemon.SystemdUnit("/x", "/home/me").Path; got != "/home/me/.config/systemd/user/clindar.service" {
+	if c := daemon.LaunchdAgent("/x", "/Users/me", dirs).Content; !strings.Contains(c, "/home/me/data &amp; more") {
+		t.Errorf("plist text must be XML-escaped:\n%s", c)
+	}
+	if got := daemon.SystemdUnit("/x", "/home/me", dirs).Path; got != "/home/me/.config/systemd/user/clindar.service" {
 		t.Errorf("systemd path = %s", got)
 	}
 }
