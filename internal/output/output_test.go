@@ -226,8 +226,8 @@ func TestJSONHasTheEffectiveColor(t *testing.T) {
 	var a, b output.EventJSON
 	json.Unmarshal([]byte(lines[0]), &a)
 	json.Unmarshal([]byte(lines[1]), &b)
-	if a.Color != "#dc2127" || b.Color != "#4285f4" {
-		t.Errorf("colors = %q, %q; want the event's own #dc2127, then the calendar's #4285f4", a.Color, b.Color)
+	if a.Color != "#d50000" || b.Color != "#4285f4" {
+		t.Errorf("colors = %q, %q; want the event's own #d50000, then the calendar's #4285f4", a.Color, b.Color)
 	}
 }
 

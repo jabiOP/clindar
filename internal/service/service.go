@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -40,7 +41,11 @@ func (s *Service) AccountID() string { return s.account }
 
 // Calendars returns the account's calendars, primary first.
 func (s *Service) Calendars(ctx context.Context) ([]model.Calendar, error) {
-	return s.store.Calendars(ctx, s.account)
+	cals, err := s.store.Calendars(ctx, s.account)
+	for i := range cals {
+		cals[i].Color = model.WebColor(cals[i].Color) // as the web UI shows it
+	}
+	return cals, err
 }
 
 // ResolveCalendar finds a calendar by exact ID or case-insensitive name.
@@ -82,8 +87,14 @@ func (s *Service) Status(ctx context.Context, since time.Time) (Status, error) {
 }
 
 // EventColors returns Google's event palette (colorId → "#rrggbb"), as cached by sync.
+// The colors are the web UI's (model.EventPalette), whatever the cache holds.
 func (s *Service) EventColors(ctx context.Context) (map[string]string, error) {
-	return s.store.EventColors(ctx, s.account)
+	cached, err := s.store.EventColors(ctx, s.account)
+	out := maps.Clone(model.EventPalette)
+	for id, c := range cached {
+		out[id] = model.WebColor(c)
+	}
+	return out, err
 }
 
 // SetCalendarShown shows or hides a calendar in clindar. It is a local choice:
