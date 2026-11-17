@@ -65,3 +65,24 @@ func TestUnitsRunTheGivenBinary(t *testing.T) {
 		t.Errorf("systemd path = %s", got)
 	}
 }
+
+// After failures, the first good sync is logged, so the log shows recovery.
+func TestLoopLogsRecovery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	results := []error{errors.New("offline"), nil}
+	calls := 0
+	sync := func(context.Context) error {
+		err := results[calls]
+		calls++
+		if calls == len(results) {
+			cancel()
+		}
+		return err
+	}
+	var out strings.Builder
+	daemon.Loop(ctx, time.Second, time.Minute, sync, (&fakeAfter{}).after, slog.New(slog.NewTextHandler(&out, nil)))
+
+	if !strings.Contains(out.String(), "sync failed") || !strings.Contains(out.String(), "sync recovered") {
+		t.Errorf("log:\n%s", out.String())
+	}
+}

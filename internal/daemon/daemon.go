@@ -25,6 +25,9 @@ func Loop(ctx context.Context, interval, maxBackoff time.Duration, sync func(con
 			wait = min(wait*2, maxBackoff)
 			log.Warn("sync failed", "err", err, "retry_in", wait)
 		} else {
+			if wait != interval { // the first success after failures: say so, so the log shows it recovered
+				log.Info("sync recovered")
+			}
 			wait = interval
 		}
 		select {

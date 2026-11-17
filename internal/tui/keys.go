@@ -6,7 +6,7 @@ import "github.com/charmbracelet/bubbles/key"
 // and the help screen renders them.
 var keys = struct {
 	Left, Right, Up, Down, ScrollUp, ScrollDown, Today, Goto, Toggle, Open,
-	Add, Edit, Delete, RSVP, Color, Sync, Calendars, Help, Quit, Back key.Binding
+	Add, Edit, Delete, RSVP, Color, Sync, Log, Calendars, Help, Quit, Back key.Binding
 }{
 	Left:       key.NewBinding(key.WithKeys("h", "left"), key.WithHelp("h/←", "previous day")),
 	Right:      key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("l/→", "next day")),
@@ -24,6 +24,7 @@ var keys = struct {
 	RSVP:       key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "RSVP (list)")),
 	Color:      key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "color (list, event mode, details)")),
 	Sync:       key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sync now")),
+	Log:        key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "log: discarded edits and sync errors")),
 	Calendars:  key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "choose calendars")),
 	Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 	Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
@@ -34,7 +35,7 @@ func helpText(mouse bool) string {
 	s := "Keys\n\n"
 	for _, b := range []key.Binding{keys.Left, keys.Right, keys.Up, keys.Down, keys.ScrollUp, keys.ScrollDown,
 		keys.Today, keys.Goto, keys.Toggle, keys.Open, keys.Add, keys.Edit, keys.Delete, keys.RSVP,
-		keys.Color, keys.Sync, keys.Calendars, keys.Back, keys.Quit} {
+		keys.Color, keys.Sync, keys.Log, keys.Calendars, keys.Back, keys.Quit} {
 		s += "  " + fit(b.Help().Key, 8) + b.Help().Desc + "\n"
 	}
 	if mouse {

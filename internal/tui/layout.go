@@ -140,6 +140,17 @@ func (m Model) popup() (modal, bool) {
 		}
 	case modeCalendars:
 		return m.calMenu.view(min(m.width-4, 50), m.deps.Mouse), true
+	case modeLog:
+		md.text(headerStyle.Render("Log"))
+		md.text("")
+		if len(m.logEntries) == 0 {
+			md.text("Nothing logged.")
+		}
+		for _, e := range m.logEntries {
+			md.text(joinWrapped([]string{e.Time.In(m.loc()).Format("Mon 02 Jan 15:04"), e.Message}, "  ", max(m.width-8, 20)))
+		}
+		md.text("")
+		md.text(dimStyle.Render("any key closes · clindar log shows more"))
 	case modeColor:
 		return m.colorPick.view(min(m.width-4, 50), m.deps.Mouse), true
 	case modeQuick:
@@ -169,7 +180,7 @@ func (m Model) statusBar() (string, hitMap) {
 		parts = append(parts, fmt.Sprintf("%d pending", m.status.Pending))
 	}
 	if m.status.Discarded > 0 {
-		parts = append(parts, errorStyle.Render(fmt.Sprintf("%d edit(s) discarded: see clindar log", m.status.Discarded)))
+		parts = append(parts, errorStyle.Render(fmt.Sprintf("%d edit(s) discarded: L to see", m.status.Discarded)))
 	}
 	if m.message != "" {
 		parts = append(parts, m.message)

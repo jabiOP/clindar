@@ -242,6 +242,10 @@ clindar works from a local copy of your calendars and syncs with Google:
 
 `clindar daemon install` keeps the copy fresh in the background: a systemd user service on Linux
 (`~/.config/systemd/user/clindar.service`), a launchd agent on macOS (log in `~/Library/Logs/clindar.log`).
+Its log shows when Google can't be reached (`sync failed … retry_in=…`, waiting longer each time, up to 5 minutes)
+and when it can again (`sync recovered`): `tail -f ~/Library/Logs/clindar.log` on macOS,
+`journalctl --user -u clindar -f` on Linux.
+
 `daemon install` writes the file and prints the command that starts it. After upgrading clindar, restart it so it
 runs the new version: `systemctl --user restart clindar` (Linux), or `launchctl unload` then `launchctl load` the
 `.plist` it printed (macOS).
@@ -288,6 +292,7 @@ folders. Your login token is in the system keyring, or in a private file in the 
 | `Enter` | on a grid day: pick its events (event mode: `j`/`k`, `Enter` for details, `Esc` back) |
 | `c` | choose which calendars show (only in clindar; Google's own setting is untouched) |
 | `s` | sync now |
+| `L` | the log: discarded edits and sync errors (clears the "discarded" count in the status bar) |
 | `q` | quit |
 
 **Events** (in the list, event mode, or the details box)

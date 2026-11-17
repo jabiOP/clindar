@@ -2,7 +2,9 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -391,5 +393,45 @@ func TestPendingChangesAreRetriedSoon(t *testing.T) {
 
 	if calls != 3 || f.model().status.Pending != 0 {
 		t.Errorf("syncs = %d, pending = %d; want retries until nothing is pending", calls, f.model().status.Pending)
+	}
+}
+
+// A sync that can't reach Google says "offline" briefly (not the raw request
+// error), and the message goes away when a sync succeeds again.
+func TestOfflineMessageClearsWhenSyncWorksAgain(t *testing.T) {
+	var fail error = &url.Error{Op: "Patch", URL: "https://www.googleapis.com/calendar/v3/…", Err: errors.New("dial tcp: no route to host")}
+	f := newFixtureWith(t, Deps{Sync: func(context.Context) error { return fail }})
+	f.keys("s")
+	if msg := f.model().message; !strings.HasPrefix(msg, "offline: can't reach Google") {
+		t.Fatalf("message = %q", msg)
+	}
+
+	fail = nil
+	f.keys("s")
+	if msg := f.model().message; msg != "" {
+		t.Errorf("after a good sync: message = %q, want it cleared", msg)
+	}
+}
+
+// L shows the log, and the "discarded" count in the status bar stops.
+func TestLogKeyShowsAndAcknowledgesDiscardedEdits(t *testing.T) {
+	f := newFixture(t)
+	if err := f.st.AddLog(context.Background(), store.LogEntry{Time: f.clock, Kind: store.LogDiscardedEdit,
+		AccountID: testutil.Account, Message: `"Lunch": your edit was discarded because the event changed on Google first`}); err != nil {
+		t.Fatal(err)
+	}
+	f.send(f.model().load()())
+	if !strings.Contains(f.m.View(), "1 edit(s) discarded: L to see") {
+		t.Fatalf("status bar should count it:\n%s", f.m.View())
+	}
+
+	f.clock = f.clock.Add(time.Second)
+	f.keys("L")
+	if m := f.model(); m.mode != modeLog || !strings.Contains(f.m.View(), "your edit was discarded") {
+		t.Fatalf("mode = %v:\n%s", m.mode, f.m.View())
+	}
+	f.keys("x")
+	if strings.Contains(f.m.View(), "discarded") {
+		t.Errorf("after reading the log the count should go:\n%s", f.m.View())
 	}
 }

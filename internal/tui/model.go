@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/quickadd"
 	"github.com/jabiOP/clindar/internal/service"
+	"github.com/jabiOP/clindar/internal/store"
 	"github.com/jabiOP/clindar/internal/timeparse"
 )
 
@@ -55,6 +57,7 @@ const (
 	modeCalendars // the calendar menu (Task 14.13)
 	modeQuick     // quick add: one line with a live preview (Task 14.16)
 	modeColor     // the quick color palette for one event (right-click, or C)
+	modeLog       // recent discarded edits and sync errors (L)
 )
 
 type Model struct {
@@ -100,14 +103,16 @@ type Model struct {
 	listAnchor *entryRef // after prepending: the entry the cursor must land just before
 	// afterScope runs the pending action once the user picks a scope.
 	afterScope    func(service.Scope) tea.Cmd
-	allowedScopes string      // e.g. "tfa" or "ta"
-	scopeNote     string      // why the scope choices are limited, if they are
-	scopeFromForm bool        // the scope picker came from the form: cancelling returns to it
-	colorPick     picker      // the quick color palette (modeColor)
-	colorTarget   model.Event // the event it colors
-	pendingD      bool        // the first d of dd
-	helpFrom      mode        // where closing help returns to
-	lastClick     clickRef    // the last click on a day (double click adds)
+	allowedScopes string           // e.g. "tfa" or "ta"
+	scopeNote     string           // why the scope choices are limited, if they are
+	scopeFromForm bool             // the scope picker came from the form: cancelling returns to it
+	colorPick     picker           // the quick color palette (modeColor)
+	logEntries    []store.LogEntry // shown in modeLog
+	syncError     string           // the status-bar message of the last failed sync; cleared when one succeeds
+	colorTarget   model.Event      // the event it colors
+	pendingD      bool             // the first d of dd
+	helpFrom      mode             // where closing help returns to
+	lastClick     clickRef         // the last click on a day (double click adds)
 }
 
 // --- messages ---
@@ -122,6 +127,31 @@ type loadedMsg struct {
 }
 type syncDoneMsg struct{ err error }
 type tickMsg struct{}
+
+// logMsg carries the log entries L shows.
+type logMsg struct {
+	entries []store.LogEntry
+	err     error
+}
+
+// showLog loads the recent log entries for the L pop-up.
+func (m Model) showLog() tea.Cmd {
+	svc, ctx := m.deps.Service, m.ctx
+	return func() tea.Msg {
+		entries, err := svc.Logs(ctx, 10)
+		return logMsg{entries, err}
+	}
+}
+
+// syncErrorText says why a sync failed, briefly: a network failure is just
+// "offline" (the changes wait), anything else is shown as it is.
+func syncErrorText(err error) string {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) || errors.Is(err, context.DeadlineExceeded) {
+		return "offline: can't reach Google; changes wait and sync later"
+	}
+	return "sync failed: " + err.Error()
+}
 
 // pushRetryMsg retries a sync while local changes are still pending.
 type pushRetryMsg struct{}
@@ -262,8 +292,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, retry
 	case syncDoneMsg:
 		m.syncing = false
-		if msg.err != nil {
-			m.message = "offline? " + msg.err.Error()
+		switch {
+		case msg.err != nil:
+			m.syncError = syncErrorText(msg.err)
+			m.message = m.syncError
+		case m.message == m.syncError: // synced again: the old failure no longer applies
+			m.message, m.syncError = "", ""
 		}
 		m.checkPending = msg.err == nil // offline: wait for the next tick instead
 		return m, m.load()
@@ -274,6 +308,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.today = model.StartOfDay(m.deps.Now()) // the TUI may stay open past midnight
 		m.syncing = m.deps.Sync != nil
 		return m, tea.Batch(m.syncCmd(), m.tick())
+	case logMsg:
+		if msg.err != nil {
+			m.message = msg.err.Error()
+			return m, nil
+		}
+		m.logEntries, m.mode = msg.entries, modeLog
+		m.started = m.deps.Now() // seen: the status bar stops counting them
+		return m, m.load()
 	case copiedMsg:
 		m.copySeq, m.message = "", "Meet link copied"
 		return m, nil

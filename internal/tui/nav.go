@@ -42,6 +42,9 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.rsvpKey(k)
 	case modeDetail:
 		return m.detailKey(k)
+	case modeLog:
+		m.mode = modeNormal
+		return m, nil
 	case modeHelp:
 		m.mode = m.helpFrom // back where help was opened (the details box, or normal)
 		return m, nil
@@ -67,6 +70,8 @@ func (m Model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case key.Matches(k, keys.Help):
 		m.mode, m.helpFrom = modeHelp, modeNormal
+	case key.Matches(k, keys.Log):
+		return m, m.showLog()
 	case key.Matches(k, keys.Calendars):
 		m.calMenu = picker{title: "Calendars", checklist: true, open: true}
 		for _, c := range m.calList {
