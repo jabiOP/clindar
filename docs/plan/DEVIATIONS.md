@@ -351,4 +351,6 @@ One line per deviation: what changed, and why.
   "only the middle of the link" was most likely an older selection being pasted. `y` now uses the system clipboard
   (`pbcopy`, `wl-copy`, `xclip`, `xsel`) when clindar runs locally, OSC 52 only over SSH or without those tools.
   Confirmed working by the user on macOS.
+- Selecting text with the mouse on: the help said "Option-drag on macOS", which is iTerm2's key; macOS Terminal uses
+  fn-drag (confirmed by the user). Help, config comment and docs now name both.
 

@@ -264,7 +264,7 @@ install` does it for you); it does nothing when no daemon is installed.
 | `week_start` | `"monday"` | or `"sunday"` |
 | `send_updates` | `"all"` | email guests about changes, as Google asks on its web page; `"none"` never does |
 | `date_order` | `"dmy"` | how `20/11` is read; `"mdy"` reads `11/20` |
-| `mouse` | `false` | mouse in the TUI (select text with Option-drag on macOS, Shift-drag elsewhere) |
+| `mouse` | `false` | mouse in the TUI (select text with Option-drag in iTerm2, fn-drag in macOS Terminal, Shift-drag elsewhere) |
 
 ```toml
 default_calendar = "Work"

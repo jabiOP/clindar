@@ -190,7 +190,7 @@ clindar daemon [--interval D] | daemon install | daemon uninstall
 
 ## 6b. Mouse (Phase 12)
 
-Off by default (`mouse = true` in `config.toml`). While on, clindar captures the mouse; select text with Option-drag on macOS, Shift-drag elsewhere.
+Off by default (`mouse = true` in `config.toml`). While on, clindar captures the mouse; select text with Option-drag in iTerm2, fn-drag in macOS Terminal, Shift-drag elsewhere.
 
 - **Clicks:** click a day to select it, and click the selected day again to open the list there. Click an event to open
   its details, with [Edit] [Delete] [RSVP] [Close]. In the list, click to select and click again to open. Click

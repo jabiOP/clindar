@@ -45,7 +45,7 @@ func helpText(mouse bool) string {
 			"  click an event to see it (the wheel does nothing: use the keys to move)\n" +
 			"  drag an event to another day; drag ◂ or ▸ to change its first or last day\n" +
 			"  change an event's color: right-click it, press and hold it, or [Color] in its details\n" +
-			"  select text: Option-drag on macOS, Shift-drag elsewhere\n"
+			"  select text: Option-drag in iTerm2, fn-drag in macOS Terminal, Shift-drag elsewhere\n"
 	}
 	return s + "\nPress any key to close."
 }
