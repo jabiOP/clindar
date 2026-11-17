@@ -342,4 +342,7 @@ One line per deviation: what changed, and why.
   recovered`); a daemon started while not logged in exited and was restarted by launchd every few seconds (now it
   waits with backoff and names its folder), and its service file now pins the folders it was installed from;
   updating took several manual steps (now `make install`, which runs `clindar daemon restart`).
+  Also confirmed: add, edit and delete of one-off events; a weekly series edited and deleted with each scope; TSV,
+  JSON and the recipes. The setup guide was followed when clindar was first set up (the fresh run reused that
+  client file). **Checklist complete: v0.1.0.**
 

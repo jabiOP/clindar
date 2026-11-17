@@ -34,7 +34,7 @@ These files explain *how*, as small tasks.
 | 8 | `08-cli.md` | All CLI commands. **First milestone: real data on screen** |
 | 9 | `09-daemon.md` | Background sync + systemd/launchd install |
 | 10 | `10-tui.md` | Bubble Tea UI: grid, list, detail, forms |
-| 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build. Done after Phase 15, except Task 11.5's manual checklist and the `v0.1.0` tag (they need the user) |
+| 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build. Done after Phase 15; checklist passed, tagged `v0.1.0` |
 | 12 | `12-mouse.md` | Mouse: clicks, wheel (turned off in Task 15.3), buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
 | 13 | `13-fixes.md` | Fixes from testing (13.1–13.10, 13.13), then two product decisions: left-aligned day numbers, indented wrapped details |
 | 14 | `14-ux-round-1.md` | UX round 1: event mode, quick add, pickers, calendar menu, colors, Meet links, day/month dates (written as a spec; implemented, see `DEVIATIONS.md`) |
