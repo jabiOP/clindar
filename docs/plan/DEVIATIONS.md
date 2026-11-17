@@ -332,4 +332,14 @@ One line per deviation: what changed, and why.
 - **11.4** README rewritten; the release loop builds all four targets and `--version` prints the version.
 - **11.5** `go test -race -count=1 ./...`, `go vet` and `gofmt` clean. **The rest of the checklist needs the user**
   (a real account, a fresh config and data folder, the network unplugged); then commit `chore: v0.1.0` and tag it.
+- **11.5, the user's run (2026-11-17, macOS, iTerm2):** fresh folders via `CLINDAR_CONFIG_DIR`/`CLINDAR_DATA_DIR`;
+  RSVP from a second account works (an invitation only appears once accepted in the email, as on the web: Google's
+  "add invitations" setting); offline edits sync on reconnect; the conflict test discarded the local edit and logged
+  it. Daemon: offline then back online, the log shows `sync failed … retry_in=40s`, `1m20s`, then `sync recovered`,
+  and the offline edit reached the web. Found and fixed along the way: the status bar kept a raw push error after
+  syncing worked again (now a short "offline" message that clears); the "discarded" count could only be read with
+  `clindar log` (now `L` in the TUI, which also clears it); the daemon logged nothing on recovery (now `sync
+  recovered`); a daemon started while not logged in exited and was restarted by launchd every few seconds (now it
+  waits with backoff and names its folder), and its service file now pins the folders it was installed from;
+  updating took several manual steps (now `make install`, which runs `clindar daemon restart`).
 
