@@ -17,6 +17,7 @@ type Unit struct {
 	Content string
 	Enable  string // command the user runs to start it
 	Disable string // command to stop it before removing the file
+	Restart string // command that restarts it on the current file (and so the current binary)
 }
 
 // ForThisOS returns the systemd user unit (Linux) or launchd agent (macOS)
@@ -54,6 +55,7 @@ WantedBy=default.target
 `, exe, dirs.Config, dirs.Data),
 		Enable:  "systemctl --user daemon-reload && systemctl --user enable --now clindar.service",
 		Disable: "systemctl --user disable --now clindar.service",
+		Restart: "systemctl --user daemon-reload && systemctl --user restart clindar.service",
 	}
 }
 
@@ -80,6 +82,7 @@ func LaunchdAgent(exe, home string, dirs Dirs) Unit {
 `, label, exe, xmlText(dirs.Config), xmlText(dirs.Data), logFile),
 		Enable:  "launchctl load -w " + path,
 		Disable: "launchctl unload -w " + path,
+		Restart: "launchctl unload " + path + " 2>/dev/null; launchctl load -w " + path,
 	}
 }
 

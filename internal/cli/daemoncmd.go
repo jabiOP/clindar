@@ -2,9 +2,13 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -48,7 +52,7 @@ Usually started by your service manager: see 'clindar daemon install'.`,
 		},
 	}
 	cmd.Flags().DurationVar(&interval, "interval", 0, "time between syncs (default: config sync_interval, 20s)")
-	cmd.AddCommand(newDaemonInstallCmd(app), newDaemonUninstallCmd(app))
+	cmd.AddCommand(newDaemonInstallCmd(app), newDaemonUninstallCmd(app), newDaemonRestartCmd(app))
 	return cmd
 }
 
@@ -67,6 +71,42 @@ func newDaemonInstallCmd(app *App) *cobra.Command {
 			}
 			fmt.Fprintf(app.Stderr, "Wrote %s (it uses %s and %s)\nStart it now with:\n\n  %s\n",
 				unit.Path, app.Paths.ConfigDir, app.Paths.DataDir, unit.Enable)
+			return nil
+		},
+	}
+}
+
+// runService runs a service-manager command (launchctl, systemctl); tests replace it.
+var runService = func(command string, stdout, stderr io.Writer) error {
+	c := exec.Command("sh", "-c", command)
+	c.Stdout, c.Stderr = stdout, stderr
+	return c.Run()
+}
+
+func newDaemonRestartCmd(app *App) *cobra.Command {
+	return &cobra.Command{
+		Use:   "restart",
+		Short: "Restart the installed daemon on this clindar (after an update); does nothing if none is installed",
+		Long: `Rewrites the service file written by 'daemon install' for this clindar binary and
+its config and data folders, then restarts the daemon, so it runs the version you
+just installed. 'make install' runs it after building.`,
+		Args: exactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			unit, err := thisOSUnit(app)
+			if err != nil {
+				return err
+			}
+			if _, err := os.Stat(unit.Path); errors.Is(err, fs.ErrNotExist) {
+				fmt.Fprintln(app.Stderr, "No daemon installed (see 'clindar daemon install'); nothing to restart.")
+				return nil
+			}
+			if err := unit.Write(); err != nil {
+				return err
+			}
+			if err := runService(unit.Restart, app.Stdout, app.Stderr); err != nil {
+				return fmt.Errorf("restart the daemon: %w", err)
+			}
+			fmt.Fprintf(app.Stderr, "Daemon restarted (%s).\n", unit.Path)
 			return nil
 		},
 	}

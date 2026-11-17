@@ -29,6 +29,12 @@ GOPRIVATE=github.com/jabiOP/* go install github.com/jabiOP/clindar@latest
 
 Linux and macOS are supported.
 
+From a clone of the repository, `make install` builds and installs it, and restarts the daemon (if you installed
+one) so it runs the new version. To update: `git pull && make install`.
+
+Go installs programs in `~/go/bin` (or `$GOBIN`); if `clindar` isn't found afterwards, add that folder to your PATH:
+`echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.zshrc` (or `~/.bashrc`), then open a new terminal.
+
 ## First run
 
 1. Create your Google OAuth client (about 10 minutes, once): [docs/setup-google-cloud.md](docs/setup-google-cloud.md).
@@ -59,8 +65,8 @@ and the OAuth client is your own.
 ## Building
 
 ```bash
-go build -o clindar .
-go test -race ./...
+make install   # go install ., then restart the daemon on the new version
+make test      # go vet and go test -race
 ```
 
 Release binaries for Linux and macOS, on any machine (every dependency is pure Go, so no C compiler is needed):
