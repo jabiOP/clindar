@@ -179,10 +179,10 @@ func TestEventsDrawInTheirOwnColor(t *testing.T) {
 		r := calendarStyle(hex).Render("x")
 		return r[:strings.Index(r, "x")]
 	}
-	if got := render(own); !strings.Contains(got, sgr("#d50000")) {
-		t.Errorf("an event with its own color should draw in #d50000: %q", got)
+	if got := render(own); !strings.Contains(got, sgr("#dc2127")) {
+		t.Errorf("an event with its own color should draw in #dc2127: %q", got)
 	}
-	if got := render(plain); !strings.Contains(got, sgr("#4285f4")) || strings.Contains(got, sgr("#d50000")) {
+	if got := render(plain); !strings.Contains(got, sgr("#4285f4")) || strings.Contains(got, sgr("#dc2127")) {
 		t.Errorf("an event without one should draw in the calendar's #4285f4: %q", got)
 	}
 }
