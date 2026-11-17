@@ -163,3 +163,26 @@ func TestNoMeetButtonsWithoutAMeetLink(t *testing.T) {
 		t.Errorf("Meet buttons without a Meet link:\n%s", s)
 	}
 }
+
+// ? in the details box shows help, and closing help returns to the details.
+func TestHelpFromDetailsReturnsToThem(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter", "j", "enter") // Lunch's details
+	f.keys("?")
+	if m := f.model(); m.mode != modeHelp {
+		t.Fatalf("mode = %v, want help", m.mode)
+	}
+	f.keys("x")
+	if m := f.model(); m.mode != modeDetail || m.detail.Title != "Lunch with Sam" {
+		t.Errorf("mode = %v, detail %q; want Lunch's details back", m.mode, m.detail.Title)
+	}
+}
+
+// ? in event mode shows help, then event mode continues.
+func TestHelpFromEventModeReturnsToIt(t *testing.T) {
+	f := newFixture(t)
+	f.keys("enter", "?", "x")
+	if m := f.model(); m.mode != modeNormal || !m.dayMode {
+		t.Errorf("mode = %v, dayMode = %v; want event mode back", m.mode, m.dayMode)
+	}
+}

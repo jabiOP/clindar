@@ -93,7 +93,7 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		case !onSomething && (m.mode == modeDetail || m.mode == modeGoto):
 			m.mode = modeNormal // click outside closes
 		case m.mode == modeHelp:
-			m.mode = modeNormal // any click closes help
+			m.mode = m.helpFrom // any click closes help
 		}
 		return m, nil
 	}

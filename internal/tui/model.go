@@ -101,6 +101,7 @@ type Model struct {
 	scopeNote     string   // why the scope choices are limited, if they are
 	scopeFromForm bool     // the scope picker came from the form: cancelling returns to it
 	pendingD      bool     // the first d of dd
+	helpFrom      mode     // where closing help returns to
 	lastClick     clickRef // the last click on a day (double click adds)
 }
 

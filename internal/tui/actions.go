@@ -156,6 +156,9 @@ func (m Model) detailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.eventAction(k, m.detail)
 	}
 	switch link := m.detail.MeetLink; {
+	case key.Matches(k, keys.Help): // help, then back to these details
+		m.mode, m.helpFrom = modeHelp, modeDetail
+		return m, nil
 	case k.String() == "o" && m.detail.Link != "" && m.deps.OpenURL != nil:
 		return m, m.openURL(m.detail.Link)
 	case k.String() == "m" && link != "" && m.deps.OpenURL != nil: // join the Meet call
