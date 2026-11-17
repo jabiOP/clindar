@@ -70,11 +70,7 @@ const labelPrefix = "label:"
 func colorOptions(cal model.Calendar, palette map[string]string) []option {
 	opts := []option{{label: "Calendar default", value: ""}}
 	for _, l := range cal.Labels {
-		name := l.Name
-		if name == "" {
-			name = l.Color
-		}
-		opts = append(opts, option{label: name, value: labelPrefix + l.ID, swatch: l.Color})
+		opts = append(opts, option{label: l.DisplayName(), value: labelPrefix + l.ID, swatch: l.Color})
 	}
 	if len(cal.Labels) == 0 {
 		for _, c := range colorNames {

@@ -37,3 +37,16 @@ func TestALabelColorWins(t *testing.T) {
 		t.Errorf("unknown label: got %s, want the colorId's", got)
 	}
 }
+
+func TestLabelDisplayName(t *testing.T) {
+	for l, want := range map[model.Label]string{
+		{Color: "#616161"}:              "Graphite",
+		{Color: "#E4C441"}:              "Citron",
+		{Name: "Gym", Color: "#616161"}: "Gym",
+		{Color: "#123456"}:              "#123456",
+	} {
+		if got := l.DisplayName(); got != want {
+			t.Errorf("%+v: %q, want %q", l, got, want)
+		}
+	}
+}
