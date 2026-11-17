@@ -249,7 +249,7 @@ and when it can again (`sync recovered`): `tail -f ~/Library/Logs/clindar.log` o
 `daemon install` writes the file and prints the command that starts it. The file records the clindar binary and the
 config and data folders of the shell you ran it from, so the daemon syncs the same copy as your `clindar`. After
 updating clindar, `clindar daemon restart` rewrites that file for the new binary and restarts the daemon (`make
-install` does it for you); it does nothing when no daemon is installed. 
+install` does it for you); it does nothing when no daemon is installed.
 
 ## Configuration
 
