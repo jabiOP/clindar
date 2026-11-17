@@ -139,8 +139,17 @@ func (a *App) PushAfterWrite(ctx context.Context, offline bool) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, a.Config.SyncTimeout.Duration)
 	defer cancel()
-	_, err := a.SyncNow(ctx)
+	ran, err := a.SyncNow(ctx)
+	for !ran && err == nil && ctx.Err() == nil { // the daemon is syncing: wait for it, then push
+		select {
+		case <-ctx.Done():
+		case <-time.After(200 * time.Millisecond):
+			ran, err = a.SyncNow(ctx)
+		}
+	}
 	switch {
+	case !ran && err == nil:
+		fmt.Fprintln(a.Stderr, "clindar: warning: saved here; the daemon is busy syncing, so it goes with its next sync")
 	case err == nil:
 	case errors.Is(err, syncer.ErrPull) && errors.Is(err, context.DeadlineExceeded):
 		fmt.Fprintln(a.Stderr, "clindar: warning: sent to Google; refreshing from Google timed out")

@@ -34,7 +34,7 @@ type Config struct {
 
 func Default() Config {
 	return Config{
-		SyncInterval: Duration{45 * time.Second},
+		SyncInterval: Duration{20 * time.Second},
 		StaleAfter:   Duration{2 * time.Minute},
 		SyncTimeout:  Duration{5 * time.Second},
 		WeekStart:    "monday",

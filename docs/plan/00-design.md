@@ -10,7 +10,7 @@
 |---|----------|----------|
 | 1 | How much can the app change? | **Full read/write**: create/edit/delete/move, RSVP, invite attendees |
 | 2 | Where does data live? | **Local SQLite cache with background sync**; offline edits queue in an outbox |
-| 3 | What runs sync? | **Optional daemon** (`clindar daemon`, polls every ~45s). Without it, the TUI syncs while open and CLI reads sync when the cache is stale |
+| 3 | What runs sync? | **Optional daemon** (`clindar daemon`, polls every ~20s). Without it, the TUI syncs while open and CLI reads sync when the cache is stale |
 | 4 | Language / TUI | **Go + Bubble Tea v1 + Lip Gloss + Bubbles** |
 | 5 | CLI output | **Human-readable on a TTY**; TSV when piped; `--json` (JSON Lines), `--tsv`, `--format '<go template>'` |
 | 6–7 | Integration with the user's GTD (plain-text, one task per line) | **Generic composition only.** The app knows nothing about the task files. Glue lives in shell scripts, documented in `docs/scripting.md` |
@@ -134,7 +134,9 @@ clears that calendar's cached events and does a full resync.
 reading a field it ignored before, a migration resets the sync tokens once (migration 4 did it for `colorId` and Meet
 links); otherwise events cached earlier never get the field.
 
-**Freshness:** daemon every `sync_interval` (default 45s) with exponential backoff up to 5 minutes when offline.
+**Freshness:** daemon every `sync_interval` (default 20s) with exponential backoff up to 5 minutes when offline.
+After a local change, a sync that leaves it pending (the daemon held the sync lock) is retried: the TUI every 3s, a
+CLI write by waiting for the lock within `sync_timeout`.
 The TUI syncs on open, on the same interval, and after edits. CLI reads sync first if the last sync is older than
 `stale_after` (default 2m), bounded by `sync_timeout` (default 5s). `--offline` skips this.
 
@@ -223,7 +225,7 @@ Decisions from real use (brief "UX round 1"):
   details box's permission rules, `Esc` back). The list stays on `Tab`; `Esc` in the list returns to the grid.
 - **List:** endless in both directions; loads ahead so a screen and a page are always ready.
 - **Past days** are dimmed with color only (no change with colors off).
-- **Mouse:** grabbing an edge never opens details. Click empty space to add; drag across empty days to add an
+- **Mouse:** grabbing an edge never opens details. Click a day to select it, double-click to add (§6e); drag across empty days to add an
   all-day span. *(The wheel was slowed here to one day or event per step, at most one per 100 ms; §6d turned it off.)*
 - **Dates:** slashes are day/month (`date_order = "mdy"` flips it); English names only. Go-to takes days only: a bare
   number is the next such day of the month, a month name is its 1st (this month included); times are refused.
@@ -254,6 +256,17 @@ Decisions from real use (brief "UX round 1"):
   writable calendars only; otherwise it's locked with the reason. On an occurrence, saving a new calendar offers only
   "all" and says why. The CLI: `clindar edit ID -c NAME`. Dragging never changes the calendar. Guests are told as
   for any edit (`send_updates`), which is what Google Calendar's own "send update emails?" question does.
+
+## 6e. UX round 2
+
+- **Colors as the web UI shows them:** the API still reports Google's old, paler palette for event and calendar
+  colors; clindar maps them to the web UI's (`model.WebColor`, `model.EventPalette`). Custom colors pass through.
+- **`dd` deletes** (list, event mode, details), at once for a one-off, like vim; `d` then another key does nothing.
+  A click on [Delete] still asks "(y/n)" (no undo).
+- **The selected event keeps its color:** highlighted with its color as background and black or white text.
+- **Mouse:** one click on a day selects it; a double click (within 400 ms) adds an event there; dragging across days
+  still adds a span.
+- **`?` anywhere** shows help; closing it returns to the details box or event mode it was opened from.
 
 ## 7. Security & config
 

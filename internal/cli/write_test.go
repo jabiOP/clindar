@@ -5,10 +5,12 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 	_ "time/tzdata"
 
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/output"
+	"github.com/jabiOP/clindar/internal/syncer"
 	"github.com/jabiOP/clindar/internal/testutil"
 )
 
@@ -192,4 +194,20 @@ func TestEditMovingOneOccurrenceSaysWhy(t *testing.T) {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
 	h.mustRun("edit", instance, "-c", "Work", "--scope", "all", "--offline")
+}
+
+// A write while the daemon holds the sync lock waits for it, then pushes.
+func TestWriteWaitsForTheDaemonsSync(t *testing.T) {
+	h := newHarness(t)
+	unlock, ok, err := syncer.TryLock(h.app.Paths.LockFile())
+	if err != nil || !ok {
+		t.Fatalf("lock: %v %v", ok, err)
+	}
+	go func() { time.Sleep(300 * time.Millisecond); unlock() }()
+
+	id := strings.TrimSpace(h.mustRun("add", "Lunch", "--at", "12:00"))
+
+	if _, ok := h.google.Event(testutil.Calendar, id); !ok {
+		t.Error("the add should reach Google once the lock is free")
+	}
 }

@@ -72,6 +72,8 @@ type Model struct {
 	status               service.Status
 	started              time.Time
 	syncing              bool
+	checkPending         bool   // after a sync: retry soon if changes are still pending
+	retrying             bool   // a pushRetryMsg is on its way
 	message              string // last error or info, shown in the status bar
 
 	form      form
@@ -117,6 +119,14 @@ type loadedMsg struct {
 }
 type syncDoneMsg struct{ err error }
 type tickMsg struct{}
+
+// pushRetryMsg retries a sync while local changes are still pending.
+type pushRetryMsg struct{}
+
+// pushRetry is how soon a sync is retried when it ran (or was skipped because
+// the daemon was syncing) and changes are still pending. Tests lower it.
+var pushRetry = 3 * time.Second
+
 type calShownMsg struct{ err error }
 type infoMsg struct{ text string } // a one-off result shown in the status bar
 
@@ -222,6 +232,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.loadedFrom, m.loadedTo, m.events, m.status = msg.from, msg.to, msg.events, msg.status
+		var retry tea.Cmd
+		if m.checkPending && m.status.Pending > 0 && !m.retrying { // e.g. the daemon held the sync lock
+			m.retrying = true
+			retry = tea.Tick(pushRetry, func(time.Time) tea.Msg { return pushRetryMsg{} })
+		}
+		m.checkPending = false
 		m.palette = msg.palette
 		m.calendars, m.calList = map[string]model.Calendar{}, msg.calendars
 		for _, c := range msg.calendars {
@@ -236,17 +252,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.listRows() < 2*(m.height-1) && m.listSpan < listMax { // a screenful, plus one ahead for J
 				m.listSpan += listStep
-				return m, m.load()
+				return m, tea.Batch(m.load(), retry)
 			}
 		}
 		m.cursor = min(m.cursor, max(len(m.entries())-1, 0))
-		return m, nil
+		return m, retry
 	case syncDoneMsg:
 		m.syncing = false
 		if msg.err != nil {
 			m.message = "offline? " + msg.err.Error()
 		}
+		m.checkPending = msg.err == nil // offline: wait for the next tick instead
 		return m, m.load()
+	case pushRetryMsg:
+		m.retrying = false
+		return m, m.syncCmd()
 	case tickMsg:
 		m.today = model.StartOfDay(m.deps.Now()) // the TUI may stay open past midnight
 		m.syncing = m.deps.Sync != nil

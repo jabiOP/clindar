@@ -365,3 +365,31 @@ func TestCalendarMenuHidesACalendar(t *testing.T) {
 		t.Error("the grid still shows the hidden calendar's events")
 	}
 }
+
+// After an edit, a sync that left changes pending (e.g. skipped because the
+// daemon was syncing) is retried soon, until nothing is pending.
+func TestPendingChangesAreRetriedSoon(t *testing.T) {
+	old := pushRetry
+	pushRetry = time.Millisecond
+	t.Cleanup(func() { pushRetry = old })
+	var calls int
+	var st *store.Store
+	f := newFixtureWith(t, Deps{Sync: func(ctx context.Context) error {
+		calls++
+		if calls >= 3 { // the lock is free at last: the changes go out
+			ops, _ := st.PendingOps(ctx, testutil.Account)
+			for _, o := range ops {
+				st.DropOp(ctx, o.Seq)
+			}
+		}
+		return nil
+	}})
+	st = f.st
+	calls = 0 // the initial sync
+
+	f.keys("tab", "j", "d", "d") // delete Lunch: one pending change
+
+	if calls != 3 || f.model().status.Pending != 0 {
+		t.Errorf("syncs = %d, pending = %d; want retries until nothing is pending", calls, f.model().status.Pending)
+	}
+}

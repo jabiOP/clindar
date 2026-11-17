@@ -314,3 +314,13 @@ One line per deviation: what changed, and why.
   for a move by clindar or by the web UI, answer kept; details in the Task 15.15 entry above).
 - Fixed: Esc on the scope picker opened from the form now returns to the form (`Model.scopeFromForm`); the help no
   longer says the wheel scrolls.
+
+## UX round 2 (user, after Phase 15; built directly, design §6e)
+- Colors: the user saw events drawn in the wrong colors. Cause: the API's colors.get and calendar backgroundColor are
+  Google's old palette; the web UI draws newer colors for the same choices. Mapped by hex (`model.WebColor`); the
+  calendar-color mapping (24 entries) is the commonly published one: **check a few calendars against the web UI**.
+- `dd` deletes without a confirmation; the mouse's [Delete] keeps "(y/n)". Selected event highlighted in its color.
+  Double-click adds (one click selects). `?` from the details box or event mode returns there.
+- "Pending for a while": a sync after an edit was skipped while the daemon held the sync lock, so the change waited
+  for the next 45s cycle. Now the TUI retries every 3s while changes are pending, a CLI write waits for the lock
+  (within `sync_timeout`), and `sync_interval` defaults to 20s. Restart the daemon to pick up the new default.
