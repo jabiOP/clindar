@@ -92,8 +92,9 @@ func (v listView) line(e model.Event, selected bool) string {
 	label := "● " + cal.Name
 	text := fit(marker+when+"  "+strings.Join(strings.Fields(e.Title), " ")+resp,
 		max(v.width-width(cal.Name)-4, 10))
+	color := model.EffectiveColor(e, cal, v.palette)
 	if selected {
-		return selectedStyle.Render(text + "  " + label)
+		return focusStyle(color).Render(text + "  " + label)
 	}
-	return text + "  " + calendarStyle(model.EffectiveColor(e, cal, v.palette)).Render(label)
+	return text + "  " + calendarStyle(color).Render(label)
 }

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -41,6 +42,20 @@ func fit(s string, w int) string {
 	}
 	out += "…"
 	return out + strings.Repeat(" ", max(w-width(out), 0))
+}
+
+// focusStyle marks the selected event in its own color: that color as the
+// background, with black or white text, whichever reads better on it.
+func focusStyle(color string) lipgloss.Style {
+	var r, g, b int
+	if _, err := fmt.Sscanf(color, "#%02x%02x%02x", &r, &g, &b); err != nil {
+		return selectedStyle // no color (or not "#rrggbb"): reverse video
+	}
+	text := "#ffffff"
+	if 299*r+587*g+114*b > 150_000 { // perceived brightness (ITU-R BT.601), out of 255_000
+		text = "#000000"
+	}
+	return lipgloss.NewStyle().Background(lipgloss.Color(color)).Foreground(lipgloss.Color(text)).Bold(true)
 }
 
 func calendarStyle(color string) lipgloss.Style {

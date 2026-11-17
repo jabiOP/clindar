@@ -186,3 +186,19 @@ func TestEventsDrawInTheirOwnColor(t *testing.T) {
 		t.Errorf("an event without one should draw in the calendar's #4285f4: %q", got)
 	}
 }
+
+// The focused event keeps its color: as the background, with readable text.
+func TestFocusedEventKeepsItsColor(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	for color, wantText := range map[string]string{"#d50000": "#ffffff", "#f6bf26": "#000000"} {
+		got := focusStyle(color).Render("x")
+		want := lipgloss.NewStyle().Background(lipgloss.Color(color)).Foreground(lipgloss.Color(wantText)).Bold(true).Render("x")
+		if got != want {
+			t.Errorf("%s: %q, want %q", color, got, want)
+		}
+	}
+	if got, want := focusStyle("").Render("x"), selectedStyle.Render("x"); got != want {
+		t.Errorf("no color: %q, want reverse video %q", got, want)
+	}
+}

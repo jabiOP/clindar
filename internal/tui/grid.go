@@ -154,12 +154,12 @@ func (g gridView) eventLine(e model.Event, day time.Time, w int, past, focused b
 			}
 		}
 	}
-	if focused { // event mode: a visible marker as well as reverse video
+	color := model.EffectiveColor(e, g.calendars[e.CalendarID], g.palette) // its own color, else its calendar's
+	if focused {                                                           // event mode: a marker, and the event's color as background
 		text := "▶" + start + fit(eventLabel(e, g.loc), w-1-width(start+end)) + end
-		return selectedStyle.Render(text), hits
+		return focusStyle(color).Render(text), hits
 	}
 	text := start + fit(eventLabel(e, g.loc), w-width(start+end)) + end
-	color := model.EffectiveColor(e, g.calendars[e.CalendarID], g.palette) // its own color, else its calendar's
 	return calendarStyle(color).Faint(past).Render(text), hits
 }
 
