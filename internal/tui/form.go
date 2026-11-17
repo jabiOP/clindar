@@ -1,8 +1,12 @@
 package tui
 
 import (
+	"cmp"
 	"errors"
+	"fmt"
 	"maps"
+	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -77,7 +81,88 @@ func colorOptions(cal model.Calendar, palette map[string]string) []option {
 			opts = append(opts, option{label: c.name, value: c.id, swatch: palette[c.id]})
 		}
 	}
+	for i := range opts[1:] { // "Calendar default" keeps group 0, on its own row
+		opts[i+1].group = 1 + colorFamily(opts[i+1].swatch)
+	}
+	slices.SortStableFunc(opts[1:], func(a, b option) int {
+		if a.group != b.group {
+			return a.group - b.group
+		}
+		return cmp.Compare(lightness(b.swatch), lightness(a.swatch)) // light to dark
+	})
 	return opts
+}
+
+// Color families, in the order the grid shows them.
+const (
+	famRed = iota
+	famOrange
+	famYellow
+	famGreen
+	famTeal
+	famBlue
+	famPurple
+	famPink
+	famBrown
+	famGrey
+)
+
+// colorFamily groups a "#rrggbb" color with similar ones, by hue; washed-out
+// colors are browns (warm and dark) or greys. Unknown colors are grey.
+func colorFamily(hex string) int {
+	h, s, l, ok := hsl(hex)
+	switch {
+	case !ok || s < 0.15:
+		return famGrey
+	case s < 0.35 && l < 0.5 && h < 60:
+		return famBrown
+	case h < 12 || h >= 345:
+		return famRed
+	case h < 40:
+		return famOrange
+	case h < 70:
+		return famYellow
+	case h < 160:
+		return famGreen
+	case h < 190:
+		return famTeal
+	case h < 250:
+		return famBlue
+	case h < 290:
+		return famPurple
+	}
+	return famPink
+}
+
+func lightness(hex string) float64 { _, _, l, _ := hsl(hex); return l }
+
+// hsl converts "#rrggbb" to hue (0–360), saturation and lightness (0–1).
+func hsl(hex string) (h, s, l float64, ok bool) {
+	var r8, g8, b8 int
+	if _, err := fmt.Sscanf(hex, "#%02x%02x%02x", &r8, &g8, &b8); err != nil {
+		return 0, 0, 0, false
+	}
+	r, g, b := float64(r8)/255, float64(g8)/255, float64(b8)/255
+	hi, lo := max(r, g, b), min(r, g, b)
+	l = (hi + lo) / 2
+	d := hi - lo
+	if d == 0 {
+		return 0, 0, l, true
+	}
+	s = d / (1 - math.Abs(2*l-1))
+	switch hi {
+	case r:
+		h = math.Mod((g-b)/d, 6)
+	case g:
+		h = (b-r)/d + 2
+	default:
+		h = (r-g)/d + 4
+	}
+	h *= 60
+	if h < 0 {
+		h += 360
+	}
+	return h, s, l, true
 }
 
 // colorValue is the Color option that stands for e's color.
@@ -106,7 +191,7 @@ func (f form) withColors() form {
 		}
 	}
 	cur := f.value(fColor)
-	p := picker{title: "Color", options: colorOptions(cal, f.palette)}
+	p := picker{title: "Color", options: colorOptions(cal, f.palette), grid: true}
 	for i, o := range p.options {
 		if o.value == cur {
 			p.chosen = i
@@ -145,7 +230,7 @@ func newForm(editing *model.Event, dates timeparse.Parser) form {
 		rep = append(rep, option{label: w, value: w})
 	}
 	f.pickers[fRepeat] = picker{title: "Repeat", options: rep}
-	f.pickers[fColor] = picker{title: "Color", options: colorOptions(model.Calendar{}, nil)}
+	f.pickers[fColor] = picker{title: "Color", options: colorOptions(model.Calendar{}, nil), grid: true}
 	f.inputs[fTitle].Focus()
 	return f
 }
@@ -533,7 +618,12 @@ func (f form) view(width int, mouse bool) modal {
 		if msg := f.errs[i]; msg != "" {
 			md.text(strings.Repeat(" ", 12) + errorStyle.Render(msg))
 		}
-		if isPicker && p.open && i == f.focus { // the dropdown, inline and clickable
+		if isPicker && p.open && i == f.focus && p.grid { // the color grid, inline and clickable
+			lines, cells := p.gridRows(width - 12)
+			for n, line := range lines {
+				md.optionCells(12, line, cells[n])
+			}
+		} else if isPicker && p.open && i == f.focus { // the dropdown, inline and clickable
 			lines, idx := p.rows(width - 12)
 			for n, line := range lines {
 				md.option(strings.Repeat(" ", 12)+line, idx[n])
@@ -552,7 +642,11 @@ func (f form) view(width int, mouse bool) modal {
 	if f.confirmDiscard {
 		md.text(errorStyle.Render("Discard changes? enter discard · esc keep editing"))
 	} else if p, ok := f.pickers[f.focus]; ok && p.open {
-		md.text(dimStyle.Render("in the list: j/k move · enter choose · esc close the list"))
+		move := "j/k move"
+		if p.grid {
+			move = "h/j/k/l move · type to filter"
+		}
+		md.text(dimStyle.Render("in the list: " + move + " · enter choose · esc close the list"))
 		md.text(dimStyle.Render("ctrl+s save"))
 	} else {
 		md.text(dimStyle.Render("ctrl+j/tab next · ctrl+k previous · h/l change · space list"))

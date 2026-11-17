@@ -384,11 +384,11 @@ func TestColorPickerOffersTheCalendarsLabels(t *testing.T) {
 	for _, o := range f.model().form.pickers[fColor].options {
 		labels = append(labels, o.label)
 	}
-	if !slices.Equal(labels, []string{"Calendar default", "Cherry blossom", "#3eb489"}) {
+	if !slices.Equal(labels, []string{"Calendar default", "#3eb489", "Cherry blossom"}) { // greens before pinks
 		t.Fatalf("options in Me = %v", labels)
 	}
 	f.focus(fColor)
-	f.keys("l") // Cherry blossom
+	f.keys("l", "l") // Cherry blossom
 	f.focus(fCalendar)
 	f.keys("l") // Me → Work (no labels): the classic colors; the label isn't kept
 	if p := f.model().form.pickers[fColor]; len(p.options) != 12 || p.current().value != "" {
@@ -396,11 +396,58 @@ func TestColorPickerOffersTheCalendarsLabels(t *testing.T) {
 	}
 	f.keys("h") // back to Me
 	f.focus(fColor)
-	f.keys("l", "enter")
+	f.keys("l", "l", "enter")
 
 	events, _ := f.svc.Agenda(context.Background(), time.Date(2026, 11, 12, 0, 0, 0, 0, f.ny), time.Date(2026, 11, 13, 0, 0, 0, 0, f.ny), service.Filter{})
 	i := slices.IndexFunc(events, func(e model.Event) bool { return e.Title == "Yoga" })
 	if i < 0 || events[i].LabelID != "l1" || events[i].ColorID != "" {
 		t.Errorf("Yoga = %+v, want label l1", events)
+	}
+}
+
+// The open Color list is a grid: one row per color family (light to dark),
+// h/l along a row, j/k between rows.
+func TestColorGridGroupsAndNavigates(t *testing.T) {
+	f := newFixture(t)
+	f.openFullForm()
+	f.focus(fColor)
+	f.keys(" ") // open: the cursor is on "Calendar default", alone on the first row
+	p := f.model().form.pickers[fColor]
+	rows := p.gridLayout(gridColumns)
+	var names [][]string
+	for _, row := range rows {
+		var r []string
+		for _, pos := range row {
+			r = append(r, p.options[p.visible()[pos]].label)
+		}
+		names = append(names, r)
+	}
+	if len(names) == 0 || !slices.Equal(names[0], []string{"Calendar default"}) {
+		t.Fatalf("rows = %v", names)
+	}
+
+	f.keys("j") // down a row
+	if f.model().form.pickers[fColor].cursor != 1 {
+		t.Errorf("j: cursor = %d, want 1", f.model().form.pickers[fColor].cursor)
+	}
+	f.keys("l")
+	if f.model().form.pickers[fColor].cursor != 2 {
+		t.Errorf("l: cursor = %d, want 2", f.model().form.pickers[fColor].cursor)
+	}
+	f.keys("k")
+	if f.model().form.pickers[fColor].cursor != 0 {
+		t.Errorf("k: cursor = %d, want back on the first row", f.model().form.pickers[fColor].cursor)
+	}
+}
+
+func TestColorFamilies(t *testing.T) {
+	for hex, want := range map[string]int{
+		"#d50000": famRed, "#f4511e": famOrange, "#ef6c00": famOrange, "#e4c441": famYellow, "#33b679": famGreen,
+		"#009688": famTeal, "#039be5": famBlue, "#3f51b5": famBlue, "#8e24aa": famPurple, "#d81b60": famPink,
+		"#795548": famBrown, "#616161": famGrey, "#a79b8e": famGrey, "": famGrey,
+	} {
+		if got := colorFamily(hex); got != want {
+			t.Errorf("%s: family %d, want %d", hex, got, want)
+		}
 	}
 }

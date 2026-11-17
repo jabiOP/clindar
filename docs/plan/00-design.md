@@ -262,7 +262,8 @@ Decisions from real use (brief "UX round 1"):
 - **Event colors are Google's labels** (since Google's June 2026 change): each calendar has up to 200 color labels
   (the 24 defaults plus custom ones), read with `calendars.get` (`labelProperties.eventLabels`) and refetched when an
   event uses an unknown one. An event's `eventLabelId` supersedes its classic `colorId`. The Color picker offers the
-  chosen calendar's labels (scrolling, type to filter); a calendar without labels offers the 11 classic colors.
+  chosen calendar's labels as a grid, one row per color family (reds … greys, light to dark), h/j/k/l to move,
+  typing filters; default colors show Google's names (the API gives them none); a calendar without labels offers the 11 classic colors.
   Writes that set or clear a label use `eventLabelVersion=1` and always send `eventLabelId`; others stay on
   `colorId`. Colors are drawn as the API reports them (no remapping).
 - **`dd` deletes** (list, event mode, details), at once for a one-off, like vim; `d` then another key does nothing.

@@ -60,6 +60,14 @@ func overlay(width, height int, box string) (s string, x, y int) {
 	return strings.Repeat("\n", y) + strings.Join(lines, "\n"), x, y
 }
 
+// optionCells adds a grid line whose cells (shifted by indent) are clickable options.
+func (m *modal) optionCells(indent int, line string, cells []gridCell) {
+	for _, c := range cells {
+		m.hits.add(indent+c.x, len(m.lines), c.w, 1, target{kind: targetOption, field: c.i})
+	}
+	m.lines = append(m.lines, strings.Repeat(" ", indent)+line)
+}
+
 // option adds a clickable picker row for option index i.
 func (m *modal) option(line string, i int) {
 	m.hits.add(0, len(m.lines), width(line), 1, target{kind: targetOption, field: i})

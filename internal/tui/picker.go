@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,6 +13,7 @@ type option struct {
 	value   string // what the caller stores: a calendar ID, a repeat word, a color ID…
 	swatch  string // optional "#rrggbb", drawn as ● before the label
 	checked bool   // checklist mode
+	group   int    // grid mode: options of one group share a row (e.g. a color family)
 }
 
 // picker is the TUI's one choice widget: closed in a form, open as a
@@ -26,6 +28,7 @@ type picker struct {
 	filtering bool // after "/" (or a typed letter): runes go to the filter
 	open      bool
 	checklist bool
+	grid      bool // open as a grid: one row per group; h/l along a row, j/k between rows
 }
 
 type pickEvent int
@@ -67,6 +70,22 @@ func (p picker) Update(k tea.KeyMsg) (picker, pickEvent, int) {
 		return p, pickNothing, 0
 	}
 	vis := p.visible()
+	if p.grid && !p.filtering {
+		switch k.String() {
+		case "h", "left":
+			p.cursor = max(p.cursor-1, 0)
+			return p, pickNothing, 0
+		case "l", "right":
+			p.cursor = min(p.cursor+1, max(len(vis)-1, 0))
+			return p, pickNothing, 0
+		case "j", "down":
+			p.cursor = p.gridStep(1)
+			return p, pickNothing, 0
+		case "k", "up":
+			p.cursor = p.gridStep(-1)
+			return p, pickNothing, 0
+		}
+	}
 	switch s := k.String(); {
 	case s == "esc" && p.filtering:
 		p.filter, p.filtering = "", false
@@ -175,6 +194,87 @@ func (p picker) rows(w int) (lines []string, idx []int) {
 		lines, idx = append(lines, line), append(idx, i)
 	}
 	return lines, idx
+}
+
+// gridColumns is how many options a grid row holds; a longer group wraps.
+// Three fit names like "Cherry blossom" in an 80-column terminal.
+const gridColumns = 3
+
+// gridLayout splits the visible options into rows: a new row for each group,
+// and when a row is full. Values are positions in visible().
+func (p picker) gridLayout(cols int) [][]int {
+	vis := p.visible()
+	var rows [][]int
+	for pos, i := range vis {
+		n := len(rows)
+		if n == 0 || len(rows[n-1]) == cols || p.options[vis[rows[n-1][0]]].group != p.options[i].group {
+			rows = append(rows, nil)
+			n++
+		}
+		rows[n-1] = append(rows[n-1], pos)
+	}
+	return rows
+}
+
+// gridStep moves the cursor dir rows down (or up), keeping its column.
+func (p picker) gridStep(dir int) int {
+	rows := p.gridLayout(gridColumns)
+	for r, row := range rows {
+		for c, pos := range row {
+			if pos != p.cursor {
+				continue
+			}
+			to := min(max(r+dir, 0), len(rows)-1)
+			return rows[to][min(c, len(rows[to])-1)]
+		}
+	}
+	return p.cursor
+}
+
+// gridCell is one clickable option in a grid line.
+type gridCell struct{ x, w, i int }
+
+// gridRows draws the open grid (a window of rows around the cursor) for w cells.
+func (p picker) gridRows(w int) (lines []string, cells [][]gridCell) {
+	cols := gridColumns
+	vis := p.visible()
+	rows := p.gridLayout(cols)
+	cur := 0
+	for r, row := range rows {
+		if slices.Contains(row, p.cursor) {
+			cur = r
+		}
+	}
+	const window = 10
+	first := min(max(cur-window/2, 0), max(len(rows)-window, 0))
+	last := min(first+window, len(rows))
+	cellW := (w - 4) / cols
+	more := func(s string) { lines, cells = append(lines, dimStyle.Render("  "+s)), append(cells, nil) }
+	if first > 0 {
+		more("↑ more")
+	}
+	for r := first; r < last; r++ {
+		var line string
+		var cs []gridCell
+		for c, pos := range rows[r] {
+			o := p.options[vis[pos]]
+			text := fit("  "+swatch(o.swatch)+o.label, cellW)
+			if pos == p.cursor {
+				dot := ""
+				if o.swatch != "" {
+					dot = "● "
+				}
+				text = selectedStyle.Render(fit("▶ "+dot+o.label, cellW))
+			}
+			cs = append(cs, gridCell{x: c * cellW, w: cellW, i: vis[pos]})
+			line += text
+		}
+		lines, cells = append(lines, line), append(cells, cs)
+	}
+	if last < len(rows) {
+		more("↓ more")
+	}
+	return lines, cells
 }
 
 // swatch is a colored ● for a "#rrggbb" color, or nothing.
