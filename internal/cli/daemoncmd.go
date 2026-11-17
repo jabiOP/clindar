@@ -42,7 +42,7 @@ Usually started by your service manager: see 'clindar daemon install'.`,
 			return nil
 		},
 	}
-	cmd.Flags().DurationVar(&interval, "interval", 0, "time between syncs (default from config, 45s)")
+	cmd.Flags().DurationVar(&interval, "interval", 0, "time between syncs (default: config sync_interval, 20s)")
 	cmd.AddCommand(newDaemonInstallCmd(app), newDaemonUninstallCmd(app))
 	return cmd
 }

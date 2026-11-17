@@ -56,7 +56,7 @@ func newAgendaCmd(app *App) *cobra.Command {
 	cmd.Flags().IntVar(&wf.days, "days", 0, "number of days from --from (default 7)")
 	cmd.Flags().BoolVar(&wf.today, "today", false, "only today")
 	cmd.Flags().StringVar(&wf.within, "within", "", "only events starting between now and now+DURATION")
-	cmd.Flags().StringArrayVarP(&calendars, "calendar", "c", nil, "calendar name or ID (repeatable; default: calendars shown in Google)")
+	cmd.Flags().StringArrayVarP(&calendars, "calendar", "c", nil, "calendar name or ID (repeatable; default: the calendars shown in clindar)")
 	addOutputFlags(cmd, &of)
 	addOfflineFlag(cmd, &offline)
 	return cmd

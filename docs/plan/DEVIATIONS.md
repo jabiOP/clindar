@@ -223,6 +223,15 @@ One line per deviation: what changed, and why.
   quick add (Tab) counts as changed. Tests: `TestEscOnAnUntouchedFormCloses`,
   `TestEscWithChangesAsksBeforeDiscarding`.
 
+- **Task 15.8:** cause 2 (the OSC 52 write raced the renderer). `Deps.Copy` now returns the sequence
+  (`clipboard.Sequence`); the model prefixes it to the frame for 150 ms (`copyFrameTime`), long enough for the 60 fps
+  renderer to write it once. Checked in tmux: the whole link reached tmux's clipboard.
+- **Task 15.7:** the fake gained `FailPull` (list calls fail, writes don't) for the test.
+- **Task 15.11:** `Push` reads the outbox once, so ops queued behind a move kept the old etag in memory and got a 412.
+  It now re-reads the pending ops after each move. Also: a move refused with 404 is discarded like a permanent
+  refusal (rows put back, "couldn't move it" logged). The fake gained `AddCalendar` and `MoveFail` for the tests.
+- **Task 15.14:** the scope note is a `Model.scopeNote` field shown above "Recurring event. Apply to:"; it's cleared
+  wherever the scope picker opens for other reasons. Checked in tmux: moving via the form, and Esc / Esc Esc / Esc Enter.
 - **Task 15.15, moving events (real Google, 2026-11-16, `5bf05d6`, tmux 160×45).** Account me@example.com
   (the user's own, not a dedicated test account). There is no calendar named "Other", so by the user's choice
   events were created on **primary** and moved **into clindar-test**. `send_updates` is the default `"all"` (no
@@ -269,33 +278,12 @@ One line per deviation: what changed, and why.
   - **Event Google won't move: not run.** The user's primary calendar has no birthday or working-location events
     (the user confirmed; clindar doesn't record `eventType`).
 
-## Ideas
-- **Grid "offset after Dec 1" (tester, both rounds) is not a width bug.** Single-digit day numbers are right-aligned
-  to two characters (`fmt.Sprintf("%2d")` in `gridView.cell`, Task 10.1), so " 2" puts its digit one column right
-  of the events below it. "Dec 1" and two-digit days have no leading space, which is why it looks like it starts
-  after Dec 1. The tester's positions match exactly (Dec 1 at 20; digits of " 2", " 3" at 41, 61). Every grid line
-  measures exactly the grid width with colors, emoji and selection (checked at 140 columns). If left-aligned
-  numbers are preferred, it's a one-character change (`%2d` → `%d`) plus regenerating the grid golden files.
-- The details box now wraps long lines, but a wrapped Guests or Link line continues at the box's left edge instead
-  of under its value (tester). Wrapping each `Label: value` row's value separately, indented 11 columns, would fix it.
-- `clindar calendars show|hide NAME`: there's no CLI command to change calendar visibility yet (Task 14.12 adds it to
-  the store, service and TUI only); a small follow-up.
-- **Task 15.8:** cause 2 (the OSC 52 write raced the renderer). `Deps.Copy` now returns the sequence
-  (`clipboard.Sequence`); the model prefixes it to the frame for 150 ms (`copyFrameTime`), long enough for the 60 fps
-  renderer to write it once. Checked in tmux: the whole link reached tmux's clipboard.
-- **Task 15.7:** the fake gained `FailPull` (list calls fail, writes don't) for the test.
-- **Task 15.11:** `Push` reads the outbox once, so ops queued behind a move kept the old etag in memory and got a 412.
-  It now re-reads the pending ops after each move. Also: a move refused with 404 is discarded like a permanent
-  refusal (rows put back, "couldn't move it" logged). The fake gained `AddCalendar` and `MoveFail` for the tests.
-- **Task 15.14:** the scope note is a `Model.scopeNote` field shown above "Recurring event. Apply to:"; it's cleared
-  wherever the scope picker opens for other reasons. Checked in tmux: moving via the form, and Esc / Esc Esc / Esc Enter.
-
 ## Decisions after the Phase 15 review (user, recorded by the architect)
 - Plan and code work happen on `main` from now on.
 - Moving an event tells guests like any other edit (`send_updates`), as Google Calendar's own question does (Task 15.12).
 - Accepted: an edit to one occurrence queued during a pending series move can be discarded as a conflict.
 - Accepted: moving a birthday/working-location event is tried, refused by Google, reverted and logged (no `eventType`).
-- `clindar calendars show|hide` stays out of scope (Idea above declined).
+- `clindar calendars show|hide` stays out of scope.
 - Stdin titles are literal and need `--at` (Task 15.6). The after-write warning says whether the change reached
   Google (Task 15.7).
 - Confirmed by the user after upgrading: Meet links and colors now show (Task 15.1).
@@ -318,10 +306,15 @@ One line per deviation: what changed, and why.
 ## UX round 2 (user, after Phase 15; built directly, design §6e)
 - Colors: a remap of the API's colors to the web UI's was tried and reverted (the user preferred the old colors).
   What the user wanted was the web's variety: Google's June 2026 event labels, now supported (migration 6 forces one
-  full resync so cached events get their `eventLabelId` and calendars their labels). **Check on real Google:** the
-  picker lists the same colors as the web; setting, changing and clearing a label shows in the web UI.
+  full resync so cached events get their `eventLabelId` and calendars their labels). Confirmed by the user on real
+  Google (2026-11-17): the picker lists the web's colors, and setting, changing and clearing one shows in the web UI.
+  Then: default colors named as in the web UI (the API gives them no name), the Color list as a grid by color family,
+  and a quick palette per event (right-click, press-and-hold, [Color] in details, or `C`; iTerm2 keeps the right
+  button for its own menu).
 - `dd` deletes without a confirmation; the mouse's [Delete] keeps "(y/n)". Selected event highlighted in its color.
   Double-click adds (one click selects). `?` from the details box or event mode returns there.
 - "Pending for a while": a sync after an edit was skipped while the daemon held the sync lock, so the change waited
   for the next 45s cycle. Now the TUI retries every 3s while changes are pending, a CLI write waits for the lock
   (within `sync_timeout`), and `sync_interval` defaults to 20s. Restart the daemon to pick up the new default.
+  Confirmed by the user: the daemon syncs quicker.
+- Confirmed by the user (2026-11-17): a read-only calendar's events (holidays) can't be moved or edited.

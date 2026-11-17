@@ -29,7 +29,7 @@ type Config struct {
 	WeekStart       string   `toml:"week_start"`       // "monday" | "sunday"
 	SendUpdates     string   `toml:"send_updates"`     // "all" | "none": email attendees on changes
 	DateOrder       string   `toml:"date_order"`       // "dmy" (20/11) | "mdy" (11/20)
-	Mouse           bool     `toml:"mouse"`            // TUI mouse support (hold Shift to select text)
+	Mouse           bool     `toml:"mouse"`            // TUI mouse support (select text with Option-drag on macOS, Shift-drag elsewhere)
 }
 
 func Default() Config {

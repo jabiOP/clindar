@@ -34,11 +34,11 @@ These files explain *how*, as small tasks.
 | 8 | `08-cli.md` | All CLI commands. **First milestone: real data on screen** |
 | 9 | `09-daemon.md` | Background sync + systemd/launchd install |
 | 10 | `10-tui.md` | Bubble Tea UI: grid, list, detail, forms |
-| 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build |
+| 11 | `11-docs-release.md` | User docs, scripting recipes, manual E2E checklist, release build. **Done last** (after Phase 15), except the E2E checklist and the `v0.1.0` tag, which need the user |
 | 12 | `12-mouse.md` | Mouse: clicks, wheel (turned off in Task 15.3), buttons, drag to move/resize in the grid (written as diffs on Phase 10 code) |
 | 13 | `13-fixes.md` | Fixes from testing (13.1–13.10, 13.13), then two product decisions: left-aligned day numbers, indented wrapped details |
-| 14 | `14-ux-round-1.md` | UX round 1: event mode, quick add, pickers, calendar menu, colors, Meet links, day/month dates (spec, not compiled) |
-| 15 | `15-after-ux-round-1.md` | Done: one full resync (migration 4), form keys (Enter saves, Space lists, `Ctrl-S`), Esc asks before discarding, wheel off. Esc then Enter discards, literal stdin titles, clearer write warning, [Copy] fix, moving an event to another calendar. To do: Task 15.15's real-Google checks |
+| 14 | `14-ux-round-1.md` | UX round 1: event mode, quick add, pickers, calendar menu, colors, Meet links, day/month dates (written as a spec; implemented, see `DEVIATIONS.md`) |
+| 15 | `15-after-ux-round-1.md` | Done: one full resync (migration 4), form keys (Enter saves, Space lists, `Ctrl-S`), Esc asks before discarding, wheel off. Esc then Enter discards, literal stdin titles, clearer write warning, [Copy] fix, moving an event to another calendar, all checked on real Google. UX round 2 (design §6e) was built directly, without plan tasks |
 
 ## Toolset primer (read once)
 
