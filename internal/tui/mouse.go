@@ -23,7 +23,13 @@ type dragState struct {
 	part   part
 	from   time.Time // the day the event was grabbed on
 	over   time.Time // the day under the pointer now
+	at     time.Time // when it was grabbed: a long press opens the color palette
 }
+
+// longPress is how long a press on an event, released in place, must last to
+// open its color palette instead of its details (for terminals, like iTerm2,
+// that keep the right button for their own menu).
+const longPress = 500 * time.Millisecond
 
 // handleMouse turns mouse messages into the same actions the keys use.
 // Clicks act on press, except on grid events: a press there starts a possible
@@ -151,7 +157,7 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 			m.detail, m.mode, m.message = t.event, modeDetail, why
 			return m, nil
 		}
-		m.drag = dragState{active: true, event: t.event, part: t.part, from: t.day, over: t.day}
+		m.drag = dragState{active: true, event: t.event, part: t.part, from: t.day, over: t.day, at: m.deps.Now()}
 	case targetEntry:
 		if t.entry == m.cursor {
 			m.detail, m.mode = m.entries()[m.cursor], modeDetail
@@ -184,7 +190,10 @@ func (m Model) drop() (tea.Model, tea.Cmd) {
 	d := m.drag
 	m.drag = dragState{}
 	if d.over.Equal(d.from) { // no movement
-		if d.part == partBody { // a click on the event
+		switch {
+		case d.part == partBody && m.deps.Now().Sub(d.at) >= longPress: // a long press: its colors
+			return m.startColor(d.event), nil
+		case d.part == partBody: // a click on the event
 			m.detail, m.mode, m.message = d.event, modeDetail, ""
 		}
 		return m, nil

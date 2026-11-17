@@ -98,7 +98,7 @@ func (m Model) popup() (modal, bool) {
 		var bs []button
 		var hints []string
 		if can.edit {
-			bs, hints = append(bs, button{"Edit", "e"}), append(hints, "e edit")
+			bs, hints = append(bs, button{"Edit", "e"}, button{"Color", "C"}), append(hints, "e edit", "C color")
 		}
 		if can.delete {
 			bs, hints = append(bs, button{"Delete", "delete"}), append(hints, "dd delete")
@@ -114,7 +114,7 @@ func (m Model) popup() (modal, bool) {
 			hints = append(hints, "m join · y copy link")
 		}
 		bs, hints = append(bs, button{"Close", "esc"}), append(hints, "esc close")
-		choices(dimStyle.Render(strings.Join(hints, " · ")), bs...)
+		choices(dimStyle.Render(joinWrapped(hints, " · ", max(m.width-6, 20))), bs...)
 	case modeScope:
 		labels := map[byte]button{'t': {"This event", "t"}, 'f': {"Following", "f"}, 'a': {"All events", "a"}}
 		plain := map[byte]string{'t': "(t)his event", 'f': "(f)ollowing", 'a': "(a)ll events"}
@@ -191,4 +191,22 @@ func (m Model) statusBar() (string, hitMap) {
 	}
 	info := dimStyle.Render(fit(strings.Join(parts, " · "), max(x, 0)))
 	return info + " " + strings.Join(labels, " "), hits
+}
+
+// joinWrapped joins parts with sep, starting a new line before a part that
+// would make the line wider than w.
+func joinWrapped(parts []string, sep string, w int) string {
+	var lines []string
+	line := ""
+	for _, p := range parts {
+		switch {
+		case line == "":
+			line = p
+		case width(line+sep+p) > w:
+			lines, line = append(lines, line), p
+		default:
+			line += sep + p
+		}
+	}
+	return strings.Join(append(lines, line), "\n")
 }

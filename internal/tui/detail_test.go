@@ -186,3 +186,18 @@ func TestHelpFromEventModeReturnsToIt(t *testing.T) {
 		t.Errorf("mode = %v, dayMode = %v; want event mode back", m.mode, m.dayMode)
 	}
 }
+
+// With every action available, the details box still fits 80 columns.
+func TestDetailWithAllActionsFits80Columns(t *testing.T) {
+	f := newFixture(t)
+	f.send(tea.WindowSizeMsg{Width: 80, Height: 30})
+	e := testutil.Timed("m", "Sync call", time.Date(2026, 11, 12, 16, 0, 0, 0, f.ny), 30*time.Minute)
+	e.MeetLink, e.Link = "https://meet.google.com/abc", "https://calendar.google.com/x"
+	f.put(e)
+	f.openDetail(e)
+	for _, l := range strings.Split(f.m.View(), "\n") {
+		if width(l) > 80 {
+			t.Fatalf("%d cells wide:\n%s", width(l), f.m.View())
+		}
+	}
+}

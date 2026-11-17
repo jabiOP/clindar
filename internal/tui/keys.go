@@ -43,7 +43,7 @@ func helpText(mouse bool) string {
 			"  double-click a day to add an event; drag across days to add one spanning them\n" +
 			"  click an event to see it (the wheel does nothing: use the keys to move)\n" +
 			"  drag an event to another day; drag ◂ or ▸ to change its first or last day\n" +
-			"  right-click an event to change its color\n" +
+			"  change an event's color: right-click it, press and hold it, or [Color] in its details\n" +
 			"  select text: Option-drag on macOS, Shift-drag elsewhere\n"
 	}
 	return s + "\nPress any key to close."

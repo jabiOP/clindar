@@ -421,3 +421,32 @@ func TestNoColorPaletteForAnInvitation(t *testing.T) {
 		t.Errorf("mode = %v, message = %q", m.mode, m.message)
 	}
 }
+
+// Press and hold an event, release in place: its color palette (iTerm2 keeps
+// the right button for its own menu). A short click still opens details.
+func TestLongPressOpensTheColorPalette(t *testing.T) {
+	f := newMouseFixture(t)
+	x, y := f.eventAt("Lunch with Sam", 12, partBody)
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	f.clock = f.clock.Add(600 * time.Millisecond)
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonNone, Action: tea.MouseActionRelease})
+	if m := f.model(); m.mode != modeColor {
+		t.Fatalf("mode = %v, want the color palette", m.mode)
+	}
+	f.keys("esc")
+
+	f.clock = f.clock.Add(time.Second)
+	f.click(x, y)
+	if m := f.model(); m.mode != modeDetail {
+		t.Errorf("a short click: mode = %v, want details", m.mode)
+	}
+}
+
+func TestDetailsHaveAColorButton(t *testing.T) {
+	f := newMouseFixture(t)
+	f.click(f.eventAt("Lunch with Sam", 12, partBody))
+	f.click(f.button("C"))
+	if m := f.model(); m.mode != modeColor {
+		t.Errorf("mode = %v, want the color palette", m.mode)
+	}
+}
