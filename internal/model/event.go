@@ -59,11 +59,16 @@ type Event struct {
 	Attendees  []Attendee `json:"attendees,omitempty"`
 	Organizer  string     `json:"organizer,omitempty"` // organizer's email
 
-	ETag     string    `json:"etag,omitempty"`
-	Updated  time.Time `json:"updated,omitzero"`
-	Link     string    `json:"link,omitempty"`      // Google web URL
-	ColorID  string    `json:"color_id,omitempty"`  // Google's event colorId; "" = the calendar's color
-	MeetLink string    `json:"meet_link,omitempty"` // Google Meet URL (read-only: never sent back)
+	ETag    string    `json:"etag,omitempty"`
+	Updated time.Time `json:"updated,omitzero"`
+	Link    string    `json:"link,omitempty"`     // Google web URL
+	ColorID string    `json:"color_id,omitempty"` // Google's event colorId; "" = the calendar's color
+	// LabelID is the event's color label (Google's eventLabelId: an entry in
+	// its calendar's Labels); it supersedes ColorID. LabelChanged marks a local
+	// edit that set or cleared it, so the change is sent the label way.
+	LabelID      string `json:"label_id,omitempty"`
+	LabelChanged bool   `json:"label_changed,omitempty"`
+	MeetLink     string `json:"meet_link,omitempty"` // Google Meet URL (read-only: never sent back)
 }
 
 func (e Event) IsMaster() bool          { return len(e.Recurrence) > 0 }

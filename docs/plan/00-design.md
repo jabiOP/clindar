@@ -259,8 +259,12 @@ Decisions from real use (brief "UX round 1"):
 
 ## 6e. UX round 2
 
-- **Colors as the web UI shows them:** the API still reports Google's old, paler palette for event and calendar
-  colors; clindar maps them to the web UI's (`model.WebColor`, `model.EventPalette`). Custom colors pass through.
+- **Event colors are Google's labels** (since Google's June 2026 change): each calendar has up to 200 color labels
+  (the 24 defaults plus custom ones), read with `calendars.get` (`labelProperties.eventLabels`) and refetched when an
+  event uses an unknown one. An event's `eventLabelId` supersedes its classic `colorId`. The Color picker offers the
+  chosen calendar's labels (scrolling, type to filter); a calendar without labels offers the 11 classic colors.
+  Writes that set or clear a label use `eventLabelVersion=1` and always send `eventLabelId`; others stay on
+  `colorId`. Colors are drawn as the API reports them (no remapping).
 - **`dd` deletes** (list, event mode, details), at once for a one-off, like vim; `d` then another key does nothing.
   A click on [Delete] still asks "(y/n)" (no undo).
 - **The selected event keeps its color:** highlighted with its color as background and black or white text.

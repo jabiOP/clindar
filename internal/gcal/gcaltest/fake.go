@@ -19,6 +19,7 @@ type Fake struct {
 	calendars []model.Calendar
 	events    map[string]map[string]model.Event // calendarID → eventID → event
 	changedAt map[string]int                    // calendarID/eventID → change number
+	labels    map[string][]model.Label          // calendarID → event color labels
 	clock     int                               // increments on every change
 	etag      int
 
@@ -40,7 +41,8 @@ type Fake struct {
 }
 
 func NewFake(cals ...model.Calendar) *Fake {
-	f := &Fake{events: map[string]map[string]model.Event{}, changedAt: map[string]int{}, calendars: cals}
+	f := &Fake{events: map[string]map[string]model.Event{}, changedAt: map[string]int{}, calendars: cals,
+		labels: map[string][]model.Label{}}
 	for _, c := range cals {
 		f.events[c.ID] = map[string]model.Event{}
 	}
@@ -85,6 +87,7 @@ func (f *Fake) put(e model.Event) model.Event {
 	f.etag++
 	f.clock++
 	e.ETag = fmt.Sprintf(`"%d"`, f.etag)
+	e.LabelChanged = false // a local marker; Google doesn't store it
 	if e.Status == "" {
 		e.Status = model.StatusConfirmed
 	}
@@ -173,6 +176,10 @@ func (f *Fake) PatchEvent(ctx context.Context, calendarID string, e model.Event,
 	cur.Title, cur.Description, cur.Location = e.Title, e.Description, e.Location
 	cur.Start, cur.End, cur.AllDay, cur.TimeZone = e.Start, e.End, e.AllDay, e.TimeZone
 	cur.Attendees, cur.ColorID = e.Attendees, e.ColorID
+	if gcal.UsesLabels(e) {
+		cur.LabelID = e.LabelID
+	}
+	cur.LabelChanged = false
 	if e.Recurrence != nil {
 		cur.Recurrence = e.Recurrence
 	}
@@ -289,6 +296,25 @@ func (f *Fake) beforeWrite() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.Fail
+}
+
+// SetLabels sets a calendar's event color labels, as if edited on the web.
+func (f *Fake) SetLabels(calendarID string, labels []model.Label) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.labels[calendarID] = labels
+}
+
+func (f *Fake) CalendarLabels(ctx context.Context, calendarID string) ([]model.Label, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Fail != nil {
+		return nil, f.Fail
+	}
+	if _, ok := f.events[calendarID]; !ok {
+		return nil, gcal.ErrNotFound
+	}
+	return append([]model.Label(nil), f.labels[calendarID]...), nil
 }
 
 // Palette is Google's standard event palette (colorId → background).

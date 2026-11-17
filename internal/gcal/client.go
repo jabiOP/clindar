@@ -119,7 +119,11 @@ func (c *Client) GetEvent(ctx context.Context, calendarID, eventID string) (mode
 }
 
 func (c *Client) InsertEvent(ctx context.Context, calendarID string, e model.Event, sendUpdates string) (model.Event, error) {
-	ev, err := c.svc.Events.Insert(calendarID, ToAPI(e)).SendUpdates(sendUpdates).Context(ctx).Do()
+	call := c.svc.Events.Insert(calendarID, ToAPI(e)).SendUpdates(sendUpdates).Context(ctx)
+	if UsesLabels(e) {
+		call.EventLabelVersion(1)
+	}
+	ev, err := call.Do()
 	if err != nil {
 		return model.Event{}, mapErr(err)
 	}
@@ -128,6 +132,9 @@ func (c *Client) InsertEvent(ctx context.Context, calendarID string, e model.Eve
 
 func (c *Client) PatchEvent(ctx context.Context, calendarID string, e model.Event, ifMatch, sendUpdates string) (model.Event, error) {
 	call := c.svc.Events.Patch(calendarID, e.ID, ToAPI(e)).SendUpdates(sendUpdates).Context(ctx)
+	if UsesLabels(e) {
+		call.EventLabelVersion(1)
+	}
 	if ifMatch != "" {
 		call.Header().Set("If-Match", ifMatch)
 	}
@@ -167,6 +174,16 @@ func (c *Client) MoveEvent(ctx context.Context, calendarID, eventID, destination
 		return model.Event{}, mapErr(err)
 	}
 	return FromAPI(c.account, destination, ev)
+}
+
+// CalendarLabels returns a calendar's event color labels (Google's color menu
+// for events in it). Calendars without labels return none.
+func (c *Client) CalendarLabels(ctx context.Context, calendarID string) ([]model.Label, error) {
+	cal, err := c.svc.Calendars.Get(calendarID).Context(ctx).Do()
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return LabelsFromAPI(cal), nil
 }
 
 // EventColors returns Google's event palette: colorId → background "#rrggbb".

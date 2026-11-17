@@ -204,4 +204,10 @@ DROP TABLE outbox;
 ALTER TABLE outbox_new RENAME TO outbox;
 CREATE INDEX outbox_by_event ON outbox (account_id, calendar_id, event_id);
 CREATE INDEX outbox_by_destination ON outbox (account_id, destination, event_id);
+`,
+	// 6: refetch everything once: FromAPI reads eventLabelId, and calendars
+	// get their color labels.
+	`
+UPDATE calendars SET sync_token = '';
+UPDATE sync_state SET calendars_token = '';
 `}

@@ -45,6 +45,11 @@ func (e *Engine) pullCalendars(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	for i := range cals { // labels live on the calendar, not in the calendar list
+		if cals[i].Labels, err = e.labels(ctx, cals[i].ID); err != nil {
+			return err
+		}
+	}
 	return e.Store.InTx(ctx, func(tx *store.Store) error {
 		if token == "" { // full listing: anything we have that isn't listed is gone
 			deleted = append(deleted, missing(ctx, tx, e.AccountID, cals)...)
@@ -92,6 +97,9 @@ func (e *Engine) pullEvents(ctx context.Context, calendarID string) error {
 	if err != nil {
 		return err
 	}
+	if err := e.refreshLabels(ctx, calendarID, events); err != nil {
+		return err
+	}
 	// Cancelled masters last: their DeleteSeries then also removes tombstones of
 	// exceptions in the same listing (a series moved to another calendar).
 	slices.SortStableFunc(events, func(a, b model.Event) int {
@@ -130,6 +138,41 @@ func (e *Engine) apply(ctx context.Context, tx *store.Store, ev model.Event) err
 	default:
 		return tx.DeleteSeries(ctx, ev.AccountID, ev.CalendarID, ev.ID)
 	}
+}
+
+// labels fetches a calendar's event color labels. A calendar we may not read
+// the details of (e.g. free/busy only) just has none.
+func (e *Engine) labels(ctx context.Context, calendarID string) ([]model.Label, error) {
+	labels, err := e.Remote.CalendarLabels(ctx, calendarID)
+	if errors.Is(err, gcal.ErrPermanent) || errors.Is(err, gcal.ErrNotFound) {
+		return nil, nil
+	}
+	return labels, err
+}
+
+// refreshLabels refetches a calendar's labels when an event uses one we don't
+// know: labels added on the web don't change the calendar list.
+func (e *Engine) refreshLabels(ctx context.Context, calendarID string, events []model.Event) error {
+	cals, err := e.Store.Calendars(ctx, e.AccountID)
+	if err != nil {
+		return err
+	}
+	i := slices.IndexFunc(cals, func(c model.Calendar) bool { return c.ID == calendarID })
+	if i < 0 {
+		return nil
+	}
+	cal := cals[i]
+	unknown := slices.ContainsFunc(events, func(ev model.Event) bool {
+		_, ok := cal.Label(ev.LabelID)
+		return ev.LabelID != "" && !ok
+	})
+	if !unknown {
+		return nil
+	}
+	if cal.Labels, err = e.labels(ctx, calendarID); err != nil {
+		return err
+	}
+	return e.Store.UpsertCalendar(ctx, cal)
 }
 
 func cancelledMaster(e model.Event) int {

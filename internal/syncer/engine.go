@@ -24,6 +24,7 @@ type Remote interface {
 	DeleteEvent(ctx context.Context, calendarID, eventID, ifMatch, sendUpdates string) error
 	MoveEvent(ctx context.Context, calendarID, eventID, destination, sendUpdates string) (model.Event, error)
 	EventColors(ctx context.Context) (map[string]string, error)
+	CalendarLabels(ctx context.Context, calendarID string) ([]model.Label, error)
 }
 
 // ErrPush and ErrPull tell which half of Sync failed: after a pull error,

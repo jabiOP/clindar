@@ -26,3 +26,14 @@ func TestEffectiveColor(t *testing.T) {
 		})
 	}
 }
+
+func TestALabelColorWins(t *testing.T) {
+	cal := model.Calendar{Color: "#4285f4", Labels: []model.Label{{ID: "l1", Color: "#d81b60"}}}
+	palette := map[string]string{"11": "#dc2127"}
+	if got := model.EffectiveColor(model.Event{LabelID: "l1", ColorID: "11"}, cal, palette); got != "#d81b60" {
+		t.Errorf("got %s, want the label's #d81b60", got)
+	}
+	if got := model.EffectiveColor(model.Event{LabelID: "gone", ColorID: "11"}, cal, palette); got != "#dc2127" {
+		t.Errorf("unknown label: got %s, want the colorId's", got)
+	}
+}

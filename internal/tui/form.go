@@ -56,7 +56,69 @@ type form struct {
 	errs           map[int]string
 	err            string // an error that belongs to no field
 	dates          timeparse.Parser
-	confirmDiscard bool // Esc with unsaved changes asked "Discard changes? (y/n)"
+	confirmDiscard bool              // Esc with unsaved changes asked "Discard changes? (y/n)"
+	cals           []model.Calendar  // for the Color picker: the chosen calendar's labels
+	palette        map[string]string // Google's classic event colors (colorId → "#rrggbb")
+}
+
+// labelPrefix marks a Color option that is a label, not a classic colorId.
+const labelPrefix = "label:"
+
+// colorOptions are the Color picker's choices for calendar cal: its labels
+// (Google's color menu: 24 defaults and any custom colors), or the 11 classic
+// colors for a calendar without labels.
+func colorOptions(cal model.Calendar, palette map[string]string) []option {
+	opts := []option{{label: "Calendar default", value: ""}}
+	for _, l := range cal.Labels {
+		name := l.Name
+		if name == "" {
+			name = l.Color
+		}
+		opts = append(opts, option{label: name, value: labelPrefix + l.ID, swatch: l.Color})
+	}
+	if len(cal.Labels) == 0 {
+		for _, c := range colorNames {
+			opts = append(opts, option{label: c.name, value: c.id, swatch: palette[c.id]})
+		}
+	}
+	return opts
+}
+
+// colorValue is the Color option that stands for e's color.
+func colorValue(e model.Event) string {
+	if e.LabelID != "" {
+		return labelPrefix + e.LabelID
+	}
+	return e.ColorID
+}
+
+// splitColor turns a Color option back into a colorId or a label ID.
+func splitColor(v string) (colorID, labelID string) {
+	if id, ok := strings.CutPrefix(v, labelPrefix); ok {
+		return "", id
+	}
+	return v, ""
+}
+
+// withColors rebuilds the Color picker for the chosen calendar, keeping the
+// current choice when that calendar offers it.
+func (f form) withColors() form {
+	var cal model.Calendar
+	for _, c := range f.cals {
+		if c.ID == f.value(fCalendar) {
+			cal = c
+		}
+	}
+	cur := f.value(fColor)
+	p := picker{title: "Color", options: colorOptions(cal, f.palette)}
+	for i, o := range p.options {
+		if o.value == cur {
+			p.chosen = i
+		}
+	}
+	f.pickers = maps.Clone(f.pickers)
+	f.pickers[fColor] = p
+	return f
 }
 
 // fieldError is an error that belongs to one field.
@@ -87,11 +149,7 @@ func newForm(editing *model.Event, dates timeparse.Parser) form {
 		rep = append(rep, option{label: w, value: w})
 	}
 	f.pickers[fRepeat] = picker{title: "Repeat", options: rep}
-	colors := []option{{label: "Calendar default", value: ""}}
-	for _, c := range colorNames {
-		colors = append(colors, option{label: c.name, value: c.id})
-	}
-	f.pickers[fColor] = picker{title: "Color", options: colors}
+	f.pickers[fColor] = picker{title: "Color", options: colorOptions(model.Calendar{}, nil)}
 	f.inputs[fTitle].Focus()
 	return f
 }
@@ -127,6 +185,8 @@ func newEventForm(day time.Time, cals []model.Calendar, defaultCal string, dates
 		opts = []option{{label: "(no writable calendar)"}}
 	}
 	f.pickers[fCalendar] = picker{title: "Calendar", options: opts, chosen: max(chosen, 0)}
+	f.cals = cals
+	f = f.withColors()
 	f = f.setText(fDate, day.Format(f.dateLayout()))
 	return f.remember()
 }
@@ -174,10 +234,12 @@ func editEventForm(e model.Event, loc *time.Location, cals []model.Calendar, dat
 	}
 	f.pickers[fRepeat] = picker{title: "Repeat", options: []option{{label: repeat, value: repeat}}}
 	f.locked[fRepeat] = "can't change"
+	f.cals = cals
+	f = f.withColors()
 
 	start, end := e.Span(loc)
 	layout := f.dateLayout()
-	f = f.setText(fTitle, e.Title).setText(fWhere, e.Location).setText(fNotes, e.Description).setChoice(fColor, e.ColorID)
+	f = f.setText(fTitle, e.Title).setText(fWhere, e.Location).setText(fNotes, e.Description).setChoice(fColor, colorValue(e))
 	if e.AllDay {
 		f = f.setChoice(fAllDay, "yes")
 		date := start.Format(layout)
@@ -249,6 +311,9 @@ func (f form) setChoice(i int, v string) form {
 func (f form) withPicker(i int, p picker) form {
 	f.pickers = maps.Clone(f.pickers)
 	f.pickers[i] = p
+	if i == fCalendar { // each calendar has its own colors
+		f = f.withColors()
+	}
 	return f
 }
 
@@ -385,10 +450,11 @@ func (f form) draft(now time.Time) (service.Draft, error) {
 			return service.Draft{}, fieldError{fRepeat, err.Error()}
 		}
 	}
+	colorID, labelID := splitColor(f.value(fColor))
 	return service.Draft{
 		CalendarID: f.value(fCalendar), Title: f.value(fTitle), Location: f.value(fWhere),
 		Description: f.value(fNotes), Start: span.Start, End: span.End, AllDay: span.AllDay,
-		Recurrence: rec, Invite: splitEmails(f.value(fInvite)), ColorID: f.value(fColor),
+		Recurrence: rec, Invite: splitEmails(f.value(fInvite)), ColorID: colorID, LabelID: labelID,
 	}, nil
 }
 
@@ -409,8 +475,9 @@ func (f form) changes(now time.Time) (service.Changes, error) {
 		emails := splitEmails(f.value(fInvite))
 		ch.Invite = &emails
 	}
-	if f.changed(fColor) {
-		ch.ColorID = str(fColor)
+	if f.changed(fColor) { // one replaces the other: a label, a classic color, or neither
+		colorID, labelID := splitColor(f.value(fColor))
+		ch.ColorID, ch.LabelID = &colorID, &labelID
 	}
 	if f.changed(fCalendar) {
 		ch.CalendarID = str(fCalendar)
@@ -515,14 +582,10 @@ func (f form) showError(err error) form {
 	return f
 }
 
-// withPalette gives the Color picker its swatches (Google's event palette).
+// withPalette gives the classic colors their swatches (Google's event palette).
 func (f form) withPalette(palette map[string]string) form {
-	p := f.pickers[fColor]
-	p.options = append([]option(nil), p.options...)
-	for i := range p.options {
-		p.options[i].swatch = palette[p.options[i].value]
-	}
-	return f.withPicker(fColor, p)
+	f.palette = palette
+	return f.withColors()
 }
 
 // chooseHighlighted closes an open list on its highlighted option, as Enter in

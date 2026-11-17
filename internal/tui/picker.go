@@ -137,8 +137,17 @@ func (p picker) view(w int, mouse bool) modal {
 
 // rows draws the open picker's visible options, cursor row marked, fitted to
 // w-4 cells; idx[n] is the option index of row n (for click targets).
+// pickerWindow is how many options an open list shows at once; it scrolls
+// with the cursor (a calendar can have 200+ colors). Typing filters it.
+const pickerWindow = 10
+
 func (p picker) rows(w int) (lines []string, idx []int) {
-	for row, i := range p.visible() {
+	vis := p.visible()
+	first := min(max(p.cursor-pickerWindow/2, 0), max(len(vis)-pickerWindow, 0))
+	for row, i := range vis {
+		if row < first || row >= first+pickerWindow {
+			continue
+		}
 		o := p.options[i]
 		mark := "  "
 		if row == p.cursor {

@@ -316,9 +316,10 @@ One line per deviation: what changed, and why.
   longer says the wheel scrolls.
 
 ## UX round 2 (user, after Phase 15; built directly, design §6e)
-- Colors: the user saw events drawn in the wrong colors. Cause: the API's colors.get and calendar backgroundColor are
-  Google's old palette; the web UI draws newer colors for the same choices. Mapped by hex (`model.WebColor`); the
-  calendar-color mapping (24 entries) is the commonly published one: **check a few calendars against the web UI**.
+- Colors: a remap of the API's colors to the web UI's was tried and reverted (the user preferred the old colors).
+  What the user wanted was the web's variety: Google's June 2026 event labels, now supported (migration 6 forces one
+  full resync so cached events get their `eventLabelId` and calendars their labels). **Check on real Google:** the
+  picker lists the same colors as the web; setting, changing and clearing a label shows in the web UI.
 - `dd` deletes without a confirmation; the mouse's [Delete] keeps "(y/n)". Selected event highlighted in its color.
   Double-click adds (one click selects). `?` from the details box or event mode returns there.
 - "Pending for a while": a sync after an edit was skipped while the daemon held the sync lock, so the change waited

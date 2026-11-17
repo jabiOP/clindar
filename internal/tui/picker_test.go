@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -65,5 +67,18 @@ func TestPickerRowsAreClickable(t *testing.T) {
 	x, y := find(t, box, "Home")
 	if got, _ := hits.at(x, y); got.kind != targetOption || got.field != 2 {
 		t.Errorf("click on Home = %+v", got)
+	}
+}
+
+// A long list (a calendar's 200+ colors) shows a window around the cursor.
+func TestLongListScrollsWithTheCursor(t *testing.T) {
+	p := picker{open: true}
+	for i := range 30 {
+		p.options = append(p.options, option{label: fmt.Sprintf("color %d", i), value: fmt.Sprint(i)})
+	}
+	p.cursor = 25
+	lines, idx := p.rows(40)
+	if len(lines) != pickerWindow || !slices.Contains(idx, 25) || idx[0] != 20 {
+		t.Errorf("rows %d, idx %v; want %d rows around 25", len(lines), idx, pickerWindow)
 	}
 }

@@ -367,3 +367,40 @@ func TestEscOnTheScopePickerReturnsToTheForm(t *testing.T) {
 		t.Errorf("mode = %v, calendar = %q; want the form back, unchanged", m.mode, m.form.value(fCalendar))
 	}
 }
+
+// The Color picker offers the chosen calendar's labels (Google's full color
+// menu); a calendar without labels gets the 11 classic colors.
+func TestColorPickerOffersTheCalendarsLabels(t *testing.T) {
+	f := newFixture(t)
+	f.moreCalendars()
+	me, _ := f.svc.ResolveCalendar(context.Background(), "Me")
+	me.Labels = []model.Label{{ID: "l1", Name: "Cherry blossom", Color: "#d81b60"}, {ID: "l2", Color: "#3eb489"}}
+	f.st.UpsertCalendar(context.Background(), me)
+	f.send(f.model().load()())
+
+	f.openFullForm()
+	f.keys("Yoga")
+	var labels []string
+	for _, o := range f.model().form.pickers[fColor].options {
+		labels = append(labels, o.label)
+	}
+	if !slices.Equal(labels, []string{"Calendar default", "Cherry blossom", "#3eb489"}) {
+		t.Fatalf("options in Me = %v", labels)
+	}
+	f.focus(fColor)
+	f.keys("l") // Cherry blossom
+	f.focus(fCalendar)
+	f.keys("l") // Me → Work (no labels): the classic colors; the label isn't kept
+	if p := f.model().form.pickers[fColor]; len(p.options) != 12 || p.current().value != "" {
+		t.Fatalf("Work: %d options, chosen %q", len(p.options), p.current().value)
+	}
+	f.keys("h") // back to Me
+	f.focus(fColor)
+	f.keys("l", "enter")
+
+	events, _ := f.svc.Agenda(context.Background(), time.Date(2026, 11, 12, 0, 0, 0, 0, f.ny), time.Date(2026, 11, 13, 0, 0, 0, 0, f.ny), service.Filter{})
+	i := slices.IndexFunc(events, func(e model.Event) bool { return e.Title == "Yoga" })
+	if i < 0 || events[i].LabelID != "l1" || events[i].ColorID != "" {
+		t.Errorf("Yoga = %+v, want label l1", events)
+	}
+}

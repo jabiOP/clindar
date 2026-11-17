@@ -20,6 +20,7 @@ type Changes struct {
 	AllDay                       *bool
 	Invite                       *[]string // replaces the attendee list
 	ColorID                      *string   // "" = back to the calendar's color
+	LabelID                      *string   // a color label of the calendar; "" = none
 	CalendarID                   *string   // name or ID: moves the event (an instance's whole series: scope all)
 }
 
@@ -40,6 +41,9 @@ func (c Changes) apply(e *model.Event) error {
 	}
 	if c.ColorID != nil {
 		e.ColorID = *c.ColorID
+	}
+	if c.LabelID != nil && *c.LabelID != e.LabelID {
+		e.LabelID, e.LabelChanged = *c.LabelID, true
 	}
 	if c.Invite != nil {
 		setInvites(e, *c.Invite)

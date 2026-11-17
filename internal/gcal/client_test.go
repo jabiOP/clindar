@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -170,5 +172,48 @@ func TestMoveEventPostsToMove(t *testing.T) {
 	}
 	if got.ID != "e1" || got.CalendarID != "to" || got.ETag != `"2"` {
 		t.Errorf("got %+v, want e1 in calendar to with the new etag", got)
+	}
+}
+
+func TestCalendarLabelsAreRead(t *testing.T) {
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/calendars/cal" {
+			http.Error(w, "unexpected path "+r.URL.Path, 500)
+			return
+		}
+		fmt.Fprint(w, `{"id":"cal","labelProperties":{"eventLabels":[{"id":"l1","name":"Focus","backgroundColor":"#123456"}]}}`)
+	})
+
+	labels, err := c.CalendarLabels(context.Background(), "cal")
+
+	if err != nil || len(labels) != 1 || labels[0] != (model.Label{ID: "l1", Name: "Focus", Color: "#123456"}) {
+		t.Errorf("labels = %+v, %v", labels, err)
+	}
+}
+
+// A write with a label goes the label way (eventLabelVersion=1, eventLabelId
+// always sent); one without stays on colorId.
+func TestPatchSendsLabelsTheLabelWay(t *testing.T) {
+	var query, body string
+	c := newClient(t, func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		query, body = r.URL.RawQuery, string(b)
+		fmt.Fprint(w, `{"id":"e1","eventLabelId":"l1","start":{"date":"2026-11-14"},"end":{"date":"2026-11-15"}}`)
+	})
+	e := model.Event{ID: "e1", Title: "x", AllDay: true, Start: time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC),
+		End: time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)}
+
+	got, err := c.PatchEvent(context.Background(), "cal", e, "", "none")
+	if err != nil || strings.Contains(query, "eventLabelVersion") || strings.Contains(body, "eventLabelId") {
+		t.Errorf("no label: query %q body %s, %v", query, body, err)
+	}
+	if got.LabelID != "l1" {
+		t.Errorf("LabelID read back = %q", got.LabelID)
+	}
+
+	e.LabelID, e.LabelChanged = "", true // removing a label
+	c.PatchEvent(context.Background(), "cal", e, "", "none")
+	if !strings.Contains(query, "eventLabelVersion=1") || !strings.Contains(body, `"eventLabelId":""`) {
+		t.Errorf("label removed: query %q body %s", query, body)
 	}
 }

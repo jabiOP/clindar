@@ -17,6 +17,7 @@ func FromAPI(accountID, calendarID string, ev *calendar.Event) (model.Event, err
 		SeriesID: ev.RecurringEventId, Status: ev.Status,
 		Title: ev.Summary, Description: ev.Description, Location: ev.Location,
 		Recurrence: ev.Recurrence, ETag: ev.Etag, Link: ev.HtmlLink, ColorID: ev.ColorId,
+		LabelID: ev.EventLabelId,
 	}
 	if e.Status == "" {
 		e.Status = model.StatusConfirmed
@@ -113,7 +114,28 @@ func ToAPI(e model.Event) *calendar.Event {
 	if e.ColorID == "" {
 		ev.NullFields = append(ev.NullFields, "ColorId") // back to the calendar's color; omitted fields don't clear
 	}
+	if UsesLabels(e) { // with labels, an omitted eventLabelId removes the label: always send it
+		ev.EventLabelId = e.LabelID
+		ev.ForceSendFields = append(ev.ForceSendFields, "EventLabelId")
+	}
 	return ev
+}
+
+// UsesLabels says whether a write must go the label way (eventLabelVersion=1,
+// which also makes Google ignore colorId): the event has a label, or an edit
+// just removed one. Other writes stay on colorId, as before labels existed.
+func UsesLabels(e model.Event) bool { return e.LabelID != "" || e.LabelChanged }
+
+// LabelsFromAPI converts a calendar's event labels.
+func LabelsFromAPI(c *calendar.Calendar) []model.Label {
+	if c.LabelProperties == nil {
+		return nil
+	}
+	var out []model.Label
+	for _, l := range c.LabelProperties.EventLabels {
+		out = append(out, model.Label{ID: l.Id, Name: l.Name, Color: l.BackgroundColor})
+	}
+	return out
 }
 
 // AttendeesToAPI builds a patch body containing only the attendee list.
