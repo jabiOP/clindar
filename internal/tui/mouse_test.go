@@ -74,6 +74,7 @@ func TestClickSelectedDayStartsEventMode(t *testing.T) {
 	if got := f.model().selected; !got.Equal(time.Date(2026, 11, 16, 0, 0, 0, 0, f.ny)) {
 		t.Fatalf("selected = %v, want Nov 16", got)
 	}
+	f.clock = f.clock.Add(time.Second) // a second, separate click (not a double click)
 	f.click(f.dayAt(16))
 
 	if m := f.model(); m.view != viewGrid || !m.dayMode {
@@ -86,6 +87,7 @@ func TestClickSelectedDayStartsEventMode(t *testing.T) {
 func TestClickSelectedEmptyDaySaysSo(t *testing.T) {
 	f := newMouseFixture(t)
 	f.click(f.dayAt(17)) // Tue 17: nothing
+	f.clock = f.clock.Add(time.Second)
 	f.click(f.dayAt(17))
 
 	if m := f.model(); m.dayMode || !strings.Contains(m.message, "no events") {
@@ -327,8 +329,20 @@ func (f *fixture) emptyAt(d int) (int, int) {
 	return f.where(func(t target) bool { return t.kind == targetEmpty && t.day.Equal(day) })
 }
 
-func TestClickEmptySpaceOpensQuickAdd(t *testing.T) {
+// One click on a day only selects it; a double click adds an event there.
+func TestDoubleClickOnADayOpensQuickAdd(t *testing.T) {
 	f := newMouseFixture(t)
+	f.click(f.emptyAt(17))
+	if m := f.model(); m.mode != modeNormal || !m.selected.Equal(time.Date(2026, 11, 17, 0, 0, 0, 0, f.ny)) {
+		t.Fatalf("one click: mode = %v, selected %v; want Tue 17 selected, nothing else", m.mode, m.selected)
+	}
+	f.clock = f.clock.Add(time.Second) // too slow for a double click
+	f.click(f.emptyAt(17))
+	if f.model().mode != modeNormal {
+		t.Fatalf("two slow clicks must not add")
+	}
+
+	f.clock = f.clock.Add(100 * time.Millisecond)
 	f.click(f.emptyAt(17))
 
 	if m := f.model(); m.mode != modeQuick || !strings.Contains(f.m.View(), "Tue 17 Nov, all day") {

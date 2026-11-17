@@ -52,6 +52,9 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	case msg.Action == tea.MouseActionRelease && m.span.active:
 		s := m.span
 		m.span = spanDrag{}
+		if s.over.Equal(s.from) { // a plain click: the day is selected, nothing more
+			return m, nil
+		}
 		from, to := s.from, s.over
 		if to.Before(from) {
 			from, to = to, from
@@ -95,6 +98,14 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.message = ""
+	if t.kind == targetDay || t.kind == targetEmpty { // a double click on a day adds an event there
+		now := m.deps.Now()
+		if m.lastClick.day.Equal(t.day) && now.Sub(m.lastClick.at) < doubleClick {
+			m.lastClick, m.dayMode, m.span = clickRef{}, false, spanDrag{}
+			return m.openQuick(quickadd.Defaults{From: t.day, To: t.day})
+		}
+		m.lastClick = clickRef{day: t.day, at: now}
+	}
 	switch t.kind {
 	case targetKey: // status bar buttons
 		return m.handleKey(keyMsg(t.key))
@@ -104,7 +115,7 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 		}
 		m = m.selectDay(t.day)
 		m.dayMode = false
-	case targetEmpty: // click (or start dragging) on blank space: add an event there
+	case targetEmpty: // click selects; dragging across days adds an all-day span
 		m = m.selectDay(t.day)
 		m.dayMode = false
 		m.span = spanDrag{true, t.day, t.day}
@@ -167,6 +178,14 @@ func (m Model) drop() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m.applyChanges(d.event, ch)
+}
+
+// doubleClick is the longest gap between two clicks on a day that adds an event.
+const doubleClick = 400 * time.Millisecond
+
+// clickRef is the last click on a day, to tell a double click.
+type clickRef struct {
+	day, at time.Time
 }
 
 func (m Model) selectDay(day time.Time) Model {

@@ -38,7 +38,8 @@ func helpText(mouse bool) string {
 	}
 	if mouse {
 		s += "\nMouse\n\n" +
-			"  click a day to select it; click it again to open the list\n" +
+			"  click a day to select it; click it again to pick its events\n" +
+			"  double-click a day to add an event; drag across days to add one spanning them\n" +
 			"  click an event to see it (the wheel does nothing: use the keys to move)\n" +
 			"  drag an event to another day; drag ◂ or ▸ to change its first or last day\n" +
 			"  select text: Option-drag on macOS, Shift-drag elsewhere\n"
