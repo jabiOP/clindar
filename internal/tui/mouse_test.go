@@ -156,6 +156,44 @@ func TestDragMovesEventToAnotherDay(t *testing.T) {
 	}
 }
 
+// The blank space below a day's events is as good a drop target as its label,
+// even after a long hold (which must not read as a long press).
+func TestDragOntoBlankSpaceOfADay(t *testing.T) {
+	f := newMouseFixture(t)
+	x, y := f.eventAt("Lunch with Sam", 12, partBody)
+	toX, toY := f.emptyAt(17)
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress},
+		tea.MouseMsg{X: toX, Y: toY, Button: tea.MouseButtonLeft, Action: tea.MouseActionMotion})
+	f.clock = f.clock.Add(time.Second)
+	f.send(tea.MouseMsg{X: toX, Y: toY, Button: tea.MouseButtonNone, Action: tea.MouseActionRelease})
+
+	if m := f.model(); m.mode != modeNormal {
+		t.Fatalf("mode = %v, want normal", m.mode)
+	}
+	if got := f.titlesOn(17); !slices.Contains(got, "Lunch with Sam") {
+		t.Errorf("Nov 17 = %v, want lunch", got)
+	}
+}
+
+// Dragged away and back to its own day, slowly: nothing happens, no palette.
+func TestDragAwayAndBackCancels(t *testing.T) {
+	f := newMouseFixture(t)
+	x, y := f.eventAt("Lunch with Sam", 12, partBody)
+	awayX, awayY := f.dayAt(14)
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress},
+		tea.MouseMsg{X: awayX, Y: awayY, Button: tea.MouseButtonLeft, Action: tea.MouseActionMotion},
+		tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionMotion})
+	f.clock = f.clock.Add(time.Second)
+	f.send(tea.MouseMsg{X: x, Y: y, Button: tea.MouseButtonNone, Action: tea.MouseActionRelease})
+
+	if m := f.model(); m.mode != modeNormal {
+		t.Errorf("mode = %v, want normal", m.mode)
+	}
+	if got := f.titlesOn(12); !slices.Contains(got, "Lunch with Sam") {
+		t.Errorf("Nov 12 = %v, lunch should stay", got)
+	}
+}
+
 // It never hovers, so it also proves edges are grabbable without hover
 // (terminals that don't report motion without a button held).
 func TestDragEndHandleLengthensTrip(t *testing.T) {

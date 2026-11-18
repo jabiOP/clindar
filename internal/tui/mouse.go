@@ -24,6 +24,7 @@ type dragState struct {
 	from   time.Time // the day the event was grabbed on
 	over   time.Time // the day under the pointer now
 	at     time.Time // when it was grabbed: a long press opens the color palette
+	moved  bool      // it has left the day it was grabbed on: a release there is no click
 }
 
 // longPress is how long a press on an event, released in place, must last to
@@ -168,12 +169,14 @@ func (m Model) press(t target, onSomething bool) (tea.Model, tea.Cmd) {
 	return m, m.reloadIfNeeded()
 }
 
-// dragOver follows the pointer. Dragging onto the grid's header scrolls a
-// week back; onto the status bar, a week forward.
+// dragOver follows the pointer: anywhere in a day's cell, blank space
+// included, drops there. Dragging onto the grid's header scrolls a week back;
+// onto the status bar, a week forward.
 func (m Model) dragOver(t target, y int) (tea.Model, tea.Cmd) {
 	switch {
-	case t.kind == targetDay || t.kind == targetEvent || t.kind == targetMore:
+	case t.kind == targetDay || t.kind == targetEmpty || t.kind == targetEvent || t.kind == targetMore:
 		m.drag.over = t.day
+		m.drag.moved = m.drag.moved || !t.day.Equal(m.drag.from)
 	case y <= 1:
 		m = m.moveDays(-7, true)
 	case y >= m.height-1:
@@ -191,6 +194,8 @@ func (m Model) drop() (tea.Model, tea.Cmd) {
 	m.drag = dragState{}
 	if d.over.Equal(d.from) { // no movement
 		switch {
+		case d.moved: // dragged away and back: cancelled, not a click or a long press
+			m.message = ""
 		case d.part == partBody && m.deps.Now().Sub(d.at) >= longPress: // a long press: its colors
 			return m.startColor(d.event), nil
 		case d.part == partBody: // a click on the event
