@@ -4,6 +4,11 @@ A fast terminal client for Google Calendar: a calendar you drive with the keyboa
 endless agenda list), and a Unix-friendly CLI for scripts, plain-text task lists and status bars. Edits work offline
 and sync in the background.
 
+<p>
+  <img src="docs/img/tui-grid.png" alt="The 4-week grid" width="49%">
+  <img src="docs/img/tui-list.png" alt="The agenda list" width="49%">
+</p>
+
 ```
 $ clindar agenda --days 2
 Tue 17 Nov
