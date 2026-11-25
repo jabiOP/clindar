@@ -9,6 +9,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/jabiOP/clindar/internal/auth"
 	"github.com/jabiOP/clindar/internal/config"
 	"github.com/jabiOP/clindar/internal/output"
 	"github.com/jabiOP/clindar/internal/service"
@@ -157,6 +158,9 @@ func (a *App) PushAfterWrite(ctx context.Context, offline bool) {
 		fmt.Fprintf(a.Stderr, "clindar: warning: sent to Google; refreshing from Google failed: %v\n", err)
 	default:
 		fmt.Fprintf(a.Stderr, "clindar: warning: saved here; not sent to Google yet (it goes with the next sync): %v\n", err)
+	}
+	if auth.LoginExpired(err) {
+		fmt.Fprintln(a.Stderr, "clindar:", auth.LoginExpiredHint)
 	}
 }
 

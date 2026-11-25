@@ -45,6 +45,9 @@ func Run(ctx context.Context, app *App, args []string) int {
 	err := root.ExecuteContext(ctx)
 	if err != nil && err.Error() != "" {
 		fmt.Fprintln(app.Stderr, "clindar:", err)
+		if auth.LoginExpired(err) {
+			fmt.Fprintln(app.Stderr, "clindar:", auth.LoginExpiredHint)
+		}
 	}
 	return exitCode(err)
 }

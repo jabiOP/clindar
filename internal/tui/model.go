@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jabiOP/clindar/internal/auth"
 	"github.com/jabiOP/clindar/internal/model"
 	"github.com/jabiOP/clindar/internal/quickadd"
 	"github.com/jabiOP/clindar/internal/service"
@@ -143,9 +144,14 @@ func (m Model) showLog() tea.Cmd {
 	}
 }
 
-// syncErrorText says why a sync failed, briefly: a network failure is just
-// "offline" (the changes wait), anything else is shown as it is.
+// syncErrorText says why a sync failed, briefly: an expired login says to log
+// in again, a network failure is just "offline" (the changes wait), anything
+// else is shown as it is. The login check comes first because the HTTP client
+// wraps a refused refresh token in a *url.Error too.
 func syncErrorText(err error) string {
+	if auth.LoginExpired(err) {
+		return "login expired: run `clindar auth login`; changes wait and sync after"
+	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) || errors.Is(err, context.DeadlineExceeded) {
 		return "offline: can't reach Google; changes wait and sync later"

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+
+	"golang.org/x/oauth2"
 	"os"
 	"strings"
 	"testing"
@@ -433,5 +435,17 @@ func TestLogKeyShowsAndAcknowledgesDiscardedEdits(t *testing.T) {
 	f.keys("x")
 	if strings.Contains(f.m.View(), "discarded") {
 		t.Errorf("after reading the log the count should go:\n%s", f.m.View())
+	}
+}
+
+// A refused refresh token arrives wrapped in a *url.Error, like a network
+// failure, but the message says to log in again rather than "offline".
+func TestExpiredLoginIsNotShownAsOffline(t *testing.T) {
+	fail := &url.Error{Op: "Get", URL: "https://www.googleapis.com/calendar/v3/…",
+		Err: &oauth2.RetrieveError{ErrorCode: "invalid_grant", ErrorDescription: "Token has been expired or revoked."}}
+	f := newFixtureWith(t, Deps{Sync: func(context.Context) error { return fail }})
+	f.keys("s")
+	if msg := f.model().message; !strings.HasPrefix(msg, "login expired: run `clindar auth login`") {
+		t.Fatalf("message = %q", msg)
 	}
 }
